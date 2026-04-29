@@ -1,0 +1,117 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2025-02-23 11:13:38.959564",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_t4f6",
+  "employee",
+  "transaction_type",
+  "transaction_name",
+  "amount",
+  "column_break_tbzj",
+  "from_date",
+  "to_date",
+  "amended_from",
+  "no_of_ticket",
+  "utilized"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_t4f6",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Air Ticket Ledger Entry",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "fieldname": "transaction_type",
+   "fieldtype": "Link",
+   "label": "Transaction Type",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "column_break_tbzj",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "transaction_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Transaction Name",
+   "options": "transaction_type"
+  },
+  {
+   "fieldname": "no_of_ticket",
+   "fieldtype": "Float",
+   "label": "No of Ticket"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date"
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date"
+  },
+  {
+   "default": "0",
+   "fieldname": "utilized",
+   "fieldtype": "Check",
+   "label": "Utilized"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-03-01 14:02:30.913135",
+ "modified_by": "Administrator",
+ "module": "Hrcustomization Synergy",
+ "name": "Air Ticket Ledger Entry",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

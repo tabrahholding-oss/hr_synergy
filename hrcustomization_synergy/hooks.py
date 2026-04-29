@@ -1,9 +1,9 @@
-app_name = "hrcustomization_synergy"
-app_title = "Hr Synergy"
-app_publisher = "Hussain Farooq"
-app_description = "HR Synergy"
-app_email = "hussain@tabrah-holding.com"
-app_license = "mit"
+app_name = "Hrcustomization Synergy"
+app_title = "hrcustomization_synergy"
+app_publisher = "NexTash"
+app_description = "This app consist of frappe HRMS"
+app_email = "support@nextash.com"
+app_license = "agpl-3.0"
 
 # Apps
 # ------------------
@@ -15,7 +15,7 @@ app_license = "mit"
 # 	{
 # 		"name": "hrcustomization_synergy",
 # 		"logo": "/assets/hrcustomization_synergy/logo.png",
-# 		"title": "Hr Synergy",
+# 		"title": "Hrcustomization Synergy",
 # 		"route": "/hrcustomization_synergy",
 # 		"has_permission": "hrcustomization_synergy.api.permission.has_app_permission"
 # 	}
@@ -129,42 +129,36 @@ app_license = "mit"
 # ---------------
 # Override standard doctype classes
 
-# override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
-# }
-
+override_doctype_class = {
+    "Leave Encashment": "hrcustomization_synergy.overrides.leave_encashment.CustomLeaveEncashment"
+}
+# Fixtures
+fixtures = [
+    {
+        "dt": "Custom Field",
+        "filters": [
+            ["module", "=", "Hrcustomization Synergy"]
+        ]
+    }
+]
 # Document Events
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+    # "Salary Slip": {
+    #     "before_validate": "hrcustomization_synergy.hrcustomization_synergy.crud_events.fetch_overtime_details"
+    # }
+}
 
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"hrcustomization_synergy.tasks.all"
-# 	],
-# 	"daily": [
-# 		"hrcustomization_synergy.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"hrcustomization_synergy.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"hrcustomization_synergy.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"hrcustomization_synergy.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+    "monthly": [
+        "hrcustomization_synergy.air_ticket_accrual.accrue_air_tickets"
+    ]
+}
 
 # Testing
 # -------
@@ -241,9 +235,4 @@ app_license = "mit"
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-
-# Translation
-# ------------
-# List of apps whose translatable strings should be excluded from this app's translations.
-# ignore_translatable_strings_from = []
 
