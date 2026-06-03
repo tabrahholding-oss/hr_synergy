@@ -7,7 +7,7 @@ frappe.ui.form.on("Leave Adjustment", {
 
 		frm.set_query("leave_type", () => {
 			return {
-				query: "hrmscustomization.hrmscustomization.doctype.leave_adjustment.leave_adjustment.get_allocated_leave_types",
+				query: "hrcustomization_synergy.hrcustomization_synergy.doctype.leave_adjustment.leave_adjustment.get_allocated_leave_types",
 				filters: {
 					employee: frm.doc.employee,
 				},
@@ -33,7 +33,7 @@ frappe.ui.form.on("Leave Adjustment", {
 	set_leave_allocation: function (frm) {
 		if (frm.doc.posting_date && frm.doc.employee && frm.doc.leave_type) {
 			frappe.call({
-				method: "hrmscustomization.hrmscustomization.doctype.leave_adjustment.leave_adjustment.get_leave_allocation_for_posting_date",
+				method: "hrcustomization_synergy.hrcustomization_synergy.doctype.leave_adjustment.leave_adjustment.get_leave_allocation_for_posting_date",
 				args: {
 					posting_date: frm.doc.posting_date,
 					employee: frm.doc.employee,
@@ -58,7 +58,7 @@ frappe.ui.form.on("Leave Adjustment", {
 	set_leave_balance: function (frm) {
 		if (frm.doc.employee && frm.doc.leave_type) {
 			frappe.call({
-				method: "hrmscustomization.hrmscustomization.doctype.leave_adjustment.leave_adjustment.get_total_leave",
+				method: "hrcustomization_synergy.hrcustomization_synergy.doctype.leave_adjustment.leave_adjustment.get_total_leave",
 				args: {
 					employee: frm.doc.employee,
 					leave_type: frm.doc.leave_type,
