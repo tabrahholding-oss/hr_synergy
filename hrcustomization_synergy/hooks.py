@@ -130,7 +130,8 @@ app_license = "agpl-3.0"
 # Override standard doctype classes
 
 override_doctype_class = {
-    "Leave Encashment": "hrcustomization_synergy.overrides.leave_encashment.CustomLeaveEncashment"
+    "Leave Encashment": "hrcustomization_synergy.overrides.leave_encashment.CustomLeaveEncashment",
+    "Leave Application": "hrcustomization_synergy.overrides.leave_application.CustomLeaveApplication"
 }
 # Fixtures
 fixtures = [
@@ -141,14 +142,15 @@ fixtures = [
         ]
     }
 ]
+before_request = ["hrcustomization_synergy.overrides.leave_patch.apply_patch"]
 # Document Events
 # ---------------
 # Hook on document methods and events
 
 doc_events = {
-    # "Salary Slip": {
-    #     "before_validate": "hrcustomization_synergy.hrcustomization_synergy.crud_events.fetch_overtime_details"
-    # }
+    "Salary Slip": {
+        "validate": "hrcustomization_synergy.overrides.salary_slip_override.apply_paid_leave_deduction",
+    }
 }
 
 # Scheduled Tasks
