@@ -130,8 +130,8 @@ app_license = "agpl-3.0"
 # Override standard doctype classes
 
 override_doctype_class = {
-    "Leave Encashment": "hrcustomization_synergy.overrides.leave_encashment.CustomLeaveEncashment",
-    "Leave Application": "hrcustomization_synergy.overrides.leave_application.CustomLeaveApplication"
+    "Leave Encashment": "hrcustomization_synergy.overrides.leave_encashment_override.LeaveEncashmentOverride",
+    "Leave Application": "hrcustomization_synergy.overrides.leave_application_override.LeaveApplicationOverride",
 }
 # Fixtures
 fixtures = [
