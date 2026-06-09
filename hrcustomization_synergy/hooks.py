@@ -140,7 +140,21 @@ fixtures = [
         "filters": [
             ["module", "=", "Hrcustomization Synergy"]
         ]
-    }
+    },
+    {
+        "dt": "Custom Field",
+        "filters": [
+            ["name", "in", [
+                "Company-custom_intercompany_receivable_account",
+                "Company-custom_intercompany_payable_account",
+                "Stock Entry-custom_source_company",
+                "Stock Entry-custom_target_company",
+                "Stock Entry-custom_source_warehouse",
+                "Stock Entry-custom_target_warehouse",
+                "Item-custom_arabic_name",
+            ]]
+        ]
+    },
 ]
 before_request = ["hrcustomization_synergy.overrides.leave_patch.apply_patch"]
 # Document Events
@@ -150,6 +164,9 @@ before_request = ["hrcustomization_synergy.overrides.leave_patch.apply_patch"]
 doc_events = {
     "Salary Slip": {
         "validate": "hrcustomization_synergy.overrides.salary_slip_override.apply_paid_leave_deduction",
+    },
+    "Stock Entry": {
+        "validate": "hrcustomization_synergy.overrides.custom.validate_intercompany_transfer",
     }
 }
 
@@ -161,7 +178,12 @@ scheduler_events = {
         "hrcustomization_synergy.air_ticket_accrual.accrue_air_tickets"
     ]
 }
-
+app_include_js = [
+    "/assets/hrcustomization_synergy/js/custom.js",
+]
+doctype_js = {
+    "Stock Entry": "public/js/custom.js",
+}
 # Testing
 # -------
 
