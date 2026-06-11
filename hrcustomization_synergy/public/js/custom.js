@@ -148,8 +148,6 @@ frappe.ui.form.on("Stock Entry", {
 
 
 frappe.ui.form.on("Leave Application", {
-   
-
     leave_type(frm) {
         calculate_forecasted_leave(frm);
     },
@@ -167,7 +165,7 @@ function to_flt(value) {
     return parseFloat(value || 0) || 0;
 }
 
-// Function to calculate leave balance including Leave Adjustment
+// Function to calculate leave balance including Leave Adjustment and Carry Forward
 async function get_leave_balance(employee, leave_type, target_date) {
     if (!employee || !leave_type || !target_date) return 0;
 
@@ -231,23 +229,17 @@ async function get_leave_balance(employee, leave_type, target_date) {
         ledger_entries.forEach(row => {
             let leaves = to_flt(row.leaves);
 
-            // Leave Allocation usually has new leaves and carry-forward leaves.
-            // Your old code removed carry-forward, so we keep the same behavior.
+            // FIX: Allow both regular allocations AND carry-forward leaves to build the base balance
             if (row.transaction_type === "Leave Allocation") {
-                if (cint(row.is_carry_forward) === 0) {
-                    leave_balance += leaves;
-                }
+                leave_balance += leaves;
             }
 
-            // Leave Adjustment can be positive or negative.
-            // Positive adjustment adds leave.
-            // Negative adjustment deducts leave.
+            // Leave Adjustment can be positive or negative
             if (row.transaction_type === "Leave Adjustment") {
                 leave_balance += leaves;
             }
 
-            // Leave Application usually creates negative ledger entries.
-            // So adding it will reduce the balance automatically.
+            // Leave Applications deduct from the balance
             if (row.transaction_type === "Leave Application") {
                 leave_balance += leaves;
             }
@@ -275,7 +267,9 @@ async function calculate_forecasted_leave(frm) {
         "relieving_date"
     ]);
 
-    let joining_date = emp.message.date_of_joining || frm.doc.date_of_joining || frm.doc.joining_date;
+    // Handle variation in how frappe returns db values based on framework versions
+    let data = emp.message ? emp.message : emp;
+    let joining_date = data.date_of_joining || frm.doc.date_of_joining || frm.doc.joining_date;
 
     if (!joining_date) {
         frappe.msgprint("Joining Date is missing for the employee.");
