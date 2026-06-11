@@ -12,7 +12,7 @@ from hrms.hr.doctype.leave_application.leave_application import (
 )
 
 LEAVE_SALARY_COMPONENT = "Leave Salary"
-LEAVE_SALARY_FORMULA_FIELD = "leave_salary_formula"
+LEAVE_SALARY_FORMULA_FIELD = "custom_leave_salary_formula"
 
 class LeaveApplicationOverride(LeaveApplication):
     def validate_balance_leaves(self):
@@ -82,7 +82,7 @@ class LeaveApplicationOverride(LeaveApplication):
             amount = leave_days_in_that_month * one_day_leave_salary
 
         one_day_leave_salary comes from:
-            Salary Structure.leave_salary_formula
+            Salary Structure.custom_leave_salary_formula
         """
 
         if not self.employee or not self.leave_type or not self.from_date or not self.to_date:
