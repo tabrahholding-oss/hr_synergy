@@ -20,7 +20,7 @@ class LeaveApplicationOverride(LeaveApplication):
         Override HRMS default leave balance validation.
 
         Default HRMS validates against leave_balance_for_consumption.
-        This custom version validates against custom field: forecasted_leave.
+        This custom version validates against custom field: custom_forecasted_leave_balance.
         """
 
         if self.from_date and self.to_date:
@@ -46,11 +46,11 @@ class LeaveApplicationOverride(LeaveApplication):
             if cint(is_lwp):
                 return
 
-            forecasted_leave = flt(self.get("forecasted_leave"))
+            custom_forecasted_leave_balance = flt(self.get("custom_forecasted_leave_balance"))
             total_leave_days = flt(self.total_leave_days)
 
             if self.status != "Rejected" and (
-                forecasted_leave < total_leave_days or not forecasted_leave
+                custom_forecasted_leave_balance < total_leave_days or not custom_forecasted_leave_balance
             ):
                 frappe.throw(
                     _(
@@ -59,7 +59,7 @@ class LeaveApplicationOverride(LeaveApplication):
                     ).format(
                         frappe.bold(self.leave_type),
                         frappe.bold(total_leave_days),
-                        frappe.bold(forecasted_leave),
+                        frappe.bold(custom_forecasted_leave_balance),
                     ),
                     title=_("Insufficient Forecasted Leave"),
                 )

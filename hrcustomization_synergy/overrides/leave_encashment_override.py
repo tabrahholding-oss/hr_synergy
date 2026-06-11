@@ -18,7 +18,7 @@ class LeaveEncashmentOverride(LeaveEncashment):
 
         encashment_days = flt(self.encashment_days)
         actual_days = flt(self.actual_encashable_days)
-        forecasted_days = flt(self.forecasted_encashable_days)
+        forecasted_days = flt(self.custom_forecasted_encashable_days)
 
         # Case 1: Employee going on vacation or leaving company
         if self.employee_going_on_vacation or self.employee_leaving_company:
