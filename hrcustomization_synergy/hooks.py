@@ -152,6 +152,10 @@ fixtures = [
                 "Stock Entry-custom_source_warehouse",
                 "Stock Entry-custom_target_warehouse",
                 "Item-custom_arabic_name",
+                "Salary Slip-custom_present_days",
+                "Salary Slip-custom_paid_leave_days",
+                "Salary Slip-custom_leave_without_pay_days",
+                "Salary Slip-custom_qatar_hr_attendance_summary",
             ]]
         ]
     },

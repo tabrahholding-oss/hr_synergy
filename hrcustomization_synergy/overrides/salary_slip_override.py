@@ -5,7 +5,7 @@ from frappe.utils import flt, getdate, money_in_words
 
 
 def apply_paid_leave_deduction(doc, method=None):
-    paid_leave_days = flt(doc.get("qhr_paid_leave_days") or 0)
+    paid_leave_days = flt(doc.get("custom_paid_leave_days") or 0)
 
     # Important:
     # If there is no paid leave, do nothing.
