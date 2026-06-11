@@ -187,6 +187,7 @@ app_include_js = [
 ]
 doctype_js = {
     "Stock Entry": "public/js/custom.js",
+    "Leave Application": "public/js/custom.js",
 }
 # Testing
 # -------
