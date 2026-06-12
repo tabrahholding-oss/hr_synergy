@@ -156,6 +156,9 @@ fixtures = [
                 "Salary Slip-custom_paid_leave_days",
                 "Salary Slip-custom_leave_without_pay_days",
                 "Salary Slip-custom_qatar_hr_attendance_summary",
+                "Purchase Order-custom_delivery_at",
+                "Stock Entry-custom_reason_code",
+                "Stock Entry-custom_account",
             ]]
         ]
     },
