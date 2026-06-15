@@ -174,10 +174,10 @@ doc_events = {
     },
     "Stock Entry": {
         "validate": "hrcustomization_synergy.overrides.custom.validate_intercompany_transfer",
-    },
-    "Leave Application": {
-        "validate": "hrcustomization_synergy.overrides.leave_application.validate_leave_application"
     }
+    # "Leave Application": {
+    #     "validate": "hrcustomization_synergy.overrides.leave_application.validate_leave_application"
+    # }
 }
 
 # Scheduled Tasks
