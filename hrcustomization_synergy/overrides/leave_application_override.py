@@ -15,6 +15,91 @@ LEAVE_SALARY_COMPONENT = "Leave Salary"
 LEAVE_SALARY_FORMULA_FIELD = "custom_leave_salary_formula"
 
 class LeaveApplicationOverride(LeaveApplication):
+    def validate(self):
+        self.calculate_forecasted_leave()
+        super().validate()
+
+    def calculate_forecasted_leave(self):
+        if self.leave_type != "Annual Leave" or not self.from_date or not self.employee:
+            self.custom_forcasted_leave = 0
+            return
+
+        leave_balance = self.get_forecasted_leave_balance()
+
+        emp = frappe.db.get_value(
+            "Employee", self.employee,
+            ["date_of_joining"],
+            as_dict=True
+        )
+
+        if not emp or not emp.date_of_joining:
+            self.custom_forcasted_leave = flt(leave_balance, 2)
+            return
+
+        from datetime import date
+        today = date.today()
+        joining = getdate(emp.date_of_joining)
+
+        years = today.year - joining.year
+        if (today.month, today.day) < (joining.month, joining.day):
+            years -= 1
+
+        yearly_leave = 30 if years > 5 else 21
+
+        first_day = today.replace(day=1)
+        from_date = getdate(self.from_date)
+
+        diff_days = (from_date - first_day).days
+        if diff_days < 0:
+            diff_days = 0
+
+        forecasting_days = (yearly_leave / 365) * diff_days
+        self.custom_forcasted_leave = flt(leave_balance + forecasting_days, 2)
+
+    def get_forecasted_leave_balance(self):
+        allocations = frappe.get_list(
+            "Leave Allocation",
+            filters={
+                "employee": self.employee,
+                "leave_type": self.leave_type,
+                "docstatus": 1,
+                "from_date": ["<=", self.from_date],
+                "to_date": [">=", self.from_date]
+            },
+            fields=["name", "from_date"],
+            order_by="from_date desc",
+            limit=1
+        )
+
+        if not allocations:
+            return 0
+
+        allocation = allocations[0]
+
+        ledger_entries = frappe.get_list(
+            "Leave Ledger Entry",
+            filters={
+                "employee": self.employee,
+                "leave_type": self.leave_type,
+                "docstatus": 1,
+                "is_expired": 0,
+                "is_lwp": 0,
+                "from_date": ["<=", self.from_date],
+                "to_date": [">=", allocation.from_date],
+                "transaction_type": ["in", [
+                    "Leave Allocation",
+                    "Leave Application",
+                    "Leave Adjustment"
+                ]]
+            },
+            fields=["leaves", "transaction_type"]
+        )
+
+        balance = 0
+        for row in ledger_entries:
+            balance += flt(row.leaves)
+
+        return balance
     def validate_balance_leaves(self):
         """
         Override HRMS default leave balance validation.

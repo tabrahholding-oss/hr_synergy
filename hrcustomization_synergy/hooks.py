@@ -176,7 +176,7 @@ doc_events = {
         "validate": "hrcustomization_synergy.overrides.custom.validate_intercompany_transfer",
     }
     # "Leave Application": {
-    #     "validate": "hrcustomization_synergy.overrides.leave_application.validate_leave_application"
+        # "validate": "hrcustomization_synergy.overrides.leave_application.validate_leave_application"
     # }
 }
 
@@ -195,6 +195,7 @@ doctype_js = {
     "Stock Entry": "public/js/custom.js",
     "Leave Application": "public/js/custom.js",
 }
+
 # Testing
 # -------
 
