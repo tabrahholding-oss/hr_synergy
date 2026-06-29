@@ -129,12 +129,16 @@ class LeaveApplicationOverride(LeaveApplication):
             if cint(is_lwp):
                 return
 
+            # Only validate forecasted leave for Annual Leave
+            if self.leave_type != "Annual Leave":
+                return
+
             custom_forcasted_leave = flt(self.get("custom_forcasted_leave"))
             total_leave_days = flt(self.total_leave_days)
 
-            # Added a tiny rounding tolerance threshold (0.01) to protect against floating point mismatches
             if self.status != "Rejected" and (
-                (total_leave_days - custom_forcasted_leave) > 0.01 or not custom_forcasted_leave
+                (total_leave_days - custom_forcasted_leave) > 0.01
+                or not custom_forcasted_leave
             ):
                 frappe.throw(
                     _(
