@@ -78,6 +78,8 @@ def set_attendance_summary(doc):
         custom_present_days
         custom_paid_leave_days
         custom_leave_without_pay_days
+        absent_days
+        payment_days
     """
 
     if not doc.employee or not doc.start_date or not doc.end_date:
@@ -171,6 +173,23 @@ def set_attendance_summary(doc):
         leave_without_pay_days,
         2
     )
+
+    # --- NEW: total days, absent_days, payment_days ---
+    total_days = flt(
+        (getdate(doc.end_date) - getdate(doc.start_date)).days + 1
+    )
+
+    doc.total_working_days = total_days
+
+    # Paid leave + LWP + actual absent — sab ko "absent" treat kiya
+    # ja raha hai payment_days kam karne ke liye, jaisa aapne bataya
+    total_absent = flt(
+        absent_days + paid_leave_days + leave_without_pay_days,
+        2
+    )
+
+    doc.absent_days = total_absent
+    doc.payment_days = flt(total_days - total_absent, 2)
 
 
 def recalculate_salary_slip_totals(doc):
