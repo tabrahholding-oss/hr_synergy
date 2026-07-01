@@ -169,9 +169,9 @@ before_request = ["hrcustomization_synergy.overrides.leave_patch.apply_patch"]
 # Hook on document methods and events
 
 doc_events = {
-    "Salary Slip": {
-        "validate": "hrcustomization_synergy.overrides.salary_slip_override.apply_paid_leave_deduction",
-    },
+    # "Salary Slip": {
+    #     "validate": "hrcustomization_synergy.overrides.salary_slip_override.apply_paid_leave_deduction",
+    # },
     "Stock Entry": {
         "validate": "hrcustomization_synergy.overrides.custom.validate_intercompany_transfer",
     }
