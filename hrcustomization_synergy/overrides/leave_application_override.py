@@ -298,7 +298,7 @@ class LeaveApplicationOverride(LeaveApplication):
             additional_salary.overwrite_salary_structure_amount = 0
 
         if additional_salary.meta.has_field("type"):
-            additional_salary.type = "Earning"
+            additional_salary.type = "Deduction"
 
         if additional_salary.meta.has_field("ref_doctype"):
             additional_salary.ref_doctype = "Leave Application"
