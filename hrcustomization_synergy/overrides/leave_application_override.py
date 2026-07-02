@@ -167,6 +167,11 @@ class LeaveApplicationOverride(LeaveApplication):
         if self.status == "Rejected":
             return
 
+        # Sirf Annual Leave k liye hi Additional Salary create hogi.
+        # Kisi bhi doosre leave type k liye ye logic skip ho jayega.
+        if self.leave_type != "Annual Leave":
+            return
+
         is_lwp = frappe.db.get_value("Leave Type", self.leave_type, "is_lwp")
         if cint(is_lwp):
             return
