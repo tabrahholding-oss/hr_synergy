@@ -1,0 +1,336 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-07-02 17:57:25.165858",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "request_identification_tab",
+  "company",
+  "request_date",
+  "request_by",
+  "column_break_klvn",
+  "department",
+  "role",
+  "priority",
+  "campaign_details_tab",
+  "campaign_details_section",
+  "campaign_title",
+  "primary_objective",
+  "column_break_tbay",
+  "key_message",
+  "audiance_and_channels_tab",
+  "audiance_and_channels_section",
+  "target_audience",
+  "column_break_kmsc",
+  "timeline_tab",
+  "timeline_section",
+  "sales_period_start",
+  "package_validity",
+  "column_break_lwzq",
+  "sales_period_end",
+  "hard_launch_deadline",
+  "offer_and_package_structure_tab",
+  "offer_and_package_structure_section",
+  "challenge_criteria",
+  "column_break_abuw",
+  "reward",
+  "campaign_economics_and_financial_projection_tab",
+  "campaign_economics_and_financial_projection_section",
+  "baseline_20_class_price",
+  "uplift_per_conversion",
+  "column_break_bvrk",
+  "summerize_price",
+  "total_revenue_per_package",
+  "section_break_ktng",
+  "upgrade_uplift",
+  "budget_tab",
+  "budget_section",
+  "estimated_budget_qar",
+  "funding_source",
+  "table",
+  "expected_outcomes_and_kpi_dashboard_tab",
+  "expected_outcomes_and_kpi_dashboard_section",
+  "table_qbak",
+  "content_pillars_and_messaging_tab",
+  "content_pillars_and_messaging_section",
+  "content_pillars",
+  "key_communication_messages"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "request_identification_tab",
+   "fieldtype": "Tab Break",
+   "label": "Request Identification"
+  },
+  {
+   "fieldname": "request_date",
+   "fieldtype": "Date",
+   "label": "Request Date"
+  },
+  {
+   "fieldname": "request_by",
+   "fieldtype": "Link",
+   "label": "Request By",
+   "options": "User"
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Data",
+   "label": "Department"
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Data",
+   "label": "Role"
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "label": "Priority",
+   "options": "\nLow\nMedium\nHigh\nUrgent"
+  },
+  {
+   "fieldname": "campaign_details_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "campaign_title",
+   "fieldtype": "Data",
+   "label": "Campaign Title"
+  },
+  {
+   "fieldname": "primary_objective",
+   "fieldtype": "Small Text",
+   "label": "Primary Objective"
+  },
+  {
+   "fieldname": "key_message",
+   "fieldtype": "Small Text",
+   "label": "Key Message"
+  },
+  {
+   "fieldname": "audiance_and_channels_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "target_audience",
+   "fieldtype": "Small Text",
+   "label": "Target Audience"
+  },
+  {
+   "fieldname": "timeline_section",
+   "fieldtype": "Section Break",
+   "label": "Timeline"
+  },
+  {
+   "fieldname": "sales_period_start",
+   "fieldtype": "Date",
+   "label": "Sales Period Start "
+  },
+  {
+   "fieldname": "package_validity",
+   "fieldtype": "Date",
+   "label": "Package Validity"
+  },
+  {
+   "fieldname": "column_break_lwzq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales_period_end",
+   "fieldtype": "Date",
+   "label": "Sales Period End"
+  },
+  {
+   "fieldname": "hard_launch_deadline",
+   "fieldtype": "Date",
+   "label": "Hard Launch Deadline"
+  },
+  {
+   "fieldname": "offer_and_package_structure_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "challenge_criteria",
+   "fieldtype": "Small Text",
+   "label": "Challenge Criteria"
+  },
+  {
+   "fieldname": "reward",
+   "fieldtype": "Small Text",
+   "label": "Reward"
+  },
+  {
+   "fieldname": "campaign_economics_and_financial_projection_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "baseline_20_class_price",
+   "fieldtype": "Currency",
+   "label": "Baseline (20 Class) Price"
+  },
+  {
+   "fieldname": "uplift_per_conversion",
+   "fieldtype": "Currency",
+   "label": "Uplift per Conversion"
+  },
+  {
+   "fieldname": "column_break_bvrk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "summerize_price",
+   "fieldtype": "Currency",
+   "label": "Summerize Price"
+  },
+  {
+   "fieldname": "total_revenue_per_package",
+   "fieldtype": "Currency",
+   "label": "Total Revenue per Package"
+  },
+  {
+   "fieldname": "section_break_ktng",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "upgrade_uplift",
+   "fieldtype": "Table",
+   "label": "Upgrade Uplift",
+   "options": "Upgrade Uplift"
+  },
+  {
+   "fieldname": "budget_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "estimated_budget_qar",
+   "fieldtype": "Data",
+   "label": "Estimated Budget (QAR)"
+  },
+  {
+   "fieldname": "funding_source",
+   "fieldtype": "Data",
+   "label": "Funding Source"
+  },
+  {
+   "fieldname": "table",
+   "fieldtype": "Table",
+   "label": "Budget Table",
+   "options": "Budget Breakdown"
+  },
+  {
+   "fieldname": "expected_outcomes_and_kpi_dashboard_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "table_qbak",
+   "fieldtype": "Table",
+   "options": "KPI"
+  },
+  {
+   "fieldname": "content_pillars_and_messaging_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "content_pillars",
+   "fieldtype": "Table",
+   "label": "Content Pillars",
+   "options": "Content Pillars"
+  },
+  {
+   "fieldname": "key_communication_messages",
+   "fieldtype": "Small Text",
+   "label": "Key Communication Messages"
+  },
+  {
+   "fieldname": "column_break_klvn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_tbay",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_kmsc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_abuw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "campaign_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Campaign Details"
+  },
+  {
+   "fieldname": "audiance_and_channels_tab",
+   "fieldtype": "Tab Break",
+   "label": "Audiance And Channels"
+  },
+  {
+   "fieldname": "timeline_tab",
+   "fieldtype": "Tab Break",
+   "label": "Timeline"
+  },
+  {
+   "fieldname": "offer_and_package_structure_tab",
+   "fieldtype": "Tab Break",
+   "label": "Offer And Package Structure"
+  },
+  {
+   "fieldname": "campaign_economics_and_financial_projection_tab",
+   "fieldtype": "Tab Break",
+   "label": "Campaign Economics And Financial Projection"
+  },
+  {
+   "fieldname": "budget_tab",
+   "fieldtype": "Tab Break",
+   "label": "Budget"
+  },
+  {
+   "fieldname": "expected_outcomes_and_kpi_dashboard_tab",
+   "fieldtype": "Tab Break",
+   "label": "Expected Outcomes And KPI Dashboard"
+  },
+  {
+   "fieldname": "content_pillars_and_messaging_tab",
+   "fieldtype": "Tab Break",
+   "label": "Content Pillars And Messaging"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-02 19:06:24.840749",
+ "modified_by": "Administrator",
+ "module": "Hrcustomization Synergy",
+ "name": "Marketing Campaign Request",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
