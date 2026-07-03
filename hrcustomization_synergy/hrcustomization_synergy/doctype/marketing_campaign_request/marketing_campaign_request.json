@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "MCR-.YYYY.-.####",
  "creation": "2026-07-02 17:57:25.165858",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -18,11 +19,14 @@
   "campaign_title",
   "primary_objective",
   "column_break_tbay",
+  "campaign_type",
   "key_message",
   "audiance_and_channels_tab",
   "audiance_and_channels_section",
-  "target_audience",
   "column_break_kmsc",
+  "channel",
+  "column_break_spos",
+  "target_audience",
   "timeline_tab",
   "timeline_section",
   "sales_period_start",
@@ -35,6 +39,8 @@
   "challenge_criteria",
   "column_break_abuw",
   "reward",
+  "section_break_aqzg",
+  "package_table",
   "campaign_economics_and_financial_projection_tab",
   "campaign_economics_and_financial_projection_section",
   "baseline_20_class_price",
@@ -55,7 +61,12 @@
   "content_pillars_and_messaging_tab",
   "content_pillars_and_messaging_section",
   "content_pillars",
-  "key_communication_messages"
+  "key_communication_messages",
+  "campaign_will_follow_the_tabrah__velo_gym_brand_guidelines",
+  "creative_brief_required_one_per_content_pillar_5",
+  "supporting_documents_attached_section",
+  "yes",
+  "no"
  ],
  "fields": [
   {
@@ -82,13 +93,15 @@
   },
   {
    "fieldname": "department",
-   "fieldtype": "Data",
-   "label": "Department"
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department"
   },
   {
    "fieldname": "role",
-   "fieldtype": "Data",
-   "label": "Role"
+   "fieldtype": "Link",
+   "label": "Role",
+   "options": "Designation"
   },
   {
    "fieldname": "priority",
@@ -136,7 +149,7 @@
   },
   {
    "fieldname": "package_validity",
-   "fieldtype": "Date",
+   "fieldtype": "Text",
    "label": "Package Validity"
   },
   {
@@ -304,15 +317,71 @@
    "fieldname": "content_pillars_and_messaging_tab",
    "fieldtype": "Tab Break",
    "label": "Content Pillars And Messaging"
+  },
+  {
+   "fieldname": "campaign_type",
+   "fieldtype": "Link",
+   "label": "Campaign Type",
+   "options": "Campaign Type"
+  },
+  {
+   "fieldname": "channel",
+   "fieldtype": "Link",
+   "label": "Channel",
+   "options": "Channel"
+  },
+  {
+   "fieldname": "column_break_spos",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_aqzg",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "package_table",
+   "fieldtype": "Table",
+   "label": "Package Table",
+   "options": "Package Table"
+  },
+  {
+   "default": "0",
+   "fieldname": "campaign_will_follow_the_tabrah__velo_gym_brand_guidelines",
+   "fieldtype": "Check",
+   "label": "Campaign will follow the Tabrah / Velo Gym Brand Guidelines."
+  },
+  {
+   "default": "0",
+   "fieldname": "creative_brief_required_one_per_content_pillar_5",
+   "fieldtype": "Check",
+   "label": "Creative brief required one per content pillar (5)."
+  },
+  {
+   "fieldname": "supporting_documents_attached_section",
+   "fieldtype": "Section Break",
+   "label": "Supporting documents attached"
+  },
+  {
+   "default": "0",
+   "fieldname": "yes",
+   "fieldtype": "Check",
+   "label": "Yes"
+  },
+  {
+   "default": "0",
+   "fieldname": "no",
+   "fieldtype": "Check",
+   "label": "No"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-02 19:06:24.840749",
+ "modified": "2026-07-03 14:25:29.420027",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "Marketing Campaign Request",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {

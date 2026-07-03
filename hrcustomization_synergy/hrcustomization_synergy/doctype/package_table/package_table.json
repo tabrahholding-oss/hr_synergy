@@ -1,51 +1,64 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-07-02 18:39:09.918454",
+ "creation": "2026-07-03 13:51:05.784667",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "kpi",
-  "basis__formula",
-  "target",
-  "actual"
+  "package",
+  "classes",
+  "validity",
+  "price_qar",
+  "guest_passes",
+  "extras"
  ],
  "fields": [
   {
-   "fieldname": "kpi",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "KPI",
-   "options": "KRA"
-  },
-  {
-   "fieldname": "basis__formula",
+   "fieldname": "package",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Basis / Formula "
+   "label": "Package"
   },
   {
-   "fieldname": "target",
+   "fieldname": "classes",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Target"
+   "label": "Classes"
   },
   {
-   "fieldname": "actual",
+   "fieldname": "validity",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Actual"
+   "label": "Validity"
+  },
+  {
+   "fieldname": "price_qar",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Price (QAR)"
+  },
+  {
+   "fieldname": "guest_passes",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Guest Passes"
+  },
+  {
+   "fieldname": "extras",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Extras"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-03 13:55:48.953322",
+ "modified": "2026-07-03 13:54:13.830986",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
- "name": "KPI",
+ "name": "Package Table",
  "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",
