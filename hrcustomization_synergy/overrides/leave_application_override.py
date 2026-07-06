@@ -26,11 +26,6 @@ class LeaveApplicationOverride(LeaveApplication):
 
         leave_balance = self.get_forecasted_leave_balance()
 
-        frappe.log_error(
-            title="Forecasted Leave Debug",
-            message=f"employee={self.employee}, from_date={self.from_date} (type={type(self.from_date)}), leave_balance={leave_balance}"
-        )
-
         emp = frappe.db.get_value(
             "Employee", self.employee,
             ["date_of_joining"],
@@ -41,8 +36,7 @@ class LeaveApplicationOverride(LeaveApplication):
             self.custom_forcasted_leave = flt(leave_balance, 2)
             return
 
-        from datetime import date
-        today = date.today()
+        today = getdate(frappe.utils.nowdate())
         joining = getdate(emp.date_of_joining)
 
         years = today.year - joining.year
@@ -59,33 +53,15 @@ class LeaveApplicationOverride(LeaveApplication):
             diff_days = 0
 
         forecasting_days = (yearly_leave / 365) * diff_days
-        self.custom_forcasted_leave = flt(leave_balance + forecasting_days, 2)
+        
+        # Explicitly setting the attribute and saving to doc context
+        calculated_value = flt(leave_balance + forecasting_days, 2)
+        self.custom_forcasted_leave = calculated_value
+        self.set("custom_forcasted_leave", calculated_value) # Force set context
 
     def get_forecasted_leave_balance(self):
-        allocations = frappe.get_list(
-            "Leave Allocation",
-            filters={
-                "employee": self.employee,
-                "leave_type": self.leave_type,
-                "docstatus": 1,
-                "from_date": ["<=", self.from_date],
-                "to_date": [">=", self.from_date]
-            },
-            fields=["name", "from_date"],
-            order_by="from_date desc",
-            limit=1
-        )
-        frappe.log_error(title="Allocation Debug", message=f"employee={self.employee}, from_date={self.from_date}, allocations={allocations}")
-
-        if not allocations:
-            return 0
-
-        if not allocations:
-            return 0
-
-        allocation = allocations[0]
-
-        ledger_entries = frappe.get_list(
+        # Direct Ledger Entry query based on your successful debug console query
+        ledger_entries = frappe.get_all(
             "Leave Ledger Entry",
             filters={
                 "employee": self.employee,
@@ -93,28 +69,15 @@ class LeaveApplicationOverride(LeaveApplication):
                 "docstatus": 1,
                 "is_expired": 0,
                 "is_lwp": 0,
-                "from_date": ["<=", self.from_date],
-                "to_date": [">=", allocation.from_date],
-                "transaction_type": ["in", [
-                    "Leave Allocation",
-                    "Leave Application",
-                    "Leave Adjustment"
-                ]]
+                "from_date": ["<=", self.from_date] # Target date tak ka balance
             },
-            fields=["leaves", "transaction_type"]
+            fields=["leaves"]
         )
 
-        balance = 0
-        for row in ledger_entries:
-            balance += flt(row.leaves)
-
+        balance = sum(flt(row.leaves) for row in ledger_entries)
         return balance
-    def validate_balance_leaves(self):
-        """
-        Override HRMS default leave balance validation.
-        Validates against custom field: custom_forcasted_leave.
-        """
 
+    def validate_balance_leaves(self):
         if self.from_date and self.to_date:
             self.total_leave_days = get_number_of_leave_days(
                 self.employee,
@@ -127,10 +90,7 @@ class LeaveApplicationOverride(LeaveApplication):
 
             if self.total_leave_days <= 0:
                 frappe.throw(
-                    _(
-                        "The day(s) on which you are applying for leave are holidays. "
-                        "You need not apply for leave."
-                    ),
+                    _("The day(s) on which you are applying for leave are holidays. You need not apply for leave."),
                     title=_("Invalid Leave Application"),
                 )
 
@@ -138,17 +98,15 @@ class LeaveApplicationOverride(LeaveApplication):
             if cint(is_lwp):
                 return
 
-            # Only validate forecasted leave for Annual Leave
             if self.leave_type != "Annual Leave":
                 return
 
-            custom_forcasted_leave = flt(self.get("custom_forcasted_leave"))
+            # Re-run or fetch directly from local execution context to avoid UI field bypass
+            self.calculate_forecasted_leave()
+            custom_forcasted_leave = flt(self.custom_forcasted_leave)
             total_leave_days = flt(self.total_leave_days)
 
-            if self.status != "Rejected" and (
-                (total_leave_days - custom_forcasted_leave) > 0.01
-                or not custom_forcasted_leave
-            ):
+            if self.status != "Rejected" and ((total_leave_days - custom_forcasted_leave) > 0.01 or not custom_forcasted_leave):
                 frappe.throw(
                     _(
                         "Insufficient forecasted leave for Leave Type {0}. "
