@@ -26,6 +26,11 @@ class LeaveApplicationOverride(LeaveApplication):
 
         leave_balance = self.get_forecasted_leave_balance()
 
+        frappe.log_error(
+            title="Forecasted Leave Debug",
+            message=f"employee={self.employee}, from_date={self.from_date} (type={type(self.from_date)}), leave_balance={leave_balance}"
+        )
+
         emp = frappe.db.get_value(
             "Employee", self.employee,
             ["date_of_joining"],
@@ -70,6 +75,10 @@ class LeaveApplicationOverride(LeaveApplication):
             order_by="from_date desc",
             limit=1
         )
+        frappe.log_error(title="Allocation Debug", message=f"employee={self.employee}, from_date={self.from_date}, allocations={allocations}")
+
+        if not allocations:
+            return 0
 
         if not allocations:
             return 0
