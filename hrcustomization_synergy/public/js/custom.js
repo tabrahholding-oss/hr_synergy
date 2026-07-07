@@ -470,7 +470,7 @@
 
 
 frappe.ui.form.on("Leave Application", {
-    
+
     leave_type(frm) {
         calculate_custom_forcasted_leave(frm);
     },
@@ -488,91 +488,31 @@ function to_flt(value) {
     return parseFloat(value || 0) || 0;
 }
 
-// Function to calculate leave balance including Leave Adjustment
+// Ab ye function frappe.db.get_list() k bajaye humare whitelisted
+// server method ko call karta hai (ignore_permissions=True k sath),
+// isliye Administrator ho ya Employee khud login ho, result hamesha same aayega.
 async function get_leave_balance(employee, leave_type, target_date) {
     if (!employee || !leave_type || !target_date) return 0;
 
-    // Get Leave Allocation valid for the selected from_date
-    let allocations = await frappe.db.get_list("Leave Allocation", {
-        filters: [
-            ["employee", "=", employee],
-            ["leave_type", "=", leave_type],
-            ["docstatus", "=", 1],
-            ["from_date", "<=", target_date],
-            ["to_date", ">=", target_date]
-        ],
-        fields: [
-            "name",
-            "from_date",
-            "to_date",
-            "total_leaves_allocated",
-            "carry_forwarded_leaves_count"
-        ],
-        order_by: "from_date desc",
-        limit_page_length: 1
+    let r = await frappe.call({
+        // ATTENTION: apni app ka actual dotted path yahan dalein
+        method: "hrcustomization_synergy.overrides.leave_application.get_forecasted_leave_balance",
+        args: {
+            employee: employee,
+            leave_type: leave_type,
+            target_date: target_date
+        }
     });
 
-    if (!allocations || allocations.length === 0) {
-        return 0;
-    }
+    return to_flt(r.message);
+}
 
-    let allocation = allocations[0];
-
-    // Get all Leave Ledger Entries inside this allocation period up to target date
-    let ledger_entries = await frappe.db.get_list("Leave Ledger Entry", {
-        filters: [
-            ["employee", "=", employee],
-            ["leave_type", "=", leave_type],
-            ["docstatus", "=", 1],
-            ["is_expired", "=", 0],
-            ["is_lwp", "=", 0],
-            ["from_date", "<=", target_date],
-            ["to_date", ">=", allocation.from_date],
-            ["transaction_type", "in", [
-                "Leave Allocation",
-                "Leave Application",
-                "Leave Adjustment"
-            ]]
-        ],
-        fields: [
-            "leaves",
-            "transaction_type",
-            "transaction_name",
-            "from_date",
-            "to_date",
-            "is_carry_forward"
-        ],
-        order_by: "from_date asc",
-        limit_page_length: 500
+async function get_employee_joining_info(employee) {
+    let r = await frappe.call({
+        method: "hrcustomization_synergy.overrides.leave_application.get_employee_joining_info",
+        args: { employee: employee }
     });
-
-    let leave_balance = 0;
-
-    if (ledger_entries && ledger_entries.length) {
-        ledger_entries.forEach(row => {
-            let leaves = to_flt(row.leaves);
-
-            // Count Leave Allocation leaves regardless of carry-forward —
-            // carry-forwarded leaves are still valid available leaves
-            if (row.transaction_type === "Leave Allocation") {
-                leave_balance += leaves;
-            }
-
-            // Leave Adjustment can be positive or negative.
-            // Positive adjustment adds leave.
-            // Negative adjustment deducts leave.
-            if (row.transaction_type === "Leave Adjustment") {
-                leave_balance += leaves;
-            }
-
-            // Leave Application usually creates negative ledger entries.
-            // So adding it will reduce the balance automatically.
-            if (row.transaction_type === "Leave Application") {
-                leave_balance += leaves;
-            }
-        });
-    }
-    return leave_balance;
+    return r.message || {};
 }
 
 // Calculate forecasted leave
@@ -588,13 +528,10 @@ async function calculate_custom_forcasted_leave(frm) {
         frm.doc.from_date
     );
 
-    // Get employee joining date
-    let emp = await frappe.db.get_value("Employee", frm.doc.employee, [
-        "date_of_joining",
-        "relieving_date"
-    ]);
+    // Get employee joining date (server-side, permission-safe)
+    let emp = await get_employee_joining_info(frm.doc.employee);
 
-    let joining_date = emp.message.date_of_joining || frm.doc.date_of_joining || frm.doc.joining_date;
+    let joining_date = emp.date_of_joining || frm.doc.date_of_joining || frm.doc.joining_date;
 
     if (!joining_date) {
         frappe.msgprint("Joining Date is missing for the employee.");
@@ -634,7 +571,7 @@ async function calculate_custom_forcasted_leave(frm) {
     if (calculated_days < 0) calculated_days = 0;
 
     let forecasting_days = (yearly_leave / 365) * calculated_days;
-    
+
     let custom_forcasted_leave = leave_balance + forecasting_days;
 
     frm.set_value("custom_forcasted_leave", custom_forcasted_leave.toFixed(2));
