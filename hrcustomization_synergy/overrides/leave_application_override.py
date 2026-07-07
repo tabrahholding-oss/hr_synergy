@@ -60,7 +60,33 @@ class LeaveApplicationOverride(LeaveApplication):
         self.set("custom_forcasted_leave", calculated_value) # Force set context
 
     def get_forecasted_leave_balance(self):
-        # Direct Ledger Entry query based on your successful debug console query
+        # IMPORTANT: ye query ab bilkul wahi logic follow karti hai jo
+        # client-side whitelisted API (leave_balance_api.py) use karta hai.
+        # Pehle ye function har ledger entry ko count kar leta tha (bina
+        # transaction_type ka restriction aur bina allocation-period ke
+        # to_date bound k) — is wajah se save hone par value 42 se 51 ho
+        # jati thi. Ab dono jagah same result aayega.
+        target_date = getdate(self.from_date)
+
+        allocations = frappe.get_all(
+            "Leave Allocation",
+            filters={
+                "employee": self.employee,
+                "leave_type": self.leave_type,
+                "docstatus": 1,
+                "from_date": ["<=", target_date],
+                "to_date": [">=", target_date],
+            },
+            fields=["name", "from_date", "to_date"],
+            order_by="from_date desc",
+            limit_page_length=1,
+        )
+
+        if not allocations:
+            return 0
+
+        allocation = allocations[0]
+
         ledger_entries = frappe.get_all(
             "Leave Ledger Entry",
             filters={
@@ -69,9 +95,11 @@ class LeaveApplicationOverride(LeaveApplication):
                 "docstatus": 1,
                 "is_expired": 0,
                 "is_lwp": 0,
-                "from_date": ["<=", self.from_date] # Target date tak ka balance
+                "from_date": ["<=", target_date],
+                "to_date": [">=", allocation.from_date],
+                "transaction_type": ["in", ["Leave Allocation", "Leave Application", "Leave Adjustment"]],
             },
-            fields=["leaves"]
+            fields=["leaves", "transaction_type"],
         )
 
         balance = sum(flt(row.leaves) for row in ledger_entries)
