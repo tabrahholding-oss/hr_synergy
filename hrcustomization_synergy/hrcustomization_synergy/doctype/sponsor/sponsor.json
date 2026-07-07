@@ -1,0 +1,75 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:sponsor_name",
+ "creation": "2025-07-22 08:14:54.763950",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sponsor_name",
+  "employer_eid",
+  "column_break_kswt",
+  "payer_eid",
+  "payer_bank_short_name",
+  "payer_iban"
+ ],
+ "fields": [
+  {
+   "fieldname": "sponsor_name",
+   "fieldtype": "Data",
+   "label": "Sponsor Name",
+   "unique": 1
+  },
+  {
+   "fieldname": "employer_eid",
+   "fieldtype": "Data",
+   "label": "Employer EID"
+  },
+  {
+   "fieldname": "column_break_kswt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "payer_eid",
+   "fieldtype": "Data",
+   "label": "Payer EID"
+  },
+  {
+   "fieldname": "payer_bank_short_name",
+   "fieldtype": "Data",
+   "label": "Payer Bank Short Name"
+  },
+  {
+   "fieldname": "payer_iban",
+   "fieldtype": "Data",
+   "label": "Payer IBAN"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-07-22 08:17:28.717688",
+ "modified_by": "Administrator",
+ "module": "Hrcustomization Synergy",
+ "name": "Sponsor",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,88 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-11-06 15:06:43.252049",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "employer_eid",
+  "payer_eid",
+  "payer_qid",
+  "column_break_egkk",
+  "payer_bank_short_name",
+  "payer_iban",
+  "sif_version",
+  "section_break_salary_components",
+  "salary_component_mappings"
+ ],
+ "fields": [
+  {
+   "fieldname": "employer_eid",
+   "fieldtype": "Data",
+   "label": "Employer EID"
+  },
+  {
+   "fieldname": "payer_eid",
+   "fieldtype": "Data",
+   "label": "Payer EID"
+  },
+  {
+   "fieldname": "payer_bank_short_name",
+   "fieldtype": "Data",
+   "label": "Payer Bank Short Name"
+  },
+  {
+   "fieldname": "column_break_egkk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "payer_iban",
+   "fieldtype": "Data",
+   "label": "Payer IBAN"
+  },
+  {
+   "fieldname": "sif_version",
+   "fieldtype": "Data",
+   "label": "SIF Version"
+  },
+  {
+   "fieldname": "payer_qid",
+   "fieldtype": "Data",
+   "label": "Payer QID"
+  },
+  {
+   "fieldname": "section_break_salary_components",
+   "fieldtype": "Section Break",
+   "label": "Salary Component Mappings"
+  },
+  {
+   "fieldname": "salary_component_mappings",
+   "fieldtype": "Table",
+   "label": "Component Mappings",
+   "options": "WPS Salary Component Mapping"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2024-11-06 15:21:55.784564",
+ "modified_by": "Administrator",
+ "module": "Hrcustomization Synergy",
+ "name": "WPS Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
