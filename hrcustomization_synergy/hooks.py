@@ -156,6 +156,7 @@ fixtures = [
                 "Stock Entry-custom_reason_code",
                 "Stock Entry-custom_account",
                 "Employee-custom_sponsor",
+                "Stock Entry Detail-custom_issue_reason_code",
             ]]
         ]
     },
