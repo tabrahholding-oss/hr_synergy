@@ -467,7 +467,28 @@
 //         return leave_balance;
 //     }
 // }
+frappe.ui.form.on("Stock Entry", {
+    refresh(frm) {
+        toggle_issue_reason_code(frm);
+    },
 
+    stock_entry_type(frm) {
+        toggle_issue_reason_code(frm);
+    }
+});
+
+function toggle_issue_reason_code(frm) {
+    const hidden = frm.doc.stock_entry_type !== "Production";
+
+    frm.fields_dict.items.grid.update_docfield_property(
+        "custom_issue_reason_code",
+        "hidden",
+        hidden
+    );
+
+    frm.fields_dict.items.grid.reset_grid();
+    frm.refresh_field("items");
+}
 
 frappe.ui.form.on("Leave Application", {
 

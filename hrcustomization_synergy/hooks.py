@@ -147,10 +147,6 @@ fixtures = [
             ["name", "in", [
                 "Company-custom_intercompany_receivable_account",
                 "Company-custom_intercompany_payable_account",
-                "Stock Entry-custom_source_company",
-                "Stock Entry-custom_target_company",
-                "Stock Entry-custom_source_warehouse",
-                "Stock Entry-custom_target_warehouse",
                 "Item-custom_arabic_name",
                 "Salary Slip-custom_present_days",
                 "Salary Slip-custom_paid_leave_days",
@@ -163,6 +159,14 @@ fixtures = [
             ]]
         ]
     },
+    {
+        "dt": "Property Setter",
+        "filters": [
+            ["name", "in", [
+                "Attendance Request-reason-option",
+            ]]
+        ]
+    }
 ]
 before_request = ["hrcustomization_synergy.overrides.leave_patch.apply_patch"]
 # Document Events
