@@ -17,6 +17,7 @@
   "column_break_2",
   "company",
   "date_of_joining",
+  "letter_head",
   "section_break_ids",
   "custom_qid_number",
   "passport_number",
@@ -27,13 +28,17 @@
   "certificate_type",
   "valid_till",
   "column_break_4",
-  "warning_type",
   "custom_country",
+  "section_break_warning",
+  "warning_details",
   "section_break_dates",
   "relieving_date",
   "resignation_letter_date",
   "column_break_5",
   "purpose",
+  "section_break_increment",
+  "increment_percentage",
+  "salary_component",
   "section_break_status",
   "status",
   "workflow_state",
@@ -167,7 +172,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Certificate Type",
-   "options": "Salary Certificate QDC\nSalary Certificate CBQ Card\nSalary Certificate CBQ\nSalary Certificate\nExperience Letter\nTermination Letter\nNon Confirmation Letter\nEmployment Certificate\nWarning Letter",
+   "options": "Salary Certificate QDC\nSalary Certificate CBQ Card\nSalary Certificate CBQ\nSalary Certificate\nExperience Letter\nTermination Letter\nNon Confirmation Letter\nEmployment Certificate\nWarning Letter\nSalary Increment",
    "reqd": 1
   },
   {
@@ -179,13 +184,6 @@
   {
    "fieldname": "column_break_4",
    "fieldtype": "Column Break"
-  },
-  {
-   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
-   "fieldname": "warning_type",
-   "fieldtype": "Select",
-   "label": "Warning Level",
-   "options": "\nFirst Warning\nSecond Warning\nFinal Warning"
   },
   {
    "depends_on": "eval:doc.certificate_type==\"Employment Certificate\"",
@@ -264,13 +262,52 @@
    "options": "Certificate Request Detail",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fetch_from": "company.default_letter_head",
+   "fieldname": "letter_head",
+   "fieldtype": "Link",
+   "label": "Letter Head",
+   "options": "Letter Head",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
+   "fieldname": "section_break_warning",
+   "fieldtype": "Section Break",
+   "label": "Warning Details"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
+   "fieldname": "warning_details",
+   "fieldtype": "Table",
+   "label": "Warning Details",
+   "options": "Certificate Warning Detail"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "fieldname": "section_break_increment",
+   "fieldtype": "Section Break",
+   "label": "Salary Increment Details"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "fieldname": "increment_percentage",
+   "fieldtype": "Float",
+   "label": "Increment Percentage"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "fieldname": "salary_component",
+   "fieldtype": "Table",
+   "label": "Salary Component",
+   "options": "Certificate Salary Component"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "is_submittable": 0,
  "links": [],
- "modified": "2026-07-10 14:01:23.680959",
+ "modified": "2026-07-10 16:09:55.624014",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "Certificate Request Detail",

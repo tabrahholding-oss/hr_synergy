@@ -36,7 +36,6 @@ frappe.ui.form.on('Certificate Request Detail', {
 
     certificate_type(frm) {
         // reset dependent fields jab type change ho
-        frm.set_value('warning_type', '');
         frm.set_value('resignation_letter_date', '');
         frm.set_value('custom_country', '');
     }
