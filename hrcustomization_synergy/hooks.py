@@ -165,6 +165,7 @@ fixtures = [
         "filters": [
             ["name", "in", [
                 "Attendance Request-reason-option",
+                "Stock Entry Detail-expense_account-fetch_from"
             ]]
         ]
     }

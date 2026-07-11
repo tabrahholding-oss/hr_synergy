@@ -309,7 +309,7 @@
 //     if (calculated_days < 0) calculated_days = 0;
 
 //     let forecasting_days = (yearly_leave / 365) * calculated_days;
-    
+
 //     let custom_forcasted_leave = leave_balance + forecasting_days;
 
 //     frm.set_value("custom_forcasted_leave", custom_forcasted_leave.toFixed(2));
@@ -474,6 +474,22 @@ frappe.ui.form.on("Stock Entry", {
 
     stock_entry_type(frm) {
         toggle_issue_reason_code(frm);
+    },
+    items_add: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        frappe.model.set_value(cdt, cdn, "expense_account", "");
+    },
+
+    item_code: function (frm, cdt, cdn) {
+        setTimeout(() => {
+            let row = locals[cdt][cdn];
+            if (!row.custom_issue_reason_code) {
+                frappe.model.set_value(cdt, cdn, "expense_account", "");
+            }
+        }, 300);
+    },
+
+    custom_issue_reason_code: function (frm, cdt, cdn) {
     }
 });
 
@@ -695,8 +711,10 @@ function auto_fetch_salary_components(frm) {
                     const components = [
                         { label: 'Basic', value: a.base },
                         { label: 'House Allowance', value: a.custom_hra },
-                        { label: 'Other Allowance', value: a.custom_total_salary && a.base
-                            ? (flt(a.custom_total_salary) - (flt(a.base) + flt(a.custom_hra || 0))) : 0 }
+                        {
+                            label: 'Other Allowance', value: a.custom_total_salary && a.base
+                                ? (flt(a.custom_total_salary) - (flt(a.base) + flt(a.custom_hra || 0))) : 0
+                        }
                     ];
 
                     components.forEach(c => {
