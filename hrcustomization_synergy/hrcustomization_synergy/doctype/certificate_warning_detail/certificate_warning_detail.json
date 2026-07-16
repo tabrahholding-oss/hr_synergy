@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-07-10 15:00:00.000000",
+ "creation": "2026-07-10 15:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -12,13 +12,14 @@
  "fields": [
   {
    "fieldname": "warning_type",
-   "fieldtype": "Select",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Warning Type",
-   "options": "First Warning\nSecond Warning\nFinal Warning",
+   "options": "Warning",
    "reqd": 1
   },
   {
+   "fetch_from": "warning_type.description",
    "fieldname": "warning_description",
    "fieldtype": "Small Text",
    "in_list_view": 1,
@@ -30,7 +31,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-10 15:00:00.000000",
+ "modified": "2026-07-16 13:18:37.977976",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "Certificate Warning Detail",

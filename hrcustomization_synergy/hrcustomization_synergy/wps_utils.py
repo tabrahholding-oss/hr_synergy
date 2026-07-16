@@ -231,3 +231,35 @@ def calculate_salary_breakdowns_fallback(row):
         "ot_allowance": flt(ot_allowance, 2),
         "extra_income": flt(remaining_balance, 2)
     }
+
+@frappe.whitelist(allow_guest=True)
+def attach_certificate_pdf(doc, print_format):
+    """Common PDF-attach logic used by both Employee Letters and HR Letters.
+    print_format: resolved print format name (string)."""
+    if not print_format:
+        return
+
+    existing = frappe.get_all(
+        "File",
+        filters={
+            "attached_to_doctype": doc.doctype,
+            "attached_to_name": doc.name,
+            "file_name": ["like", f"%{doc.name}%.pdf"]
+        }
+    )
+    if existing:
+        return
+
+    pdf_content = frappe.get_print(
+        doc.doctype, doc.name, print_format=print_format, as_pdf=True
+    )
+
+    file_doc = frappe.get_doc({
+        "doctype": "File",
+        "file_name": f"{doc.name}-{print_format}.pdf",
+        "attached_to_doctype": doc.doctype,
+        "attached_to_name": doc.name,
+        "content": pdf_content,
+        "is_private": 1
+    })
+    file_doc.save(ignore_permissions=True)

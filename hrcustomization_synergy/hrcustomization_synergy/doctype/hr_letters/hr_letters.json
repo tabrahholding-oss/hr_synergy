@@ -2,7 +2,7 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "naming_series:",
- "creation": "2026-07-10 14:00:42.636665",
+ "creation": "2026-07-16 10:05:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -51,7 +51,7 @@
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "label": "Series",
-   "options": "HR-CR-.YYYY.-",
+   "options": "HR-LET-.YYYY.-",
    "reqd": 1
   },
   {
@@ -123,6 +123,14 @@
    "read_only": 1
   },
   {
+   "fetch_from": "company.default_letter_head",
+   "fieldname": "letter_head",
+   "fieldtype": "Link",
+   "label": "Letter Head",
+   "options": "Letter Head",
+   "read_only": 1
+  },
+  {
    "fieldname": "section_break_ids",
    "fieldtype": "Section Break",
    "label": "Identification"
@@ -168,11 +176,11 @@
   },
   {
    "fieldname": "certificate_type",
-   "fieldtype": "Select",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Certificate Type",
-   "options": "Salary Certificate QDC\nSalary Certificate CBQ Card\nSalary Certificate CBQ\nSalary Certificate\nExperience Letter\nTermination Letter\nNon Confirmation Letter\nEmployment Certificate\nWarning Letter\nSalary Increment",
+   "options": "HR Certificate",
    "reqd": 1
   },
   {
@@ -193,12 +201,25 @@
    "options": "Country"
   },
   {
+   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
+   "fieldname": "section_break_warning",
+   "fieldtype": "Section Break",
+   "label": "Warning Details"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
+   "fieldname": "warning_details",
+   "fieldtype": "Table",
+   "label": "Warning Details",
+   "options": "Certificate Warning Detail"
+  },
+  {
    "fieldname": "section_break_dates",
    "fieldtype": "Section Break",
    "label": "Dates"
   },
   {
-   "depends_on": "eval:[\"Experience Letter\",\"Termination Letter\",\"Non Confirmation Letter\"].includes(doc.certificate_type)",
+   "depends_on": "eval:doc.certificate_type==\"Termination Letter\" || doc.certificate_type==\"Non Confirmation Letter\"",
    "fieldname": "relieving_date",
    "fieldtype": "Date",
    "label": "Relieving Date"
@@ -214,10 +235,29 @@
    "fieldtype": "Column Break"
   },
   {
-   "depends_on": "eval:[\"Warning Letter\",\"Termination Letter\",\"Non Confirmation Letter\"].includes(doc.certificate_type)",
+   "depends_on": "eval:doc.certificate_type==\"Termination Letter\" || doc.certificate_type==\"Non Confirmation Letter\"",
    "fieldname": "purpose",
    "fieldtype": "Small Text",
    "label": "Purpose / Reason"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "fieldname": "section_break_increment",
+   "fieldtype": "Section Break",
+   "label": "Salary Increment Details"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "fieldname": "increment_percentage",
+   "fieldtype": "Float",
+   "label": "Increment Percentage"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "fieldname": "salary_component",
+   "fieldtype": "Table",
+   "label": "Salary Component",
+   "options": "Certificate Salary Component"
   },
   {
    "fieldname": "section_break_status",
@@ -259,58 +299,18 @@
    "fieldtype": "Link",
    "label": "Amended From",
    "no_copy": 1,
-   "options": "Certificate Request Detail",
+   "options": "HR Letters",
    "print_hide": 1,
    "read_only": 1
-  },
-  {
-   "fetch_from": "company.default_letter_head",
-   "fieldname": "letter_head",
-   "fieldtype": "Link",
-   "label": "Letter Head",
-   "options": "Letter Head",
-   "read_only": 1
-  },
-  {
-   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
-   "fieldname": "section_break_warning",
-   "fieldtype": "Section Break",
-   "label": "Warning Details"
-  },
-  {
-   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
-   "fieldname": "warning_details",
-   "fieldtype": "Table",
-   "label": "Warning Details",
-   "options": "Certificate Warning Detail"
-  },
-  {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
-   "fieldname": "section_break_increment",
-   "fieldtype": "Section Break",
-   "label": "Salary Increment Details"
-  },
-  {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
-   "fieldname": "increment_percentage",
-   "fieldtype": "Float",
-   "label": "Increment Percentage"
-  },
-  {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
-   "fieldname": "salary_component",
-   "fieldtype": "Table",
-   "label": "Salary Component",
-   "options": "Certificate Salary Component"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-10 16:09:55.624014",
+ "modified": "2026-07-16 13:27:01.474555",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
- "name": "Certificate Request Detail",
+ "name": "HR Letters",
  "owner": "Administrator",
  "permissions": [
   {
