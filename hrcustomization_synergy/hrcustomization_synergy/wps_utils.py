@@ -4,6 +4,7 @@
 import re
 import frappe
 from frappe.utils import flt
+from frappe.model.naming import make_autoname
 
 
 def get_wps_component_mappings():
@@ -263,3 +264,34 @@ def attach_certificate_pdf(doc, print_format):
         "is_private": 1
     })
     file_doc.save(ignore_permissions=True)
+
+
+@frappe.whitelist(allow_guest=True)
+def get_certificate_series_name(doc, type_fieldname, type_doctype):
+    """
+    Builds a name like: HR-{TYPE_ABBR}-{COMPANY_ABBR}-{YEAR}-#####
+    type_fieldname : fieldname on doc holding the letter/certificate type (Link)
+    type_doctype   : master doctype the type field links to
+                      (Employee Certificate / HR Certificate / Company Certificate)
+    """
+    letter_type = doc.get(type_fieldname)
+    if not letter_type:
+        frappe.throw("Please select a Letter/Certificate Type before saving.")
+
+    type_abbr = frappe.db.get_value(type_doctype, letter_type, "abbr")
+    if not type_abbr:
+        frappe.throw(
+            f"'{letter_type}' does not have an Abbreviation set in {type_doctype}. "
+            f"Please ask HR/IT to set it."
+        )
+
+    if not doc.company:
+        frappe.throw("Please select a Company before saving.")
+
+    company_abbr = frappe.db.get_value("Company", doc.company, "abbr")
+    if not company_abbr:
+        frappe.throw(f"Company '{doc.company}' does not have an Abbr set.")
+
+    year = frappe.utils.nowdate()[:4]
+    key = f"HR-{type_abbr}-{company_abbr}-{year}-"
+    return make_autoname(key + ".#####")

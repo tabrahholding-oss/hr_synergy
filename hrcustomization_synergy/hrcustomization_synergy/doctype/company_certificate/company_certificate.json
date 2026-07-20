@@ -1,38 +1,25 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:name1",
- "creation": "2026-07-16 13:21:30.718318",
+ "autoname": "Prompt",
+ "creation": "2026-07-20 10:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "name1",
-  "abbr"
- ],
+ "field_order": ["abbr"],
  "fields": [
-  {
-   "fieldname": "name1",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Name",
-   "reqd": 1,
-   "unique": 1
-  },
   {
    "fieldname": "abbr",
    "fieldtype": "Data",
-   "label": "Abbr",
+   "label": "Abbreviation",
    "reqd": 1
   }
  ],
- "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-20 15:20:10.965487",
+ "modified": "2026-07-20 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
- "name": "Employee Certificate",
- "naming_rule": "By fieldname",
+ "name": "Company Certificate",
  "owner": "Administrator",
  "permissions": [
   {
@@ -46,10 +33,18 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
   }
  ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

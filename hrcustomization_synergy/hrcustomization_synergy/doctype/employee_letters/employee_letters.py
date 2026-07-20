@@ -1,6 +1,20 @@
+
+
+
 import frappe
 from frappe.model.document import Document
 from hrcustomization_synergy.hrcustomization_synergy.wps_utils import attach_certificate_pdf
+from hrcustomization_synergy.hrcustomization_synergy.wps_utils import get_certificate_series_name
+
+class EmployeeLetters(Document):
+    def autoname(self):
+        self.name = get_certificate_series_name(self, "certificate_type", "Employee Certificate")
+
+    def on_update(self):
+        if self.has_value_changed("status") and self.status == "Approved":
+            print_format = get_print_format(self)
+            attach_certificate_pdf(self, print_format)
+
 
 BANK_FORMAT_MAP = {
     "QDC": "Salary Certificate QDC",
@@ -21,10 +35,3 @@ def get_print_format(doc):
             return BANK_FORMAT_MAP[doc.bank]
         return "Salary Certificate"
     return FORMAT_MAP.get(doc.certificate_type)
-
-
-class EmployeeLetters(Document):
-    def on_update(self):
-        if self.has_value_changed("status") and self.status == "Approved":
-            print_format = get_print_format(self)
-            attach_certificate_pdf(self, print_format)

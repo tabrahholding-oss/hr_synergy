@@ -6,7 +6,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "name1"
+  "name1",
+  "abbr"
  ],
  "fields": [
   {
@@ -16,12 +17,17 @@
    "label": "Name",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "abbr",
+   "fieldtype": "Data",
+   "label": "Abbr"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-16 13:59:46.970842",
+ "modified": "2026-07-20 15:20:40.494972",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Certificate",
