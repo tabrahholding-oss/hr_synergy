@@ -157,6 +157,7 @@ fixtures = [
                 "Stock Entry-custom_account",
                 "Employee-custom_sponsor",
                 "Stock Entry Detail-custom_issue_reason_code",
+                "Employee-custom_shift"
             ]]
         ]
     },
@@ -168,9 +169,19 @@ fixtures = [
                 "Stock Entry Detail-expense_account-fetch_from"
             ]]
         ]
-    }
+    },
+	{
+        "dt": "Role", 
+        "filters": [
+            ["name", "=", "Shift"]
+            ]
+    },
 ]
-before_request = ["hrcustomization_synergy.overrides.leave_patch.apply_patch"]
+
+before_request = [
+	"hrcustomization_synergy.overrides.leave_patch.apply_patch",
+	"hrcustomization_synergy.hrcustomization_synergy.wps_utils.restrict_roster_access",
+]
 # Document Events
 # ---------------
 # Hook on document methods and events
@@ -181,7 +192,10 @@ doc_events = {
     # },
     "Stock Entry": {
         "validate": "hrcustomization_synergy.overrides.custom.validate_intercompany_transfer",
-    }
+    },
+	"Shift Assignment": {
+		"validate": "hrcustomization_synergy.overrides.shift_assignment.validate_day_off_restriction",
+	}
     # "Leave Application": {
         # "validate": "hrcustomization_synergy.overrides.leave_application.validate_leave_application"
     # }

@@ -295,3 +295,25 @@ def get_certificate_series_name(doc, type_fieldname, type_doctype):
     year = frappe.utils.nowdate()[:4]
     key = f"HR-{type_abbr}-{company_abbr}-{year}-"
     return make_autoname(key + ".#####")
+
+
+@frappe.whitelist(allow_guest=True)
+def restrict_roster_access():
+	"""Restrict /hr/roster page to users with the 'Shift' role only."""
+	request = frappe.local.request
+	if not request:
+		return
+
+	path = request.path or ""
+	if not path.startswith("/hr/roster"):
+		return
+
+	user = frappe.session.user
+	if user == "Administrator":
+		return
+
+	if "Shift" not in frappe.get_roles(user):
+		frappe.throw(
+			frappe._("You are not permitted to access this page."),
+			frappe.PermissionError,
+		)
