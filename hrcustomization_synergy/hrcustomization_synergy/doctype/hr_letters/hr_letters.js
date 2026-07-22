@@ -47,7 +47,12 @@ function open_print(frm, is_preview) {
         "Non Confirmation Letter": "Non Confirmation Letter",
         "Employment Certificate": "Employment Certificate",
         "Warning Letter": "Warning Letter",
-        "Salary Increment": "Salary Increment Letter"
+        "Salary Increment": "Salary Increment Letter",
+        "Asset Decalration": "Asset Decalration",
+        "Employee Clearance Acknowledgement": "Employee Clearance Acknowledgement",
+        "Employee Confirmation": "Employee Confirmation",
+        "Employee Travel NOC": "Employee Travel NOC",
+
     };
 
     const print_format = format_map[frm.doc.certificate_type];
@@ -96,8 +101,10 @@ function auto_fetch_salary_components(frm) {
                     const components = [
                         { label: 'Basic', value: a.base },
                         { label: 'House Allowance', value: a.custom_hra },
-                        { label: 'Other Allowance', value: a.custom_total_salary && a.base
-                            ? (flt(a.custom_total_salary) - (flt(a.base) + flt(a.custom_hra || 0))) : 0 }
+                        {
+                            label: 'Other Allowance', value: a.custom_total_salary && a.base
+                                ? (flt(a.custom_total_salary) - (flt(a.base) + flt(a.custom_hra || 0))) : 0
+                        }
                     ];
 
                     components.forEach(c => {
