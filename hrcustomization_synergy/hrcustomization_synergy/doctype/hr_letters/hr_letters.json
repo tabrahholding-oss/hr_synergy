@@ -39,6 +39,11 @@
   "section_break_increment",
   "increment_percentage",
   "salary_component",
+  "section_break_asset",
+  "asset_details",
+  "section_break_travel",
+  "from_date",
+  "to_date",
   "section_break_status",
   "status",
   "workflow_state",
@@ -184,6 +189,7 @@
    "reqd": 1
   },
   {
+   "depends_on": "eval:doc.certificate_type!=\"Employee Travel NOC\"",
    "fieldname": "valid_till",
    "fieldtype": "Date",
    "label": "Valid Till",
@@ -241,23 +247,54 @@
    "label": "Purpose / Reason"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\"",
    "fieldname": "section_break_increment",
    "fieldtype": "Section Break",
    "label": "Salary Increment Details"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\"",
    "fieldname": "increment_percentage",
    "fieldtype": "Float",
    "label": "Increment Percentage"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\"",
    "fieldname": "salary_component",
    "fieldtype": "Table",
    "label": "Salary Component",
    "options": "Certificate Salary Component"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Asset Declaration\"",
+   "fieldname": "section_break_asset",
+   "fieldtype": "Section Break",
+   "label": "Asset Details"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Asset Declaration\"",
+   "fieldname": "asset_details",
+   "fieldtype": "Table",
+   "label": "Asset Details",
+   "options": "HR Letter Asset Detail"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Employee Travel NOC\"",
+   "fieldname": "section_break_travel",
+   "fieldtype": "Section Break",
+   "label": "Travel Details"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Employee Travel NOC\"",
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Employee Travel NOC\"",
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date"
   },
   {
    "fieldname": "section_break_status",
@@ -302,15 +339,28 @@
    "options": "HR Letters",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Employee Travel NOC\"",
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Employee Travel NOC\"",
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-16 13:27:01.474555",
+ "modified": "2026-07-22 13:14:28.605220",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Letters",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {

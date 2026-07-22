@@ -48,7 +48,7 @@ function open_print(frm, is_preview) {
         "Employment Certificate": "Employment Certificate",
         "Warning Letter": "Warning Letter",
         "Salary Increment": "Salary Increment Letter",
-        "Asset Decalration": "Asset Decalration",
+        "Asset Declaration": "Asset Declaration",
         "Employee Clearance Acknowledgement": "Employee Clearance Acknowledgement",
         "Employee Confirmation": "Employee Confirmation",
         "Employee Travel NOC": "Employee Travel NOC",
@@ -75,8 +75,12 @@ function open_print(frm, is_preview) {
 }
 
 function auto_fetch_salary_components(frm) {
-    if (!frm.doc.employee || frm.doc.certificate_type !== "Salary Increment") return;
-
+    if (
+        !frm.doc.employee ||
+        !["Salary Increment", "Employee Confirmation"].includes(frm.doc.certificate_type)
+    ) {
+        return;
+    }
     frappe.call({
         method: 'frappe.client.get_list',
         args: {

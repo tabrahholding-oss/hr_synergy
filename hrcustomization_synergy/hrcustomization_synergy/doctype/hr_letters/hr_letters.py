@@ -10,7 +10,7 @@ FORMAT_MAP = {
     "Employment Certificate": "Employment Certificate",
     "Warning Letter": "Warning Letter",
     "Salary Increment": "Salary Increment Letter",
-    "Asset Decalration": "Asset Decalration",
+    "Asset Declaration": "Asset Declaration",
     "Employee Clearance Acknowledgement": "Employee Clearance Acknowledgement",
     "Employee Confirmation": "Employee Confirmation",
     "Employee Travel NOC": "Employee Travel NOC",
