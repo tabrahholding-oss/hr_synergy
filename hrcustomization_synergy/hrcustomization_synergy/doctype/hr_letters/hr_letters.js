@@ -26,7 +26,10 @@ frappe.ui.form.on('HR Letters', {
             );
         }
     },
-
+    refresh(frm) {
+        toggle_valid_till(frm);
+    },
+    
     certificate_type(frm) {
         // reset dependent fields jab type change ho
         frm.set_value('resignation_letter_date', '');
@@ -36,11 +39,23 @@ frappe.ui.form.on('HR Letters', {
         frm.clear_table('salary_component');
         frm.refresh_field('warning_details');
         frm.refresh_field('salary_component');
-
+        
         auto_fetch_salary_components(frm);
+        toggle_valid_till(frm);
     }
 });
+function toggle_valid_till(frm) {
+    const reqd = frm.doc.certificate_type !== "Employee Travel NOC";
 
+    frm.set_df_property("valid_till", "hidden", !reqd);
+    frm.set_df_property("valid_till", "reqd", reqd);
+
+    if (!reqd) {
+        frm.set_value("valid_till", null);
+    }
+
+    frm.refresh_field("valid_till");
+}
 function open_print(frm, is_preview) {
     const format_map = {
         "Termination Letter": "Termination Letter",

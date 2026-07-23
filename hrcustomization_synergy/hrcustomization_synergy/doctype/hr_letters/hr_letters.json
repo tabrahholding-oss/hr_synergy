@@ -189,11 +189,9 @@
    "reqd": 1
   },
   {
-   "depends_on": "eval:doc.certificate_type!=\"Employee Travel NOC\"",
    "fieldname": "valid_till",
    "fieldtype": "Date",
-   "label": "Valid Till",
-   "reqd": 1
+   "label": "Valid Till"
   },
   {
    "fieldname": "column_break_4",
@@ -356,7 +354,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-22 13:14:28.605220",
+ "modified": "2026-07-23 11:18:50.036752",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Letters",
