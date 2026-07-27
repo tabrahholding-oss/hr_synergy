@@ -24,7 +24,7 @@ frappe.ui.form.on('Company Letters', {
 
 function open_print(frm, is_preview) {
     const format_map = {
-        "Internal Memos": "Internal Memos",
+        "Memo": "Memo",
         "Offers": "Offers",
         "Circulars": "Circulars"
     };
