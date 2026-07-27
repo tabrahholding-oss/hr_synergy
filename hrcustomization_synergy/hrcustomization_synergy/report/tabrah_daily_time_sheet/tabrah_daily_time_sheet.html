@@ -1,0 +1,129 @@
+<style>
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table thead tr {
+        background-color: #dcecf4;
+    }
+    .table th, .table td {
+        padding: 2px !important;
+        text-align: center;
+    }
+    .emp-header {
+        background-color: #f0f0f0;
+        font-weight: bold;
+        text-align: left;
+    }
+    @media print {
+        .table thead tr th {
+            background-color: #dcecf4 !important;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+        /* Last employee ke baad page break mat lagao */
+        .page-break:last-child {
+            page-break-after: auto;
+        }
+    }
+    .total-label {
+        font-weight: bold;
+        background-color: #eef5f9;
+    }
+</style>
+
+{% var last_emp = null; %}
+{% var total_ot = 0; %}
+
+{% function timeToMinutes(timeStr) {
+    if (!timeStr || timeStr === "00:00") return 0;
+    var parts = timeStr.split(":");
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+} %}
+
+{% function minutesToHHMM(minutes) {
+    var h = Math.floor(minutes / 60);
+    var m = minutes % 60;
+    return ("0" + h).slice(-2) + ":" + ("0" + m).slice(-2);
+} %}
+
+{% data.forEach(function(row, index) { %}
+
+    {% if (row.employee && row.employee !== last_emp) { %}
+
+        {% if (last_emp !== null) { %}
+            <!-- Total Row -->
+            <tr class="total-label">
+                <td colspan="6" style="text-align: right;">Total OT Hours:</td>
+                <td>{{ minutesToHHMM(total_ot) }}</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+        {% } %}
+
+        <!-- Reset OT total for new employee -->
+        {% total_ot = 0; %}
+
+        <!-- Employee Section -->
+        <div class="page-break">
+            <!-- Report Header -->
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p><strong>Tabrah Daily Time Sheet</strong></p>
+                    <p>Date Range: {{
+                        frappe.datetime.str_to_user(filters.from_date)
+                    }} - {{
+                        frappe.datetime.str_to_user(filters.to_date)
+                    }}</p>
+                </div>
+                <div>
+                    <p><strong>Print Date:</strong> {{ frappe.datetime.nowdate() }}</p>
+                </div>
+            </div>
+
+            <!-- Employee Header Table -->
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th colspan="7" class="emp-header">
+                            EMP ID: {{ frappe.format(row.employee, {"fieldtype": "Data"}) }} |
+                            EMP NAME: {{ frappe.format(row.employee_name, {"fieldtype": "Data"}) }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time In</th>
+                        <th>Time Out</th>
+                        <th>Total Hours</th>
+                        <th>OT Hours</th>
+                    </tr>
+                </thead>
+                <tbody>
+        {% last_emp = row.employee; %}
+    {% } %}
+
+    <!-- Row Data -->
+    <tr>
+        <td>{{ frappe.format(row.date, {"fieldtype": "Date"}) }}</td>
+        <td>{{ row.time_in || "" }}</td>
+        <td>{{ row.time_out || "" }}</td>
+        <td style="text-align: right;">{{ row.total_hours || "" }}</td>
+        <td>{{ row.ot_hours || "00:00" }}</td>
+    </tr>
+
+    {% total_ot += timeToMinutes(row.ot_hours); %}
+
+    {% if (index === data.length - 1) { %}
+        <!-- Last Employee Total -->
+        <tr class="total-label">
+            <td colspan="4" style="text-align: right;">Total OT Hours:</td>
+            <td>{{ minutesToHHMM(total_ot) }}</td>
+        </tr>
+                </tbody>
+            </table>
+        </div>
+    {% } %}
+
+{% }); %}
