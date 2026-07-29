@@ -113,7 +113,6 @@
 				{% if (i === 0) { %}
 					<td colspan="{%= totals_start_index %}" class="text-left">{%= __("Total") %}</td>
 				{% } else if (i < totals_start_index) { %}
-					{# colspan me cover ho chuka #}
 				{% } else { %}
 					<td class="text-right">
 						{% var fieldname = print_columns[i].fieldname; %}
