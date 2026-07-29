@@ -21,6 +21,27 @@
 		font-weight: bold;
 		border-top: 2px solid #000;
 	}
+	.signature-section {
+		width: 100%;
+		margin-top: 40px;
+		display: table;
+		table-layout: fixed;
+	}
+	.signature-box {
+		display: table-cell;
+		width: 33.33%;
+		text-align: center;
+		vertical-align: bottom;
+	}
+	.signature-line {
+		border-top: 1px solid #000;
+		width: 80%;
+		margin: 45px auto 4px auto;
+	}
+	.signature-label {
+		font-size: 10px;
+		font-weight: bold;
+	}
 </style>
 
 {%
@@ -31,11 +52,11 @@
 		{ fieldname: "designation", label: __("Designation"), currency: false, width: "7%" },
 		{ fieldname: "custom_total_salary", label: __("Total Salary"), currency: true, width: "6%" },
 		{ fieldname: "payment_days", label: __("Payment Days"), currency: false, width: "5%" },
-		{ fieldname: "arrear", label: __("Arrear"), currency: true, width: "5%" },
 		{ fieldname: "basic_salary", label: __("Basic Salary"), currency: true, width: "6%" },
 		{ fieldname: "housing_allowance", label: __("Housing Allowance"), currency: true, width: "6%" },
 		{ fieldname: "leave_salary", label: __("Leave Salary"), currency: true, width: "5%" },
 		{ fieldname: "other_allowance", label: __("Other Allowance"), currency: true, width: "6%" },
+		{ fieldname: "arrear", label: __("Arrear"), currency: true, width: "5%" },
 		{ fieldname: "overtime", label: __("Overtime"), currency: true, width: "5%" },
 		{ fieldname: "transport_allowance", label: __("Transport Allowance"), currency: true, width: "6%" },
 		{ fieldname: "gross_pay", label: __("Gross Pay"), currency: true, width: "6%" },
@@ -125,4 +146,23 @@
 		</tr>
 	</tfoot>
 </table>
-<p class="text-right text-muted">{%= __("Printed On {0}", [frappe.datetime.str_to_user(frappe.datetime.get_datetime_as_string())]) %}</p>
+
+<div class="signature-section">
+	<div class="signature-box">
+		<div class="signature-line"></div>
+		<div class="signature-label">{%= __("PREPARED BY") %}</div>
+	</div>
+	<div class="signature-box">
+		<div class="signature-line"></div>
+		<div class="signature-label">{%= __("APPROVED BY") %}</div>
+	</div>
+	<div class="signature-box">
+		<div class="signature-line"></div>
+		<div class="signature-label">{%= __("VERIFIED BY") %}</div>
+	</div>
+</div>
+
+
+<div style="margin-top: 7px;" class="text-center">
+	{%= frappe.boot.letter_heads[default_letter_head] ? frappe.boot.letter_heads[default_letter_head].footer : "" %}
+</div>
