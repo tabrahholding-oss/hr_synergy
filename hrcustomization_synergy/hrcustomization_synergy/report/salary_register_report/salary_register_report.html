@@ -1,0 +1,129 @@
+<style>
+	@page {
+		size: A4 landscape;
+		margin: 8mm;
+	}
+	.salary-register-table {
+		width: 100%;
+		table-layout: fixed;
+		border-collapse: collapse;
+		font-size: 8px;
+	}
+	.salary-register-table th,
+	.salary-register-table td {
+		padding: 2px 3px;
+		word-wrap: break-word;
+		overflow-wrap: break-word;
+		border: 1px solid #ccc;
+		vertical-align: top;
+	}
+	.salary-register-table tfoot td {
+		font-weight: bold;
+		border-top: 2px solid #000;
+	}
+</style>
+
+{%
+	var print_columns = [
+		{ fieldname: "employee", label: __("Employee"), currency: false, width: "6%" },
+		{ fieldname: "employee_name", label: __("Employee Name"), currency: false, width: "9%" },
+		{ fieldname: "data_of_joining", label: __("Date of Joining"), currency: false, width: "6%" },
+		{ fieldname: "designation", label: __("Designation"), currency: false, width: "7%" },
+		{ fieldname: "custom_total_salary", label: __("Total Salary"), currency: true, width: "6%" },
+		{ fieldname: "payment_days", label: __("Payment Days"), currency: false, width: "5%" },
+		{ fieldname: "arrear", label: __("Arrear"), currency: true, width: "5%" },
+		{ fieldname: "basic_salary", label: __("Basic Salary"), currency: true, width: "6%" },
+		{ fieldname: "housing_allowance", label: __("Housing Allowance"), currency: true, width: "6%" },
+		{ fieldname: "leave_salary", label: __("Leave Salary"), currency: true, width: "5%" },
+		{ fieldname: "other_allowance", label: __("Other Allowance"), currency: true, width: "6%" },
+		{ fieldname: "overtime", label: __("Overtime"), currency: true, width: "5%" },
+		{ fieldname: "transport_allowance", label: __("Transport Allowance"), currency: true, width: "6%" },
+		{ fieldname: "gross_pay", label: __("Gross Pay"), currency: true, width: "6%" },
+		{ fieldname: "total_loan_repayment", label: __("Loan Repayment"), currency: true, width: "6%" },
+		{ fieldname: "total_deduction", label: __("Total Deduction"), currency: true, width: "6%" },
+		{ fieldname: "net_pay", label: __("Net Pay"), currency: true, width: "6%" }
+	];
+
+	var totals_start_index = 4;
+
+	var column_totals = {};
+	for (var i = 0; i < print_columns.length; i++) {
+		if (print_columns[i].currency) {
+			column_totals[print_columns[i].fieldname] = 0;
+		}
+	}
+	for (var j = 0, k = data.length; j < k; j++) {
+		for (var i = 0; i < print_columns.length; i++) {
+			var fn = print_columns[i].fieldname;
+			if (print_columns[i].currency && !isNaN(data[j][fn])) {
+				column_totals[fn] += flt(data[j][fn]);
+			}
+		}
+	}
+
+	var default_letter_head = filters.letter_head || frappe.defaults.get_default("letter_head");
+
+	if (filters.company && window.__report_company_letter_head && window.__report_company_letter_head[filters.company]) {
+		default_letter_head = window.__report_company_letter_head[filters.company];
+	}
+%}
+<div style="margin-bottom: 7px;" class="text-center">
+	{%= frappe.boot.letter_heads[default_letter_head] ? frappe.boot.letter_heads[default_letter_head].header : "" %}
+</div>
+<h2 class="text-center">{%= __(report.report_name) %}</h2>
+<h5 class="text-center">{%= __("From {0} to {1}", [frappe.datetime.str_to_user(filters.from_date), frappe.datetime.str_to_user(filters.to_date)]) %}</h5>
+<hr>
+<table class="table table-bordered salary-register-table">
+	<colgroup>
+		{% for(var i=0, l=print_columns.length; i<l; i++) { %}
+			<col style="width: {%= print_columns[i].width %};">
+		{% } %}
+	</colgroup>
+	<thead>
+		<tr>
+			{% for(var i=0, l=print_columns.length; i<l; i++) { %}
+				<th class="text-right">{%= print_columns[i].label %}</th>
+			{% } %}
+		</tr>
+	</thead>
+	<tbody>
+		{% for(var j=0, k=data.length; j<k; j++) { %}
+			{%
+				var row = data[j];
+			%}
+			<tr>
+				{% for(var i=0, l=print_columns.length; i<l; i++) { %}
+					<td class="text-right">
+						{% var fieldname = print_columns[i].fieldname; %}
+						{% if (print_columns[i].currency && !isNaN(row[fieldname])) { %}
+							{%= format_currency(row[fieldname]) %}
+						{% } else { %}
+							{% if (!is_null(row[fieldname])) { %}
+								{%= row[fieldname] %}
+							{% } %}
+						{% } %}
+					</td>
+				{% } %}
+			</tr>
+		{% } %}
+	</tbody>
+	<tfoot>
+		<tr>
+			{% for(var i=0; i<print_columns.length; i++) { %}
+				{% if (i === 0) { %}
+					<td colspan="{%= totals_start_index %}" class="text-left">{%= __("Total") %}</td>
+				{% } else if (i < totals_start_index) { %}
+					{# colspan me cover ho chuka #}
+				{% } else { %}
+					<td class="text-right">
+						{% var fieldname = print_columns[i].fieldname; %}
+						{% if (print_columns[i].currency) { %}
+							{%= format_currency(column_totals[fieldname]) %}
+						{% } %}
+					</td>
+				{% } %}
+			{% } %}
+		</tr>
+	</tfoot>
+</table>
+<p class="text-right text-muted">{%= __("Printed On {0}", [frappe.datetime.str_to_user(frappe.datetime.get_datetime_as_string())]) %}</p>
