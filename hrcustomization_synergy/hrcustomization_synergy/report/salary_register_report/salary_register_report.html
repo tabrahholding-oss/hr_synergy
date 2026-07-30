@@ -42,6 +42,16 @@
 		font-size: 10px;
 		font-weight: bold;
 	}
+	.signature-name {
+		font-size: 10px;
+		font-weight: bold;
+		margin-top: 40px;
+	}
+	.signature-date {
+		font-size: 8px;
+		color: #555;
+		margin-bottom: 4px;
+	}
 </style>
 
 {%
@@ -149,15 +159,30 @@
 
 <div class="signature-section">
 	<div class="signature-box">
-		<div class="signature-line"></div>
+		{% if (window.__salary_register_approval && window.__salary_register_approval.is_prepared) { %}
+			<div class="signature-name">{%= window.__salary_register_approval.prepared_by_name %}</div>
+			<div class="signature-date">{%= frappe.datetime.str_to_user(window.__salary_register_approval.prepared_on) %}</div>
+		{% } else { %}
+			<div class="signature-line"></div>
+		{% } %}
 		<div class="signature-label">{%= __("PREPARED BY") %}</div>
 	</div>
 	<div class="signature-box">
-		<div class="signature-line"></div>
+		{% if (window.__salary_register_approval && window.__salary_register_approval.is_approved) { %}
+			<div class="signature-name">{%= window.__salary_register_approval.approved_by_name %}</div>
+			<div class="signature-date">{%= frappe.datetime.str_to_user(window.__salary_register_approval.approved_on) %}</div>
+		{% } else { %}
+			<div class="signature-line"></div>
+		{% } %}
 		<div class="signature-label">{%= __("APPROVED BY") %}</div>
 	</div>
 	<div class="signature-box">
-		<div class="signature-line"></div>
+		{% if (window.__salary_register_approval && window.__salary_register_approval.is_verified) { %}
+			<div class="signature-name">{%= window.__salary_register_approval.verified_by_name %}</div>
+			<div class="signature-date">{%= frappe.datetime.str_to_user(window.__salary_register_approval.verified_on) %}</div>
+		{% } else { %}
+			<div class="signature-line"></div>
+		{% } %}
 		<div class="signature-label">{%= __("VERIFIED BY") %}</div>
 	</div>
 </div>
