@@ -1,8 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "",
- "creation": "2026-07-20 10:10:00.000000",
+ "creation": "2026-07-20 10:10:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -134,8 +133,9 @@
   }
  ],
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2026-07-20 10:10:00.000000",
+ "modified": "2026-08-04 17:31:33.061533",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "Company Letters",
