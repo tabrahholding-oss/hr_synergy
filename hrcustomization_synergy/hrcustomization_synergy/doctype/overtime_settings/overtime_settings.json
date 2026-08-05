@@ -1,0 +1,159 @@
+{
+ "actions": [],
+ "creation": "2025-08-23 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "configuration_section",
+  "daily_working_hours_threshold",
+  "weekly_working_hours_threshold",
+  "column_break_1",
+  "auto_calculate_overtime",
+  "require_approval_for_ot",
+  "minimum_ot_for_approval",
+  "break_time_section",
+  "daily_break_hours",
+  "minimum_thresholds_section",
+  "minimum_normal_ot",
+  "column_break_min_ot",
+  "minimum_holiday_ot",
+  "minimum_special_ot"
+ ],
+ "fields": [
+  {
+   "fieldname": "configuration_section",
+   "fieldtype": "Section Break",
+   "label": "Configuration"
+  },
+  {
+   "default": "8",
+   "description": "Standard daily working hours after which overtime begins",
+   "fieldname": "daily_working_hours_threshold",
+   "fieldtype": "Float",
+   "label": "Daily Working Hours Threshold",
+   "precision": "2",
+   "reqd": 1
+  },
+  {
+   "default": "48",
+   "description": "Standard weekly working hours after which overtime begins",
+   "fieldname": "weekly_working_hours_threshold",
+   "fieldtype": "Float",
+   "label": "Weekly Working Hours Threshold",
+   "precision": "2",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Automatically calculate overtime when attendance is submitted",
+   "fieldname": "auto_calculate_overtime",
+   "fieldtype": "Check",
+   "label": "Auto Calculate Overtime"
+  },
+  {
+   "default": "1",
+   "description": "Require approval before overtime hours are confirmed",
+   "fieldname": "require_approval_for_ot",
+   "fieldtype": "Check",
+   "label": "Require Approval for OT"
+  },
+  {
+   "default": "0.5",
+   "depends_on": "require_approval_for_ot",
+   "description": "Minimum overtime hours that require approval",
+   "fieldname": "minimum_ot_for_approval",
+   "fieldtype": "Float",
+   "label": "Minimum OT for Approval (Hours)",
+   "precision": "2"
+  },
+  {
+   "fieldname": "break_time_section",
+   "fieldtype": "Section Break",
+   "label": "Break Time Configuration"
+  },
+  {
+   "default": "1",
+   "description": "Daily break hours to deduct from attendance time (e.g., 1 hour for lunch break)",
+   "fieldname": "daily_break_hours",
+   "fieldtype": "Float",
+   "label": "Daily Break Hours",
+   "precision": "2"
+  },
+  {
+   "fieldname": "minimum_thresholds_section",
+   "fieldtype": "Section Break",
+   "label": "Minimum Overtime Thresholds"
+  },
+  {
+   "default": "0.25",
+   "description": "Minimum hours required to consider as normal overtime (e.g., 0.25 = 15 minutes)",
+   "fieldname": "minimum_normal_ot",
+   "fieldtype": "Float",
+   "label": "Minimum Normal OT (Hours)",
+   "precision": "2"
+  },
+  {
+   "fieldname": "column_break_min_ot",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0.5",
+   "description": "Minimum hours required to consider as holiday overtime",
+   "fieldname": "minimum_holiday_ot",
+   "fieldtype": "Float",
+   "label": "Minimum Holiday OT (Hours)",
+   "precision": "2"
+  },
+  {
+   "default": "0.5",
+   "description": "Minimum hours required to consider as special overtime",
+   "fieldname": "minimum_special_ot",
+   "fieldtype": "Float",
+   "label": "Minimum Special OT (Hours)",
+   "precision": "2"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-08-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Hrcustomization Synergy",
+ "name": "Overtime Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "HR User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

@@ -157,7 +157,11 @@ fixtures = [
                 "Stock Entry-custom_account",
                 "Employee-custom_sponsor",
                 "Stock Entry Detail-custom_issue_reason_code",
-                "Employee-custom_shift"
+                "Employee-custom_shift",
+                "Employee-custom_overtime_eligible",
+                "Attendance-custom_ot_approved",
+                "Attendance-custom_ot_approval_request",
+                "Attendance-custom_calculated_ot_hours",
             ]]
         ]
     },
@@ -195,7 +199,10 @@ doc_events = {
     },
 	"Shift Assignment": {
 		"validate": "hrcustomization_synergy.overrides.shift_assignment.validate_day_off_restriction",
-	}
+	},
+    "Overtime Arrears": {
+        "before_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.overtime_arrears.overtime_arrears.create_additional_salary"
+    }
     # "Leave Application": {
         # "validate": "hrcustomization_synergy.overrides.leave_application.validate_leave_application"
     # }

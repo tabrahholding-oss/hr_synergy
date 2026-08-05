@@ -1,0 +1,205 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2025-08-23 00:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "request_date",
+  "status",
+  "column_break_1",
+  "from_date",
+  "to_date",
+  "filters_section",
+  "department",
+  "custom_company",
+  "column_break_2",
+  "employee",
+  "approval_section",
+  "approver",
+  "approval_date",
+  "column_break_3",
+  "comments",
+  "overtime_details_section",
+  "overtime_details",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "OT-APPR-.YYYY.-",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "request_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Request Date",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nPending Approval\nApproved\nRejected",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "From Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "To Date",
+   "reqd": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "filters_section",
+   "fieldtype": "Section Break",
+   "label": "Filters"
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Department",
+   "options": "Department"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "link_filters": "[[\"Employee\", \"custom_overtime_eligible\", \"=\", 1]]",
+   "options": "Employee"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "approval_section",
+   "fieldtype": "Section Break",
+   "label": "Approval Details"
+  },
+  {
+   "fieldname": "approver",
+   "fieldtype": "Link",
+   "label": "Approver",
+   "options": "User"
+  },
+  {
+   "fieldname": "approval_date",
+   "fieldtype": "Date",
+   "label": "Approval Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "comments",
+   "fieldtype": "Text",
+   "label": "Comments"
+  },
+  {
+   "fieldname": "overtime_details_section",
+   "fieldtype": "Section Break",
+   "label": "Overtime Details"
+  },
+  {
+   "fieldname": "overtime_details",
+   "fieldtype": "Table",
+   "label": "Overtime Details",
+   "options": "Overtime Approval Request Item"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Overtime Approval Request",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "custom_company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  }
+ ],
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-05 13:31:46.261196",
+ "modified_by": "Administrator",
+ "module": "Hrcustomization Synergy",
+ "name": "Overtime Approval Request",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
