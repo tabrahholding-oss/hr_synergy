@@ -122,7 +122,7 @@ class OvertimeApprovalRequest(Document):
             
             if holiday_list:
                 holidays = frappe.db.sql("""
-                    SELECT weekly_off, custom_public_holiday 
+                    SELECT weekly_off 
                     FROM `tabHoliday` 
                     WHERE parent = %s AND holiday_date = %s
                 """, (holiday_list, record.attendance_date), as_dict=True)
@@ -131,7 +131,6 @@ class OvertimeApprovalRequest(Document):
                     holiday = holidays[0]
                     is_holiday = True
                     is_weekly_off = holiday.get('weekly_off', 0)
-                    is_public_holiday = holiday.get('custom_public_holiday', 0)
             
             # Calculate overtime hours
             normal_ot_hours = 0
