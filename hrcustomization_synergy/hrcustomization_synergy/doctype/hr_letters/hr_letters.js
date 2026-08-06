@@ -7,14 +7,18 @@ frappe.ui.form.on('HR Letters', {
     },
 
     refresh(frm) {
+        // 1. Toggle field visibility/requirement rules
+        toggle_valid_till(frm);
+
+        // 2. Buttons hidden if document is unsaved or certificate_type is empty
         if (frm.is_new() || !frm.doc.certificate_type) return;
 
-        // ---- PRINT PREVIEW: hamesha available, signature nahi ----
+        // ---- PRINT PREVIEW: Always available (no signature) ----
         frm.add_custom_button(__('Print Preview'), () => {
             open_print(frm, true);
         });
 
-        // ---- PRINT CERTIFICATE: sirf Approved hone k baad, signature k sath ----
+        // ---- PRINT CERTIFICATE: Available only after Approval (with signature) ----
         if (frm.doc.status === 'Approved') {
             frm.add_custom_button(__('Print Certificate'), () => {
                 open_print(frm, false);
@@ -26,12 +30,9 @@ frappe.ui.form.on('HR Letters', {
             );
         }
     },
-    refresh(frm) {
-        toggle_valid_till(frm);
-    },
-    
+
     certificate_type(frm) {
-        // reset dependent fields jab type change ho
+        // Reset dependent fields jab type change ho
         frm.set_value('resignation_letter_date', '');
         frm.set_value('custom_country', '');
         frm.set_value('purpose', '');
@@ -39,11 +40,14 @@ frappe.ui.form.on('HR Letters', {
         frm.clear_table('salary_component');
         frm.refresh_field('warning_details');
         frm.refresh_field('salary_component');
-        
+
         auto_fetch_salary_components(frm);
-        toggle_valid_till(frm);
+        
+        // Dynamic re-render after type selection
+        frm.refresh();
     }
 });
+
 function toggle_valid_till(frm) {
     const reqd = frm.doc.certificate_type !== "Employee Travel NOC";
 
@@ -56,7 +60,8 @@ function toggle_valid_till(frm) {
 
     frm.refresh_field("valid_till");
 }
-function open_print(frm, is_preview) {
+
+function get_print_format(frm) {
     const format_map = {
         "Termination Letter": "Termination Letter",
         "Non Confirmation Letter": "Non Confirmation Letter",
@@ -66,11 +71,15 @@ function open_print(frm, is_preview) {
         "Asset Declaration": "Asset Declaration",
         "Employee Clearance Acknowledgement": "Employee Clearance Acknowledgement",
         "Employee Confirmation": "Employee Confirmation",
-        "Employee Travel NOC": "Employee Travel NOC",
-
+        "Employee Travel NOC": "Employee Travel NOC"
     };
 
-    const print_format = format_map[frm.doc.certificate_type];
+    return format_map[frm.doc.certificate_type];
+}
+
+function open_print(frm, is_preview) {
+    const print_format = get_print_format(frm);
+    
     if (!print_format) {
         frappe.msgprint(__('No print format mapped for this Certificate Type'));
         return;
@@ -86,6 +95,7 @@ function open_print(frm, is_preview) {
     if (is_preview) {
         url += "&preview=1";
     }
+
     window.open(url, "_blank");
 }
 
