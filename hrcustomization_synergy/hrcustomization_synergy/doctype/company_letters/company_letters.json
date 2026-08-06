@@ -9,6 +9,8 @@
   "column_break_1",
   "department",
   "letter_head",
+  "user",
+  "signature",
   "section_break_letter",
   "letter_type",
   "valid_till",
@@ -130,12 +132,24 @@
    "options": "Company Letters",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Select",
+   "label": "User",
+   "options": "\nAli Mohamed Al Kuwari\nAbdulla Mohammad Al Kuwari\nOssama Mohamed Nabil Abdelgawwad\nJoana Marie Tanglao"
+  },
+  {
+   "default": "0",
+   "fieldname": "signature",
+   "fieldtype": "Check",
+   "label": "Signature"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-04 17:31:33.061533",
+ "modified": "2026-08-06 14:45:03.388050",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "Company Letters",
