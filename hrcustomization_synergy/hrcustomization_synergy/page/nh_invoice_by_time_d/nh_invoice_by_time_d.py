@@ -40,7 +40,9 @@ def get_data(filters):
             END AS meal_type,
             si.resturent_type AS order_type,
             COALESCE(sip.mode_of_payment, 'Unassigned') AS payment_method,
-            sii.item_code, sii.item_name, i.item_group, sii.qty, sii.rate, sii.amount AS sales_amount,
+            sii.item_code, 
+            COALESCE(sii.item_name, sii.item_code) AS item_name, 
+            i.item_group, sii.qty, sii.rate, sii.amount AS sales_amount,
             COALESCE(slec.cost_of_sale, 0) AS cost_of_sale,
             (sii.amount - COALESCE(slec.cost_of_sale, 0)) AS gross_profit
         FROM `tabSales Invoice` si
@@ -147,13 +149,14 @@ def get_dashboard_payload(data):
         for p, v in payment_methods.items()
     ])
 
+    # UPDATED DETAIL HTML ROWS (Item Name Used Here)
     detail_rows_html = "".join([
         f"<tr><td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.sales_invoice}</td>"
         f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{str(row.posting_date)}</td>"
         f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.meal_type}</td>"
         f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.order_type or ''}</td>"
         f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.payment_method}</td>"
-        f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.item_code}</td>"
+        f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.item_name}</td>"
         f"<td style='padding:6px; text-align:right; border-bottom:1px solid #e2e8f0;'>{row.qty}</td>"
         f"<td style='padding:6px; text-align:right; border-bottom:1px solid #e2e8f0;'>{fmt_money(row.sales_amount)}</td>"
         f"<td style='padding:6px; text-align:right; border-bottom:1px solid #e2e8f0;'>{fmt_money(row.cost_of_sale)}</td></tr>"
@@ -180,21 +183,19 @@ def get_dashboard_payload(data):
         </div>
         <div style="text-align:center; font-weight:bold; margin-bottom:20px; font-size:15px; color:#475569;">{total_invoices} INVOICES</div>
 
-        <!-- Charts Grid Matrix (2x2 Balanced Structure) -->
+        <!-- Charts Grid Matrix -->
         <div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 25px;">
-            <!-- Row 1: Sales by Item Group (Split Donut) & Sales vs Cost (Line/Area Split) -->
             <div style="display: flex; gap: 20px;">
                 <div style="flex: 1; background: #fff; padding: 20px; border-radius: 8px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                    <h5 style="margin-top:0; font-weight: 600; color: #1e293b;">Program Demand (Sales by Item Group)</h5>
+                    <h5 style="margin-top:0; font-weight: 600; color: #1e293b;">Sales by Item Group</h5>
                     <div id="apex-chart-item-group" style="min-height: 330px;"></div>
                 </div>
                 <div style="flex: 1; background: #fff; padding: 20px; border-radius: 8px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                    <h5 style="margin-top:0; font-weight: 600; color: #1e293b;">Leads & Applicants per Day (Sales vs Cost of Sales)</h5>
+                    <h5 style="margin-top:0; font-weight: 600; color: #1e293b;">Sales vs Cost of Sales</h5>
                     <div id="apex-chart-sales-cost" style="min-height: 330px;"></div>
                 </div>
             </div>
 
-            <!-- Row 2: Payment Method (Line/Bar) & Meal Type Donut -->
             <div style="display: flex; gap: 20px;">
                 <div style="flex: 1; background: #fff; padding: 20px; border-radius: 8px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
                     <h5 style="margin-top:0; font-weight: 600; color: #1e293b;">Sales Trends by Payment Method</h5>
@@ -269,7 +270,7 @@ def get_dashboard_payload(data):
             </div>
         </div>
 
-        <!-- Raw Grid Data -->
+        <!-- Raw Grid Data (Updated Column Header to Item Name) -->
         <div style="background: #fff; padding: 15px; border-radius: 6px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
             <h5 style="margin-top:0; color: #1e293b; text-align:center;">DETAIL DATA (Top 50 Rows)</h5>
             <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
@@ -280,7 +281,7 @@ def get_dashboard_payload(data):
                         <th style="padding: 6px; border-bottom: 2px solid #cbd5e1;">Meal</th>
                         <th style="padding: 6px; border-bottom: 2px solid #cbd5e1;">Order Type</th>
                         <th style="padding: 6px; border-bottom: 2px solid #cbd5e1;">Payment Method</th>
-                        <th style="padding: 6px; border-bottom: 2px solid #cbd5e1;">Item</th>
+                        <th style="padding: 6px; border-bottom: 2px solid #cbd5e1;">Item Name</th>
                         <th style="padding: 6px; text-align:right; border-bottom: 2px solid #cbd5e1;">Qty</th>
                         <th style="padding: 6px; text-align:right; border-bottom: 2px solid #cbd5e1;">Sales</th>
                         <th style="padding: 6px; text-align:right; border-bottom: 2px solid #cbd5e1;">Cost</th>
