@@ -5,7 +5,8 @@ from hrcustomization_synergy.hrcustomization_synergy.wps_utils import get_certif
 FORMAT_MAP = {
         "Memo": "Memo",
         "Offers": "Offers",
-        "Circulars": "Circulars"
+        "Circulars": "Circulars",
+        "Project Letters": "Project Letters"
 }
 
 class CompanyLetters(Document):

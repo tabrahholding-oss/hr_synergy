@@ -293,7 +293,10 @@ def get_certificate_series_name(doc, type_fieldname, type_doctype):
         frappe.throw(f"Company '{doc.company}' does not have an Abbr set.")
 
     year = frappe.utils.nowdate()[:4]
-    key = f"HR-{type_abbr}-{company_abbr}-{year}-"
+    if letter_type == "Project Letters":
+        key = f"{type_abbr}-{company_abbr}-{year}-"
+    else:
+        key = f"HR-{type_abbr}-{company_abbr}-{year}-"
     return make_autoname(key + ".#####")
 
 

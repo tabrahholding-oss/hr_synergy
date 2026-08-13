@@ -26,7 +26,8 @@ function open_print(frm, is_preview) {
     const format_map = {
         "Memo": "Memo",
         "Offers": "Offers",
-        "Circulars": "Circulars"
+        "Circulars": "Circulars",
+        "Project Letters": "Project Letters",
     };
 
     const print_format = format_map[frm.doc.letter_type];
