@@ -19,7 +19,23 @@ frappe.ui.form.on('Company Letters', {
                 'blue', true
             );
         }
-    }
+		if (frm.doc.letter_type === 'Project Letters') {
+            frm.set_df_property('user', 'hidden', 0);
+        } else {
+            frm.set_df_property('user', 'hidden', 1);
+        }
+    },
+	letter_type: function(frm) {
+        if (frm.doc.letter_type === 'Project Letters') {
+            // Field ko visible karein aur value set karein
+            frm.set_df_property('user', 'hidden', 0);
+            frm.set_value('user', 'Hamad Shoby Ali Khalil');
+        } else {
+            // Field value clear karein aur hide kar dein
+            frm.set_value('user', '');
+            frm.set_df_property('user', 'hidden', 1);
+        }
+    },
 });
 
 function open_print(frm, is_preview) {
