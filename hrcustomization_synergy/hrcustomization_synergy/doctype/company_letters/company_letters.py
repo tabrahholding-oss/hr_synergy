@@ -6,7 +6,10 @@ FORMAT_MAP = {
         "Memo": "Memo",
         "Offers": "Offers",
         "Circulars": "Circulars",
-        "Project Letters": "Project Letters"
+        "Project Letters": "Project Letters",
+		"MOI Letter": "MOI Letter",
+        "MOL Letter": "MOL Letter",
+        "Kahramaa Letter": "Kahramaa Letter",
 }
 
 class CompanyLetters(Document):

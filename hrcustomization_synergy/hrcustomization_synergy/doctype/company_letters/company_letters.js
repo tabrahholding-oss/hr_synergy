@@ -28,6 +28,9 @@ function open_print(frm, is_preview) {
         "Offers": "Offers",
         "Circulars": "Circulars",
         "Project Letters": "Project Letters",
+        "MOI Letter": "MOI Letter",
+        "MOL Letter": "MOL Letter",
+        "Kahramaa Letter": "Kahramaa Letter",
     };
 
     const print_format = format_map[frm.doc.letter_type];
