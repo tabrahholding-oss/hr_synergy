@@ -137,7 +137,7 @@
    "fieldname": "user",
    "fieldtype": "Select",
    "label": "User",
-   "options": "\nAli Mohamed Al Kuwari\nAbdulla Mohammad Al Kuwari\nOssama Mohamed Nabil Abdelgawwad\nJoana Marie Tanglao"
+   "options": "\nAli Mohamed Al Kuwari\nAbdulla Mohammad Al Kuwari\nOssama Mohamed Nabil Abdelgawwad\nJoana Marie Tanglao\nHamad Shoby Ali Khalil"
   },
   {
    "default": "0",
