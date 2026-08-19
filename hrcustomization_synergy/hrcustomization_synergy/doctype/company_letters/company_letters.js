@@ -3,6 +3,10 @@
 
 frappe.ui.form.on('Company Letters', {
     refresh(frm) {
+        // Dynamic options update karein
+        frm.trigger('update_user_options');
+
+        // Custom Print Buttons Logic
         if (frm.is_new() || !frm.doc.letter_type) return;
 
         frm.add_custom_button(__('Print Preview'), () => {
@@ -19,23 +23,45 @@ frappe.ui.form.on('Company Letters', {
                 'blue', true
             );
         }
-		if (frm.doc.letter_type === 'Project Letters') {
-            frm.set_df_property('user', 'hidden', 0);
-        } else {
-            frm.set_df_property('user', 'hidden', 1);
-        }
     },
-	letter_type: function(frm) {
+
+    letter_type: function(frm) {
+        frm.trigger('update_user_options');
+    },
+
+    update_user_options: function(frm) {
+        // Tamam 5 options
+        let all_options = [
+            "",
+            "Ali Mohamed Al Kuwari",
+            "Abdulla Mohammad Al Kuwari",
+            "Ossama Mohamed Nabil Abdelgawwad",
+            "Joana Marie Tanglao",
+            "Hamad Shoby Ali Khalil"
+        ];
+
+        // Hamad ke ilawa baki 4 options
+        let restricted_options = [
+            "",
+            "Ali Mohamed Al Kuwari",
+            "Abdulla Mohammad Al Kuwari",
+            "Ossama Mohamed Nabil Abdelgawwad",
+            "Joana Marie Tanglao"
+        ];
+
         if (frm.doc.letter_type === 'Project Letters') {
-            // Field ko visible karein aur value set karein
-            frm.set_df_property('user', 'hidden', 0);
-            frm.set_value('user', 'Hamad Shoby Ali Khalil');
+            // "Project Letters" ke waqt 5 options show hongy
+            frm.set_df_property('user', 'options', all_options);
         } else {
-            // Field value clear karein aur hide kar dein
-            frm.set_value('user', '');
-            frm.set_df_property('user', 'hidden', 1);
+            // Baki case me sirf 4 options nazar aayenge
+            frm.set_df_property('user', 'options', restricted_options);
+            
+            // Agar pehle se Hamad selected ho to value clear kar dein
+            if (frm.doc.user === 'Hamad Shoby Ali Khalil') {
+                frm.set_value('user', '');
+            }
         }
-    },
+    }
 });
 
 function open_print(frm, is_preview) {
@@ -67,5 +93,3 @@ function open_print(frm, is_preview) {
     }
     window.open(url, "_blank");
 }
-
-
