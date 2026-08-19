@@ -109,7 +109,6 @@ def get_dashboard_payload(data):
         if inv_no:
             payment_methods[p_method]["invoices"].add(inv_no)
 
-        p_date = str(row.get("posting_date"))
         p_time = str(row.get("posting_time"))
         try:
             hour_val = datetime.strptime(p_time.split('.')[0], "%H:%M:%S").strftime("%I %p").lstrip('0')
@@ -118,7 +117,8 @@ def get_dashboard_payload(data):
             hour_val = "12 AM"
             hour_sort = 0
 
-        key = (p_date, hour_sort, hour_val)
+        # CHANGED: consolidated across the selected date range — key is hour only, no date
+        key = (hour_sort, hour_val)
         if key not in hourly_sales:
             hourly_sales[key] = {"amount": 0, "invoices": set(), "pax": 0}
 
@@ -177,19 +177,15 @@ def get_dashboard_payload(data):
         for p, v in payment_methods.items()
     ])
 
+    # CHANGED: consolidated hourly rows — sorted by hour only, no date column
     hourly_rows_list = []
-    sorted_hourly_keys = sorted(hourly_sales.keys(), key=lambda x: (x[0], x[1]))
-    current_date = None
+    sorted_hourly_keys = sorted(hourly_sales.keys(), key=lambda x: x[0])
     for key in sorted_hourly_keys:
-        p_date, _, hour_label = key
+        hour_sort, hour_label = key
         val = hourly_sales[key]
-        date_display = p_date if p_date != current_date else ""
-        current_date = p_date
-
         hourly_rows_list.append(
             f"<tr>"
-            f"<td style='padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;'>{date_display}</td>"
-            f"<td style='padding:8px; border-bottom:1px solid #e2e8f0;'>{hour_label}</td>"
+            f"<td style='padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;'>{hour_label}</td>"
             f"<td style='padding:8px; text-align:center; border-bottom:1px solid #e2e8f0;'>{len(val['invoices'])}</td>"
             f"<td style='padding:8px; text-align:center; border-bottom:1px solid #e2e8f0;'>{int(val['pax'])}</td>"
             f"<td style='padding:8px; text-align:right; border-bottom:1px solid #e2e8f0;'>{fmt_money(val['amount'])}</td>"
@@ -276,13 +272,12 @@ def get_dashboard_payload(data):
                     </table>
                 </div>
 
-                <!-- HOURLY SALES BREAKDOWN TABLE PLACED DIRECTLY BELOW ITEM GROUP TABLE -->
+                <!-- HOURLY SALES BREAKDOWN — consolidated for the selected date range -->
                 <div style="background: #fff; padding: 15px; border-radius: 6px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
                     <h5 style="margin-top:0; color: #1e293b; text-align:center;">HOURLY SALES BREAKDOWN</h5>
                     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                         <thead>
                             <tr style="background: #f8fafc;">
-                                <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align:left;">Date</th>
                                 <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align:left;">Hours</th>
                                 <th style="padding: 8px; text-align: center; border-bottom: 2px solid #cbd5e1;">Count Invoice</th>
                                 <th style="padding: 8px; text-align: center; border-bottom: 2px solid #cbd5e1;">PAX</th>
