@@ -12,6 +12,19 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 		document.head.appendChild(script);
 	}
 
+	// CHANGED: sticky filter bar so it stays fixed while scrolling the dashboard
+	let $stickyStyle = $('<style>')
+		.text(`
+			.page-form.frappe-card {
+				position: sticky;
+				top: 0;
+				z-index: 100;
+				background: #fff;
+				box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+			}
+		`)
+		.appendTo(document.head);
+
 	let $content = $('<div class="dashboard-content" style="padding-top: 15px;"></div>').appendTo(page.main);
 
 	// Filters Configurations
@@ -150,6 +163,13 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 		if(field.$input) field.$input.on('change visual-change input', () => load_dashboard_data());
 	});
 
-	page.add_inner_button(__('Refresh'), () => load_dashboard_data());
+	// CHANGED: Refresh button color set to red
+	let refresh_btn = page.add_inner_button(__('Refresh'), () => load_dashboard_data());
+	refresh_btn.css({
+		'background-color': '#ef4444',
+		'border-color': '#ef4444',
+		'color': '#fff'
+	});
+
 	load_dashboard_data();
 };
