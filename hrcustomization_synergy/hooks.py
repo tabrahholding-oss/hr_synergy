@@ -162,6 +162,7 @@ fixtures = [
                 "Attendance-custom_ot_approved",
                 "Attendance-custom_ot_approval_request",
                 "Attendance-custom_calculated_ot_hours",
+                "Material Request-custom_available_for_purchase"
             ]]
         ]
     },
@@ -223,8 +224,9 @@ doctype_js = {
     "Stock Entry": "public/js/custom.js",
     "Leave Application": "public/js/custom.js",
     "Certificate Request Detail": "public/js/custom.js",
+    "Purchase Order": "public/js/purchase_order.js",
+    "Material Request": "public/js/material_request.js"
 }
-
 # Testing
 # -------
 

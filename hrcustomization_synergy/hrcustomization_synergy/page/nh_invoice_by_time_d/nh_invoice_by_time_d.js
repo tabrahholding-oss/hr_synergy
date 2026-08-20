@@ -12,15 +12,33 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 		document.head.appendChild(script);
 	}
 
-	// CHANGED: sticky filter bar so it stays fixed while scrolling the dashboard
+	// CHANGED: sticky filter bar — fixed so it stays visible on scroll, positioned below the page-head
+	// CHANGED: bigger z-index gap + solid opaque backgrounds + overflow-anchor:none to stop the
+	// "scroll up par label filters ke upar aa jana" glitch (browser scroll-anchoring artifact)
 	let $stickyStyle = $('<style>')
 		.text(`
+			.page-container, .page-content, .container.page-body {
+				overflow-anchor: none !important;
+			}
+			.page-head {
+				position: sticky !important;
+				top: 0 !important;
+				z-index: 1000 !important;
+				background: #fff !important;
+				opacity: 1 !important;
+			}
+			.page-form,
 			.page-form.frappe-card {
-				position: sticky;
-				top: 0;
-				z-index: 100;
-				background: #fff;
+				position: sticky !important;
+				top: 56px !important;
+				z-index: 999 !important;
+				background: #fff !important;
+				opacity: 1 !important;
 				box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+			}
+			.dashboard-content h5,
+			.dashboard-content .frappe-card {
+				position: static !important;
 			}
 		`)
 		.appendTo(document.head);
