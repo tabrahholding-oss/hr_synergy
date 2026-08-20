@@ -5,16 +5,13 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 		single_column: true
 	});
 
-	// Dynamically inject ApexCharts Library into Head if not loaded
 	if (!window.ApexCharts) {
 		let script = document.createElement('script');
 		script.src = "https://cdn.jsdelivr.net/npm/apexcharts";
 		document.head.appendChild(script);
 	}
 
-	// CHANGED: sticky filter bar — fixed so it stays visible on scroll, positioned below the page-head
-	// CHANGED: bigger z-index gap + solid opaque backgrounds + overflow-anchor:none to stop the
-	// "scroll up par label filters ke upar aa jana" glitch (browser scroll-anchoring artifact)
+
 	let $stickyStyle = $('<style>')
 		.text(`
 			.page-container, .page-content, .container.page-body {
@@ -83,11 +80,9 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 
 				$content.html(r.message.html);
 
-				// Ensure Library Execution Safety Check
 				setTimeout(() => {
 					if (!window.ApexCharts) return;
 
-					// 1. IMAGE 2 MATCH: Item Group Donut Chart (Left Legends Matrix with Percentages)
 					if (r.message.chart_item_group && r.message.chart_item_group.labels.length) {
 						let igOptions = {
 							series: r.message.chart_item_group.values,
@@ -125,7 +120,6 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 						new ApexCharts(document.querySelector("#apex-chart-item-group"), igOptions).render();
 					}
 
-					// 2. IMAGE 1 MATCH: Sales vs Cost Area Smooth Curve Chart (Smooth Curve, Gradient Area, Bottom Legends)
 					if (r.message.chart_sales_vs_cost && r.message.chart_sales_vs_cost.labels.length) {
 						let scOptions = {
 							series: [
@@ -147,7 +141,6 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 						new ApexCharts(document.querySelector("#apex-chart-sales-cost"), scOptions).render();
 					}
 
-					// 3. Payment Method Trend Line Chart
 					if (r.message.chart_payment_method && r.message.chart_payment_method.labels.length) {
 						let pmOptions = {
 							series: [{ name: 'Amount', data: r.message.chart_payment_method.values }],
@@ -159,7 +152,6 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 						new ApexCharts(document.querySelector("#apex-chart-payment-method"), pmOptions).render();
 					}
 
-					// 4. Meal Type Standard Donut Chart
 					if (r.message.chart_meal_type && r.message.chart_meal_type.labels.length) {
 						let mtOptions = {
 							series: r.message.chart_meal_type.values,
@@ -174,14 +166,12 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 		});
 	}
 
-	// Dynamic Watcher Event Loop Hooks
 	let all_fields = [company_field, from_date_field, to_date_field, item_group_field, meal_type_field, order_type_field, payment_method_field];
 	all_fields.forEach(field => {
 		field.df.onchange = () => load_dashboard_data();
 		if(field.$input) field.$input.on('change visual-change input', () => load_dashboard_data());
 	});
 
-	// CHANGED: Refresh button color set to red
 	let refresh_btn = page.add_inner_button(__('Refresh'), () => load_dashboard_data());
 	refresh_btn.css({
 		'background-color': '#ef4444',
