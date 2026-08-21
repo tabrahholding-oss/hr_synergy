@@ -137,21 +137,30 @@ def get_material_transfer_purchase_balance():
             purchase_qty = balance_qty / conversion_factor
 
             # -------------------------------------------------
-            # Fetch Supplier & Last Purchase Rate
+            # Fetch Supplier & Last Purchase Rate (ERPNext v15 Safe)
             # -------------------------------------------------
 
-            # 1. Fetch default supplier & rate from Item Master
-            item_data = frappe.db.get_value(
-                "Item",
-                mr_item.item_code,
-                ["default_supplier", "last_purchase_rate"],
-                as_dict=True
-            ) or {}
+            # 1. Item Master se Last Purchase Rate fetch karein
+            last_purchase_rate = frappe.utils.flt(
+                frappe.db.get_value("Item", mr_item.item_code, "last_purchase_rate")
+            )
 
-            supplier = item_data.get("default_supplier")
-            last_purchase_rate = frappe.utils.flt(item_data.get("last_purchase_rate"))
+            # 2. Item Default Child Table se default_supplier fetch karein (Company wise)
+            supplier = frappe.db.get_value(
+                "Item Default",
+                {"parent": mr_item.item_code, "company": mr.company},
+                "default_supplier"
+            )
 
-            # 2. Check latest Purchase Order Item for last purchase details if not set in Item Master
+            # Agar company-wise supplier na mile toh generic check karein
+            if not supplier:
+                supplier = frappe.db.get_value(
+                    "Item Default",
+                    {"parent": mr_item.item_code},
+                    "default_supplier"
+                )
+
+            # 3. Agar abhi bhi missing ho, toh latest submitted Purchase Order se fetch karein
             last_po_data = frappe.db.sql(
                 """
                 SELECT po.supplier, poi.rate 
@@ -171,7 +180,7 @@ def get_material_transfer_purchase_balance():
                 if not last_purchase_rate:
                     last_purchase_rate = frappe.utils.flt(last_po_data[0].get("rate"))
 
-            # 3. Get Supplier Name if Supplier ID exists
+            # 4. Supplier Name fetch karein
             supplier_name = ""
             if supplier:
                 supplier_name = frappe.db.get_value("Supplier", supplier, "supplier_name") or ""
