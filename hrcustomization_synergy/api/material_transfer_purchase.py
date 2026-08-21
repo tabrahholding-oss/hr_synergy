@@ -137,6 +137,46 @@ def get_material_transfer_purchase_balance():
             purchase_qty = balance_qty / conversion_factor
 
             # -------------------------------------------------
+            # Fetch Supplier & Last Purchase Rate
+            # -------------------------------------------------
+
+            # 1. Fetch default supplier & rate from Item Master
+            item_data = frappe.db.get_value(
+                "Item",
+                mr_item.item_code,
+                ["default_supplier", "last_purchase_rate"],
+                as_dict=True
+            ) or {}
+
+            supplier = item_data.get("default_supplier")
+            last_purchase_rate = frappe.utils.flt(item_data.get("last_purchase_rate"))
+
+            # 2. Check latest Purchase Order Item for last purchase details if not set in Item Master
+            last_po_data = frappe.db.sql(
+                """
+                SELECT po.supplier, poi.rate 
+                FROM `tabPurchase Order Item` poi
+                INNER JOIN `tabPurchase Order` po ON po.name = poi.parent
+                WHERE poi.item_code = %s AND po.docstatus = 1
+                ORDER BY po.transaction_date DESC, po.creation DESC
+                LIMIT 1
+                """,
+                (mr_item.item_code,),
+                as_dict=True
+            )
+
+            if last_po_data:
+                if not supplier:
+                    supplier = last_po_data[0].get("supplier")
+                if not last_purchase_rate:
+                    last_purchase_rate = frappe.utils.flt(last_po_data[0].get("rate"))
+
+            # 3. Get Supplier Name if Supplier ID exists
+            supplier_name = ""
+            if supplier:
+                supplier_name = frappe.db.get_value("Supplier", supplier, "supplier_name") or ""
+
+            # -------------------------------------------------
             # Add to result
             # -------------------------------------------------
 
@@ -147,6 +187,9 @@ def get_material_transfer_purchase_balance():
                 "item_code": mr_item.item_code,
                 "item_name": mr_item.item_name,
                 "description": mr_item.description,
+                "supplier": supplier or "",
+                "supplier_name": supplier_name,
+                "last_purchase_rate": last_purchase_rate,
                 "requested_qty": requested_qty,
                 "transferred_qty": transferred_qty,
                 "ordered_qty": ordered_qty,
