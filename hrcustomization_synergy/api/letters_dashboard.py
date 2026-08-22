@@ -4,7 +4,6 @@ from frappe import _
 
 DOCTYPES = ["Employee Letters", "HR Letters", "Company Letters"]
 
-# Same mappings jo aapke print-button client scripts me hain
 EMPLOYEE_BANK_FORMAT_MAP = {
     "QDC": "Salary Certificate QDC",
     "CBQ": "Salary Certificate CBQ",
@@ -28,7 +27,6 @@ HR_FORMAT_MAP = {
 
 
 def _resolve_print_format(doctype, row):
-    """Doctype + type field (+ bank for Employee Letters) se sahi print format nikalta hai."""
     if doctype == "Employee Letters":
         if row.get("certificate_type") == "Salary Certificate":
             bank = row.get("bank")
@@ -46,6 +44,12 @@ def _resolve_print_format(doctype, row):
 
 def _type_field(doctype):
     return "letter_type" if doctype == "Company Letters" else "certificate_type"
+
+
+def _effective_status(row):
+    """Workflow state ko source of truth maante hain — 'status' field workflow
+    transition ke sath sync na ho to bhi ye sahi value dega."""
+    return row.get("workflow_state") or row.get("status") or "Draft"
 
 
 @frappe.whitelist()
@@ -67,8 +71,6 @@ def get_dashboard_data(doctype_filter=None, company=None, type_filter=None,
         filters = {}
         if company:
             filters["company"] = company
-        if status_filter:
-            filters["status"] = status_filter
         if type_filter:
             filters[tfield] = type_filter
         if from_date and to_date:
@@ -91,11 +93,16 @@ def get_dashboard_data(doctype_filter=None, company=None, type_filter=None,
             r["certificate_type"] = r.get(tfield)
             r["party"] = r.get("employee_name") or r.get("company")
             r["print_format"] = _resolve_print_format(dt, r)
+            r["display_status"] = _effective_status(r)
+
+            # status_filter ab display_status (workflow-aware) ke against apply hota hai
+            if status_filter and r["display_status"] != status_filter:
+                continue
 
             if search:
                 s = search.lower()
                 hay = " ".join(str(r.get(k) or "") for k in
-                                ("name", "party", "certificate_type", "status")).lower()
+                                ("name", "party", "certificate_type", "display_status")).lower()
                 if s not in hay:
                     continue
 
@@ -103,12 +110,18 @@ def get_dashboard_data(doctype_filter=None, company=None, type_filter=None,
 
     all_rows.sort(key=lambda x: x["creation"], reverse=True)
 
+    approved = len([r for r in all_rows if r["display_status"] == "Approved"])
+    rejected = len([r for r in all_rows if r["display_status"] == "Rejected"])
+    draft = len([r for r in all_rows if r["display_status"] == "Draft"])
+    total = len(all_rows)
+    pending = total - approved - rejected - draft  # koi bhi beech ki workflow state
+
     kpis = {
-        "total": len(all_rows),
-        "draft": len([r for r in all_rows if r["status"] == "Draft"]),
-        "pending": len([r for r in all_rows if r["status"] == "Pending Approval"]),
-        "approved": len([r for r in all_rows if r["status"] == "Approved"]),
-        "rejected": len([r for r in all_rows if r["status"] == "Rejected"]),
+        "total": total,
+        "draft": draft,
+        "pending": pending,
+        "approved": approved,
+        "rejected": rejected,
     }
 
     type_counts = {}
@@ -119,7 +132,7 @@ def get_dashboard_data(doctype_filter=None, company=None, type_filter=None,
 
     status_counts = {}
     for r in all_rows:
-        status_counts[r["status"]] = status_counts.get(r["status"], 0) + 1
+        status_counts[r["display_status"]] = status_counts.get(r["display_status"], 0) + 1
 
     return {
         "rows": all_rows,
@@ -131,6 +144,7 @@ def get_dashboard_data(doctype_filter=None, company=None, type_filter=None,
         "meta": {
             "doctypes": DOCTYPES,
             "types_by_doctype": _all_type_options(),
+            "companies": frappe.get_all("Company", pluck="name", order_by="name"),
             "generated_on": frappe.utils.now(),
         },
     }
