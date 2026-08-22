@@ -47,13 +47,11 @@ def _type_field(doctype):
 
 
 def _effective_status(row):
-    """Workflow state ko source of truth maante hain — 'status' field workflow
-    transition ke sath sync na ho to bhi ye sahi value dega."""
     return row.get("workflow_state") or row.get("status") or "Draft"
 
 
 @frappe.whitelist()
-def get_dashboard_data(doctype_filter=None, company=None, type_filter=None,
+def get_dashboard_data(doctype_filter=None, company=None, employee=None, type_filter=None,
                         status_filter=None, from_date=None, to_date=None, search=None):
     if not any(frappe.has_permission(dt, "read") for dt in DOCTYPES):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
@@ -67,10 +65,17 @@ def get_dashboard_data(doctype_filter=None, company=None, type_filter=None,
         if not frappe.has_permission(dt, "read"):
             continue
 
+        # Company Letters mein employee field hi nahi hai — employee filter
+        # lagne par ye doctype skip karo
+        if employee and dt == "Company Letters":
+            continue
+
         tfield = _type_field(dt)
         filters = {}
         if company:
             filters["company"] = company
+        if employee and dt in ("Employee Letters", "HR Letters"):
+            filters["employee"] = employee
         if type_filter:
             filters[tfield] = type_filter
         if from_date and to_date:
@@ -95,7 +100,6 @@ def get_dashboard_data(doctype_filter=None, company=None, type_filter=None,
             r["print_format"] = _resolve_print_format(dt, r)
             r["display_status"] = _effective_status(r)
 
-            # status_filter ab display_status (workflow-aware) ke against apply hota hai
             if status_filter and r["display_status"] != status_filter:
                 continue
 
@@ -114,7 +118,7 @@ def get_dashboard_data(doctype_filter=None, company=None, type_filter=None,
     rejected = len([r for r in all_rows if r["display_status"] == "Rejected"])
     draft = len([r for r in all_rows if r["display_status"] == "Draft"])
     total = len(all_rows)
-    pending = total - approved - rejected - draft  # koi bhi beech ki workflow state
+    pending = total - approved - rejected - draft
 
     kpis = {
         "total": total,
@@ -162,6 +166,25 @@ def _all_type_options():
         frappe.get_all("Company Letters", pluck="letter_type", distinct=True)
     ))
     return result
+
+
+@frappe.whitelist()
+def search_employees(txt=None, limit=20):
+    """Employee dropdown ke liye searchable list (name + employee_name)."""
+    filters = {}
+    if txt:
+        filters = [
+            ["Employee", "employee_name", "like", f"%{txt}%"]
+        ]
+    rows = frappe.get_all(
+        "Employee",
+        filters=filters if txt else {},
+        or_filters=[["name", "like", f"%{txt}%"]] if txt else None,
+        fields=["name", "employee_name"],
+        limit_page_length=limit,
+        order_by="employee_name asc",
+    )
+    return rows
 
 
 @frappe.whitelist()
