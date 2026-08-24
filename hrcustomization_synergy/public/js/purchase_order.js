@@ -520,3 +520,146 @@ function filter_dialog_table(dialog) {
         }
     });
 }
+
+
+// ===========================================================
+// Purchase History Popup (Purchase Order Item)
+// ===========================================================
+
+let dialog_timeout = null;
+
+frappe.ui.form.on('Purchase Order Item', {
+    custom_history: function (frm, cdt, cdn) {
+
+        // --- Prevent Double Popup (Debounce) ---
+        if (dialog_timeout) {
+            clearTimeout(dialog_timeout);
+        }
+
+        if (window.dialog_open) return;
+
+        window.dialog_open = true;
+
+        let row = locals[cdt][cdn];
+
+        if (!row.item_code) {
+            frappe.msgprint(__('Please select an Item first.'));
+            return;
+        }
+
+        // Safety check: Agar dialog already screen par hai to naya mat banao
+        if ($('.modal-title:contains("Previous Purchase History")').is(':visible')) {
+            return;
+        }
+
+        render_history_dialog(frm, row);
+
+        dialog_timeout = setTimeout(() => {
+            window.dialog_open = false;
+        }, 3000);
+    }
+});
+
+function render_history_dialog(frm, row) {
+    let d = new frappe.ui.Dialog({
+        title: __('Previous Purchase History'),
+        size: 'large',
+        fields: [
+            {
+                fieldtype: 'Date',
+                label: 'From Date',
+                fieldname: 'from_date',
+                default: '2025-01-01',
+                onchange: () => load_history()
+            },
+            {
+                fieldtype: 'Date',
+                label: 'To Date',
+                fieldname: 'to_date',
+                default: frappe.datetime.get_today(),
+                onchange: () => load_history()
+            },
+            {
+                fieldtype: 'HTML',
+                fieldname: 'result_area'
+            }
+        ]
+    });
+
+    function load_history() {
+        let values = d.get_values();
+        if (!values || !values.from_date || !values.to_date) return;
+
+        d.fields_dict.result_area.$wrapper.html(`<p class="text-muted p-2"><i class="fa fa-spinner fa-spin"></i> Fetching records...</p>`);
+
+        frappe.call({
+            method: 'hrcustomization_synergy.api.purchase_order.get_previous_purchases',
+            args: {
+                item_code: row.item_code,
+                from_date: values.from_date,
+                to_date: values.to_date
+            },
+            callback: function (r) {
+                console.log("Response", r);
+
+                let records = r.message || [];
+                let count = records.length;
+
+
+                let html = `
+                    <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #d1d8dd;">
+                        <div class="row">
+                            <div class="col-sm-8">
+                                <b>Item Code:</b>(${row.item_code})<br>
+                                <b>Item Name:</b> ${row.item_name || ''}<br>
+                                <small class="text-muted"> <strong> Used: ${count} time${count > 1 ? 's' : ''}</strong></small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                if (count === 0) {
+                    html += `<div class="alert alert-info">No purchase history found for this period.</div>`;
+                    d.fields_dict.result_area.$wrapper.html(html);
+                    return;
+                }
+
+                html += `
+                    <table class="table table-bordered table-sm table-hover">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>PO Number</th>
+                                <th>Supplier</th>
+                                <th class="text-right">Qty</th>
+                                <th>UOM</th>
+                                <th class="text-right">Rate</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                records.forEach(item => {
+                    html += `
+                        <tr>
+                            <td><a href="/app/purchase-order/${item.doc_name}" target="_blank" style="font-weight:bold;">${item.doc_name}</a></td>
+                            <td>${item.supplier_name}</td>
+                            <td class="text-right">${item.qty}</td>
+                            <td>${item.uom}</td>
+                            <td class="text-right">${frappe.format(item.rate, { fieldtype: 'Currency' })}</td>
+                            <td>
+                            ${item.schedule_date ? moment(item.schedule_date).format("DD-MM-YYYY") : ""}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table>`;
+                d.fields_dict.result_area.$wrapper.html(html);
+            }
+        });
+    }
+
+    d.show();
+    load_history();
+}

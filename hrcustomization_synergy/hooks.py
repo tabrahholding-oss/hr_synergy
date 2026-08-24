@@ -163,7 +163,8 @@ fixtures = [
                 "Attendance-custom_ot_approval_request",
                 "Attendance-custom_calculated_ot_hours",
                 "Material Request-custom_available_for_purchase",
-                "Employee Checkin-custom_project"
+                "Employee Checkin-custom_project",
+                "Purchase Order Item-custom_history"
             ]]
         ]
     },
