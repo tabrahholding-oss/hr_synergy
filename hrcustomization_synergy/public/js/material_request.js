@@ -1,13 +1,11 @@
 frappe.ui.form.on("Material Request", {
     refresh: function(frm) {
-        // Only for submitted Material Transfer requests
+        frm.page.remove_inner_button("Material Transfer", "Create");
+
         if (
             frm.doc.docstatus === 1 &&
             frm.doc.material_request_type === "Material Transfer"
         ) {
-            // ---------------------------------------------------------
-            // Make Balance Available for Purchase
-            // ---------------------------------------------------------
             frm.add_custom_button(
                 __("Make Balance Available for Purchase"),
                 function() {
