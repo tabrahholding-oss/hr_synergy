@@ -217,7 +217,12 @@ doc_events = {
 scheduler_events = {
     "monthly": [
         "hrcustomization_synergy.air_ticket_accrual.accrue_air_tickets"
-    ]
+    ],
+    "cron": {
+        "*/5 * * * *": [
+            "hrcustomization_synergy.tasks.send_scheduled_reports"
+        ]
+    }
 }
 app_include_js = [
     "/assets/hrcustomization_synergy/js/custom.js",
