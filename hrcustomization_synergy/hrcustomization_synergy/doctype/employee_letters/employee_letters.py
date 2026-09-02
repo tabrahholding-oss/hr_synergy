@@ -25,6 +25,7 @@ BANK_FORMAT_MAP = {
 FORMAT_MAP = {
     "Employment Certificate": "Employment Certificate",
     "Experience Letter": "Experience Letter",
+    "Employment Certificate Without Salary Details": "Employment Certificate Without Salary Details",
 }
 
 

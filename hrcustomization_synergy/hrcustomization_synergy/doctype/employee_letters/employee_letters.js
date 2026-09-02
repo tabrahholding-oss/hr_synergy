@@ -48,7 +48,8 @@ function get_print_format(frm) {
     }
     const format_map = {
         "Employment Certificate": "Employment Certificate",
-        "Experience Letter": "Experience Letter"
+        "Experience Letter": "Experience Letter",
+        "Employment Certificate Without Salary Details": "Employment Certificate Without Salary Details",
     };
     return format_map[frm.doc.certificate_type];
 }
