@@ -11,6 +11,19 @@ class OvertimeApprovalRequest(Document):
         
         if not self.overtime_details:
             frappe.throw(_("Please fetch attendance records with overtime"))
+        
+        # Normal OT Hours pe limit lagayen: 1 se kam ho to 0, 3 se zyada ho to 3
+        self.apply_normal_ot_limit()
+    
+    def apply_normal_ot_limit(self):
+        for item in self.overtime_details:
+            if item.normal_ot_hours and item.normal_ot_hours < 1:
+                item.normal_ot_hours = 0
+            elif item.normal_ot_hours and item.normal_ot_hours > 3:
+                item.normal_ot_hours = 3
+            
+            # Total OT hours dobara calculate kar dein taake consistent rahe
+            item.total_ot_hours = (item.normal_ot_hours or 0) + (item.holiday_ot_hours or 0) + (item.special_ot_hours or 0)
     
     def on_submit(self):
         if self.status != "Approved":
@@ -149,7 +162,17 @@ class OvertimeApprovalRequest(Document):
                     if calculated_ot >= (settings.minimum_normal_ot or 0):
                         normal_ot_hours = calculated_ot
             
-            if normal_ot_hours > 0 or holiday_ot_hours > 0 or special_ot_hours > 0:
+            # Row include karne ka decision ORIGINAL (bina cap) values se
+            has_overtime = normal_ot_hours > 0 or holiday_ot_hours > 0 or special_ot_hours > 0
+            
+            # --- Normal OT Hours ki limit (sirf value adjust hogi, row skip nahi hogi) ---
+            # Agar 1 se kam ho to 0 kar dein, agar 3 se zyada ho to 3 kar dein
+            if normal_ot_hours < 1:
+                normal_ot_hours = 0
+            elif normal_ot_hours > 3:
+                normal_ot_hours = 3
+            
+            if has_overtime:
                 projects = frappe.db.sql("""
                     SELECT DISTINCT custom_project
                     FROM `tabEmployee Checkin`

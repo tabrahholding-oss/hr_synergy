@@ -87,7 +87,31 @@ function apply_employee_filter(frm) {
 
 // Child Table Calculations (Waisa hi hai)
 frappe.ui.form.on('Overtime Approval Request Item', {
-    normal_ot_hours: function(frm, cdt, cdn) { calculate_total_ot(frm, cdt, cdn); },
+    normal_ot_hours: function(frm, cdt, cdn) {
+        // Normal OT Hours ki limit: 1 se kam ho to 0, 3 se zyada ho to 3
+        let row = frappe.get_doc(cdt, cdn);
+        let value = flt(row.normal_ot_hours);
+
+        if (value > 0 && value < 1) {
+            frappe.model.set_value(cdt, cdn, 'normal_ot_hours', 0);
+            frappe.show_alert({
+                message: __('Normal OT Hours 1 se kam nahi ho sakti, 0 kar diya gaya hai'),
+                indicator: 'orange'
+            });
+            return; // set_value dobara trigger karega is function ko, isliye yahan return
+        }
+
+        if (value > 3) {
+            frappe.model.set_value(cdt, cdn, 'normal_ot_hours', 3);
+            frappe.show_alert({
+                message: __('Normal OT Hours ki max limit 3 hai, 3 kar diya gaya hai'),
+                indicator: 'orange'
+            });
+            return;
+        }
+
+        calculate_total_ot(frm, cdt, cdn);
+    },
     holiday_ot_hours: function(frm, cdt, cdn) { calculate_total_ot(frm, cdt, cdn); },
     special_ot_hours: function(frm, cdt, cdn) { calculate_total_ot(frm, cdt, cdn); }
 });
