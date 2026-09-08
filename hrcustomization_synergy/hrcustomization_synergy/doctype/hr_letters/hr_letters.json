@@ -32,7 +32,8 @@
   "column_break_4",
   "custom_country",
   "section_break_warning",
-  "warning_details",
+  "terms_and_conditions_template",
+  "terms",
   "section_break_dates",
   "relieving_date",
   "resignation_letter_date",
@@ -213,13 +214,6 @@
    "label": "Warning Details"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
-   "fieldname": "warning_details",
-   "fieldtype": "Table",
-   "label": "Warning Details",
-   "options": "Certificate Warning Detail"
-  },
-  {
    "fieldname": "section_break_dates",
    "fieldtype": "Section Break",
    "label": "Dates"
@@ -363,13 +357,25 @@
    "fieldname": "signature",
    "fieldtype": "Check",
    "label": "Signature"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
+   "fieldname": "terms_and_conditions_template",
+   "fieldtype": "Data",
+   "label": "Terms and Conditions Template"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Warning Letter\"",
+   "fieldname": "terms",
+   "fieldtype": "Text Editor",
+   "label": "Terms"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-06 15:14:05.904283",
+ "modified": "2026-09-08 16:12:08.893690",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Letters",
