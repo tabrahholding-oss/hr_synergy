@@ -165,7 +165,8 @@ fixtures = [
                 "Material Request-custom_available_for_purchase",
                 "Employee Checkin-custom_project",
                 "Purchase Order Item-custom_history",
-                "Stock Reconciliation-custom_remarks"
+                "Stock Reconciliation-custom_remarks",
+                "Stock Reconciliation Item-custom_remarks"
             ]]
         ]
     },
