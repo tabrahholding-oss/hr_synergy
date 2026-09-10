@@ -35,6 +35,9 @@ NON_OPERATING_ACCOUNT_TYPES = ["Tax", "Depreciation"]
 
 COLORS = ["#1c6b4a", "#e3a627", "#d9824f", "#7a9e8f", "#b0763f"]
 
+# Default currency symbol - QAR for Qatar (ر.ق) or you can use "QAR"
+DEFAULT_CURRENCY_SYMBOL = "QAR"
+
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -44,32 +47,48 @@ COLORS = ["#1c6b4a", "#e3a627", "#d9824f", "#7a9e8f", "#b0763f"]
 def get_dashboard_data(company=None, fiscal_year=None):
 	"""Main API called from financial_overview.js"""
 
-	company = company or frappe.defaults.get_user_default("Company") or get_first_company()
+	# If no company provided, use user's default or first available company
+	if not company:
+		company = frappe.defaults.get_user_default("Company")
+	if not company:
+		company = get_first_company()
+	
 	if not company:
 		frappe.throw(_("No company found. Please set up a Company first."))
 
-	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year)
+	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
 	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
 
+	# Every number on this page is rendered in the selected company's own
+	# currency — never hardcoded — so switching companies also switches
+	# the currency symbol shown throughout the page.
+	currency_symbol = get_currency_symbol(company)
+
+	# Load both fiscal years in one GL query. The old implementation issued
+	# dozens of almost-identical SQL queries for totals, quarters and trend.
+	# Keeping the data in memory for this request makes the dashboard much faster.
+	gl_from = py_start or fy_start
+	gl_rows = load_gl_data(company, gl_from, fy_end)
+
 	# --- top-level revenue -------------------------------------------------
-	revenue_cy = get_gl_total(company, fy_start, fy_end, root_type="Income")
-	revenue_py = get_gl_total(company, py_start, py_end, root_type="Income") if py_start else 0
+	revenue_cy = sum_gl_data(gl_rows, fy_start, fy_end, root_type="Income")
+	revenue_py = sum_gl_data(gl_rows, py_start, py_end, root_type="Income") if py_start else 0
 
 	# --- profitability metrics ---------------------------------------------
-	cogs_cy = get_gl_total(company, fy_start, fy_end, root_type="Expense", account_type=COGS_ACCOUNT_TYPE)
-	cogs_py = get_gl_total(company, py_start, py_end, root_type="Expense", account_type=COGS_ACCOUNT_TYPE) if py_start else 0
+	cogs_cy = sum_gl_data(gl_rows, fy_start, fy_end, root_type="Expense", account_type=COGS_ACCOUNT_TYPE)
+	cogs_py = sum_gl_data(gl_rows, py_start, py_end, root_type="Expense", account_type=COGS_ACCOUNT_TYPE) if py_start else 0
 
-	total_expense_cy = get_gl_total(company, fy_start, fy_end, root_type="Expense")
-	total_expense_py = get_gl_total(company, py_start, py_end, root_type="Expense") if py_start else 0
+	total_expense_cy = sum_gl_data(gl_rows, fy_start, fy_end, root_type="Expense")
+	total_expense_py = sum_gl_data(gl_rows, py_start, py_end, root_type="Expense") if py_start else 0
 
-	depreciation_cy = get_gl_total(company, fy_start, fy_end, root_type="Expense", account_type=DEPRECIATION_ACCOUNT_TYPE)
-	depreciation_py = get_gl_total(company, py_start, py_end, root_type="Expense", account_type=DEPRECIATION_ACCOUNT_TYPE) if py_start else 0
+	depreciation_cy = sum_gl_data(gl_rows, fy_start, fy_end, root_type="Expense", account_type=DEPRECIATION_ACCOUNT_TYPE)
+	depreciation_py = sum_gl_data(gl_rows, py_start, py_end, root_type="Expense", account_type=DEPRECIATION_ACCOUNT_TYPE) if py_start else 0
 
-	operating_expense_cy = get_gl_total(
-		company, fy_start, fy_end, root_type="Expense", exclude_account_types=[COGS_ACCOUNT_TYPE] + NON_OPERATING_ACCOUNT_TYPES
+	operating_expense_cy = sum_gl_data(
+		gl_rows, fy_start, fy_end, root_type="Expense", exclude_account_types=[COGS_ACCOUNT_TYPE] + NON_OPERATING_ACCOUNT_TYPES
 	)
 	operating_expense_py = (
-		get_gl_total(company, py_start, py_end, root_type="Expense", exclude_account_types=[COGS_ACCOUNT_TYPE] + NON_OPERATING_ACCOUNT_TYPES)
+		sum_gl_data(gl_rows, py_start, py_end, root_type="Expense", exclude_account_types=[COGS_ACCOUNT_TYPE] + NON_OPERATING_ACCOUNT_TYPES)
 		if py_start
 		else 0
 	)
@@ -88,36 +107,39 @@ def get_dashboard_data(company=None, fiscal_year=None):
 
 	# --- quarterly split for the mini bar charts ----------------------------
 	stat_cards = [
-		build_stat_card("gross_profit", "dollar-sign", _("Gross Profit"), company, fy_start, fy_end, py_start, py_end,
-			root_type="Expense", account_type=COGS_ACCOUNT_TYPE, is_profit_metric=True, revenue_based=True),
-		build_stat_card("operating_income", "bar-chart-2", _("Operating Income"), company, fy_start, fy_end, py_start, py_end,
-			root_type="Expense", exclude_account_types=[COGS_ACCOUNT_TYPE] + NON_OPERATING_ACCOUNT_TYPES, is_profit_metric=True, revenue_based=True, subtract_from="gross_profit"),
-		build_stat_card("net_income", "credit-card", _("Net Income"), company, fy_start, fy_end, py_start, py_end,
-			root_type="Expense", is_profit_metric=True, revenue_based=True),
-		build_stat_card("ebitda", "pie-chart", _("EBITDA"), company, fy_start, fy_end, py_start, py_end,
-			root_type="Expense", exclude_account_types=NON_OPERATING_ACCOUNT_TYPES, is_profit_metric=True, revenue_based=True, add_back=DEPRECIATION_ACCOUNT_TYPE),
+		build_stat_card("gross_profit", "dollar-sign", _("Gross Profit"), gl_rows, fy_start, fy_end, py_start, py_end,
+			currency_symbol, root_type="Expense", account_type=COGS_ACCOUNT_TYPE, is_profit_metric=True, revenue_based=True),
+		build_stat_card("operating_income", "bar-chart-2", _("Operating Income"), gl_rows, fy_start, fy_end, py_start, py_end,
+			currency_symbol, root_type="Expense", exclude_account_types=[COGS_ACCOUNT_TYPE] + NON_OPERATING_ACCOUNT_TYPES,
+			is_profit_metric=True, revenue_based=True, subtract_from="gross_profit"),
+		build_stat_card("net_income", "credit-card", _("Net Income"), gl_rows, fy_start, fy_end, py_start, py_end,
+			currency_symbol, root_type="Expense", is_profit_metric=True, revenue_based=True),
+		build_stat_card("ebitda", "pie-chart", _("EBITDA"), gl_rows, fy_start, fy_end, py_start, py_end,
+			currency_symbol, root_type="Expense", exclude_account_types=NON_OPERATING_ACCOUNT_TYPES,
+			is_profit_metric=True, revenue_based=True, add_back=DEPRECIATION_ACCOUNT_TYPE),
 	]
 
 	# --- revenue breakdown (donut) ------------------------------------------
-	revenue_breakdown = get_revenue_breakdown(company, fy_start, fy_end)
+	revenue_breakdown = get_revenue_breakdown(company, fy_start, fy_end, currency_symbol)
 
 	# --- monthly trend -------------------------------------------------------
-	trend = get_monthly_trend(company, fy_start, fy_end, py_start, py_end)
+	trend = get_monthly_trend(gl_rows, fy_start, fy_end, py_start, py_end, currency_symbol)
 
 	return {
 		"company": company,
 		"fiscal_year": fy_name,
 		"prior_fiscal_year": py_name,
+		"currency_symbol": currency_symbol,
 		"total_revenue": {
-			"value_fmt": fmt_m(revenue_cy),
+			"value_fmt": fmt_m(revenue_cy, currency_symbol),
 			"change_pct": pct_change(revenue_cy, revenue_py),
-			"vs_amount_fmt": fmt_delta(revenue_cy - revenue_py),
+			"vs_amount_fmt": fmt_delta(revenue_cy - revenue_py, currency_symbol),
 			"gross_margin": round(pct_of(gross_profit_cy, revenue_cy), 1),
 			"net_margin": round(pct_of(net_income_cy, revenue_cy), 1),
 		},
 		"stat_cards": stat_cards,
 		"revenue_breakdown": revenue_breakdown,
-		"revenue_total_fmt": fmt_m(revenue_cy),
+		"revenue_total_fmt": fmt_m(revenue_cy, currency_symbol),
 		"trend": trend,
 	}
 
@@ -126,21 +148,24 @@ def get_dashboard_data(company=None, fiscal_year=None):
 # Stat card (quarterly bars + YoY tooltip data) builder
 # ---------------------------------------------------------------------------
 
-def build_stat_card(key, icon, label, company, fy_start, fy_end, py_start, py_end,
+def build_stat_card(key, icon, label, gl_rows, fy_start, fy_end, py_start, py_end, currency_symbol,
 	root_type=None, account_type=None, exclude_account_types=None,
 	is_profit_metric=False, revenue_based=False, subtract_from=None, add_back=None):
-
 	quarters = []
 	q_dates_cy = get_quarter_dates(fy_start, fy_end)
 	q_dates_py = get_quarter_dates(py_start, py_end) if py_start else [None, None, None, None]
 
 	for i in range(4):
 		q_start, q_end = q_dates_cy[i]
-		value_cy = compute_metric(company, q_start, q_end, root_type, account_type, exclude_account_types, add_back, revenue_based)
+		value_cy = compute_metric_from_rows(
+			gl_rows, q_start, q_end, root_type, account_type, exclude_account_types, add_back, revenue_based
+		)
 
 		if py_start:
 			pq_start, pq_end = q_dates_py[i]
-			value_py = compute_metric(company, pq_start, pq_end, root_type, account_type, exclude_account_types, add_back, revenue_based)
+			value_py = compute_metric_from_rows(
+				gl_rows, pq_start, pq_end, root_type, account_type, exclude_account_types, add_back, revenue_based
+			)
 		else:
 			value_py = 0
 
@@ -151,7 +176,13 @@ def build_stat_card(key, icon, label, company, fy_start, fy_end, py_start, py_en
 		})
 
 	total_cy = sum(q["value"] for q in quarters)
-	total_py_metric = compute_metric(company, py_start, py_end, root_type, account_type, exclude_account_types, add_back, revenue_based) if py_start else 0
+	total_py_metric = (
+		compute_metric_from_rows(
+			gl_rows, py_start, py_end, root_type, account_type, exclude_account_types, add_back, revenue_based
+		)
+		if py_start
+		else 0
+	)
 
 	max_abs = max([abs(q["value"]) for q in quarters] + [0.001])
 	for q in quarters:
@@ -162,21 +193,26 @@ def build_stat_card(key, icon, label, company, fy_start, fy_end, py_start, py_en
 		"key": key,
 		"icon": icon,
 		"label": label,
-		"value_fmt": fmt_m(total_cy),
-		"prior_value_fmt": fmt_m(total_py_metric),
+		"value_fmt": fmt_m(total_cy, currency_symbol),
+		"prior_value_fmt": fmt_m(total_py_metric, currency_symbol),
 		"change_pct": pct_change(total_cy, total_py_metric),
 		"quarters": quarters,
 	}
 
 
-def compute_metric(company, start, end, root_type, account_type, exclude_account_types, add_back, revenue_based):
+def compute_metric_from_rows(rows, start, end, root_type, account_type, exclude_account_types, add_back, revenue_based):
 	if not start or not end:
 		return 0
-	revenue = get_gl_total(company, start, end, root_type="Income")
-	expense = get_gl_total(company, start, end, root_type=root_type, account_type=account_type, exclude_account_types=exclude_account_types)
+
+	revenue = sum_gl_data(rows, start, end, root_type="Income")
+	expense = sum_gl_data(
+		rows, start, end, root_type=root_type, account_type=account_type, exclude_account_types=exclude_account_types
+	)
 	value = (revenue - expense) if revenue_based else expense
+
 	if add_back:
-		value += get_gl_total(company, start, end, root_type="Expense", account_type=add_back)
+		value += sum_gl_data(rows, start, end, root_type="Expense", account_type=add_back)
+
 	return value
 
 
@@ -184,7 +220,7 @@ def compute_metric(company, start, end, root_type, account_type, exclude_account
 # Revenue breakdown (donut + sub-item hover breakdown)
 # ---------------------------------------------------------------------------
 
-def get_revenue_breakdown(company, from_date, to_date):
+def get_revenue_breakdown(company, from_date, to_date, currency_symbol):
 	rows = frappe.db.sql(
 		"""
 		SELECT ig.name AS item_group, SUM(sii.base_net_amount) AS amount
@@ -216,13 +252,13 @@ def get_revenue_breakdown(company, from_date, to_date):
 		sub_total = sum(flt(r.amount) for r in sub_items) or 1
 		result.append({
 			"label": _(label),
-			"value_fmt": fmt_m(amount / 1_000_000),
+			"value_fmt": fmt_m(amount / 1_000_000, currency_symbol),
 			"pct": round(amount / total * 100, 1),
 			"color": COLORS[i % len(COLORS)],
 			"sub_items": [
 				{
 					"label": r.item_group,
-					"value_fmt": fmt_m(flt(r.amount) / 1_000_000),
+					"value_fmt": fmt_m(flt(r.amount) / 1_000_000, currency_symbol),
 					"bar_pct": round(flt(r.amount) / sub_total * 100, 1),
 				}
 				for r in sub_items
@@ -242,26 +278,34 @@ def classify_item_group(item_group):
 # Monthly trend (current year vs prior year, with YoY per point for hover)
 # ---------------------------------------------------------------------------
 
-def get_monthly_trend(company, fy_start, fy_end, py_start, py_end):
-	cy_monthly = get_gl_monthly(company, fy_start, fy_end, root_type="Income")
-	py_monthly = get_gl_monthly(company, py_start, py_end, root_type="Income") if py_start else {}
-
+def get_monthly_trend(gl_rows, fy_start, fy_end, py_start, py_end, currency_symbol):
 	months = []
 	current = []
 	prior = []
 	start = getdate(fy_start)
+	prior_start = getdate(py_start) if py_start else None
+
 	for i in range(12):
-		m_date = add_months(start, i)
-		key = m_date.month
-		months.append(calendar.month_abbr[key])
-		cy_val = round(cy_monthly.get(key, 0), 3)
-		py_val = round(py_monthly.get(key, 0), 3)
+		cy_start = add_months(start, i)
+		cy_end = add_months(start, i + 1)
+		cy_end = add_months(cy_end, 0)
+		from datetime import timedelta
+		cy_end = cy_end - timedelta(days=1)
+
+		py_start_month = add_months(prior_start, i) if prior_start else None
+		py_end_month = add_months(prior_start, i + 1) - timedelta(days=1) if prior_start else None
+
+		label = calendar.month_abbr[cy_start.month]
+		cy_val = round(sum_gl_data(gl_rows, cy_start, cy_end, root_type="Income"), 3)
+		py_val = round(sum_gl_data(gl_rows, py_start_month, py_end_month, root_type="Income"), 3) if prior_start else 0
+
+		months.append(label)
 		current.append({
-			"month": calendar.month_abbr[key],
+			"month": label,
 			"value": cy_val,
 			"prior": py_val,
 			"change_pct": pct_change(cy_val, py_val),
-			"change_amount_fmt": fmt_delta(cy_val - py_val),
+			"change_amount_fmt": fmt_delta(cy_val - py_val, currency_symbol),
 		})
 		prior.append(py_val)
 
@@ -281,96 +325,127 @@ def get_monthly_trend(company, fy_start, fy_end, py_start, py_end):
 # GL Entry helpers
 # ---------------------------------------------------------------------------
 
-def get_gl_total(company, from_date, to_date, root_type=None, account_type=None, exclude_account_types=None):
+def load_gl_data(company, from_date, to_date):
+	"""Load all relevant GL rows for both fiscal years in one SQL query."""
 	if not company or not from_date or not to_date:
-		return 0
+		return []
 
-	conditions = [
-		"gle.company = %(company)s",
-		"gle.posting_date BETWEEN %(from_date)s AND %(to_date)s",
-		"gle.is_cancelled = 0",
-	]
-	values = {"company": company, "from_date": from_date, "to_date": to_date}
-
-	if root_type:
-		conditions.append("acc.root_type = %(root_type)s")
-		values["root_type"] = root_type
-	if account_type:
-		conditions.append("acc.account_type = %(account_type)s")
-		values["account_type"] = account_type
-	if exclude_account_types:
-		conditions.append("(acc.account_type IS NULL OR acc.account_type NOT IN %(exclude_types)s)")
-		values["exclude_types"] = tuple(exclude_account_types)
-
-	sign_expr = "gle.credit - gle.debit" if root_type == "Income" else "gle.debit - gle.credit"
-
-	result = frappe.db.sql(
-		f"""
-		SELECT SUM({sign_expr})
+	return frappe.db.sql(
+		"""
+		SELECT
+			gle.posting_date,
+			acc.root_type,
+			COALESCE(acc.account_type, '') AS account_type,
+			SUM(gle.debit) AS debit,
+			SUM(gle.credit) AS credit
 		FROM `tabGL Entry` gle
 		JOIN `tabAccount` acc ON gle.account = acc.name
-		WHERE {" AND ".join(conditions)}
+		WHERE gle.company = %(company)s
+			AND gle.posting_date BETWEEN %(from_date)s AND %(to_date)s
+			AND gle.is_cancelled = 0
+		GROUP BY gle.posting_date, acc.root_type, acc.account_type
+		ORDER BY gle.posting_date
 		""",
-		values,
+		{
+			"company": company,
+			"from_date": from_date,
+			"to_date": to_date,
+		},
+		as_dict=True,
 	)
-	return flt(result[0][0]) / 1_000_000 if result and result[0][0] else 0  # returned in $M
+
+
+def sum_gl_data(rows, start, end, root_type=None, account_type=None, exclude_account_types=None):
+	"""Sum already-loaded GL data, returning values in millions."""
+	if not rows or not start or not end:
+		return 0
+
+	start = getdate(start)
+	end = getdate(end)
+	excluded = set(exclude_account_types or [])
+	total = 0
+
+	for row in rows:
+		posting_date = getdate(row.posting_date)
+		if posting_date < start or posting_date > end:
+			continue
+		if root_type and row.root_type != root_type:
+			continue
+		if account_type and row.account_type != account_type:
+			continue
+		if excluded and row.account_type in excluded:
+			continue
+
+		if row.root_type == "Income":
+			total += flt(row.credit) - flt(row.debit)
+		else:
+			total += flt(row.debit) - flt(row.credit)
+
+	return total / 1_000_000
+
+
+# Kept for compatibility with any other code that may call this helper directly.
+def get_gl_total(company, from_date, to_date, root_type=None, account_type=None, exclude_account_types=None):
+	rows = load_gl_data(company, from_date, to_date)
+	return sum_gl_data(rows, from_date, to_date, root_type, account_type, exclude_account_types)
 
 
 def get_gl_monthly(company, from_date, to_date, root_type=None, account_type=None, exclude_account_types=None):
-	if not company or not from_date or not to_date:
+	rows = load_gl_data(company, from_date, to_date)
+	if not rows:
 		return {}
 
-	conditions = [
-		"gle.company = %(company)s",
-		"gle.posting_date BETWEEN %(from_date)s AND %(to_date)s",
-		"gle.is_cancelled = 0",
-	]
-	values = {"company": company, "from_date": from_date, "to_date": to_date}
+	monthly = {}
+	for row in rows:
+		posting_date = getdate(row.posting_date)
+		if posting_date < getdate(from_date) or posting_date > getdate(to_date):
+			continue
+		if root_type and row.root_type != root_type:
+			continue
+		if account_type and row.account_type != account_type:
+			continue
+		if exclude_account_types and row.account_type in set(exclude_account_types):
+			continue
 
-	if root_type:
-		conditions.append("acc.root_type = %(root_type)s")
-		values["root_type"] = root_type
-	if account_type:
-		conditions.append("acc.account_type = %(account_type)s")
-		values["account_type"] = account_type
-	if exclude_account_types:
-		conditions.append("(acc.account_type IS NULL OR acc.account_type NOT IN %(exclude_types)s)")
-		values["exclude_types"] = tuple(exclude_account_types)
+		amount = flt(row.credit) - flt(row.debit) if row.root_type == "Income" else flt(row.debit) - flt(row.credit)
+		monthly[posting_date.month] = monthly.get(posting_date.month, 0) + amount
 
-	sign_expr = "gle.credit - gle.debit" if root_type == "Income" else "gle.debit - gle.credit"
-
-	rows = frappe.db.sql(
-		f"""
-		SELECT MONTH(gle.posting_date) AS month, SUM({sign_expr}) AS amount
-		FROM `tabGL Entry` gle
-		JOIN `tabAccount` acc ON gle.account = acc.name
-		WHERE {" AND ".join(conditions)}
-		GROUP BY MONTH(gle.posting_date)
-		""",
-		values,
-		as_dict=True,
-	)
-	return {int(r.month): flt(r.amount) / 1_000_000 for r in rows}  # in $M
+	return {month: amount / 1_000_000 for month, amount in monthly.items()}
 
 
 # ---------------------------------------------------------------------------
 # Fiscal year helpers
 # ---------------------------------------------------------------------------
 
-def get_fiscal_year_details(fiscal_year=None):
+def get_fiscal_year_details(fiscal_year=None, company=None):
+	"""
+	Get fiscal year details.
+	Note: Fiscal Year is a global doctype (not company-specific),
+	so we don't filter by company here.
+	"""
 	if fiscal_year:
 		fy = frappe.db.get_value("Fiscal Year", fiscal_year, ["name", "year_start_date", "year_end_date"], as_dict=True)
 	else:
+		# First try to get the current fiscal year (overlapping today's date)
+		filters = {"year_start_date": ["<=", getdate()], "year_end_date": [">=", getdate()]}
+		
 		fy = frappe.db.get_value(
 			"Fiscal Year",
-			{"year_start_date": ["<=", getdate()], "year_end_date": [">=", getdate()]},
+			filters,
 			["name", "year_start_date", "year_end_date"],
 			as_dict=True,
 		)
+		
+		# If no current FY, get the latest one
 		if not fy:
 			fy = frappe.db.get_value(
-				"Fiscal Year", {}, ["name", "year_start_date", "year_end_date"], as_dict=True, order_by="year_end_date desc"
+				"Fiscal Year", 
+				{}, 
+				["name", "year_start_date", "year_end_date"], 
+				as_dict=True, 
+				order_by="year_end_date desc"
 			)
+	
 	if not fy:
 		frappe.throw(_("Please set up a Fiscal Year first."))
 	return fy.name, fy.year_start_date, fy.year_end_date
@@ -411,24 +486,39 @@ def get_first_company():
 
 
 # ---------------------------------------------------------------------------
+# Currency helper — every company can run on a different currency, so the
+# symbol shown across the whole page is resolved per-company, never hardcoded.
+# For QAR (Qatari Riyal), make sure your Currency doctype has the QAR code
+# and the desired symbol (ر.ق or QAR).
+# ---------------------------------------------------------------------------
+
+def get_currency_symbol(company):
+	"""Return the currency code (e.g. QAR, USD, KES) for the selected company."""
+	currency = frappe.get_cached_value("Company", company, "default_currency") if company else None
+	if not currency:
+		currency = frappe.db.get_default("currency")
+	return currency or DEFAULT_CURRENCY_SYMBOL
+
+
+# ---------------------------------------------------------------------------
 # Formatting helpers
 # ---------------------------------------------------------------------------
 
-def fmt_m(value_in_millions):
+def fmt_m(value_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
 	"""value_in_millions is already scaled to $M by get_gl_total/get_gl_monthly."""
 	v = flt(value_in_millions)
 	if abs(v) >= 1:
-		return "${:.1f}M".format(v)
-	return "${:.0f}K".format(v * 1000)
+		return "{}{:.1f}M".format(symbol, v)
+	return "{}{:.0f}K".format(symbol, v * 1000)
 
 
-def fmt_delta(diff_in_millions):
+def fmt_delta(diff_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
 	v = flt(diff_in_millions)
 	sign = "+" if v >= 0 else "-"
 	v = abs(v)
 	if v >= 1:
-		return "{}${:.1f}M".format(sign, v)
-	return "{}${:.0f}K".format(sign, v * 1000)
+		return "{}{}{:.1f}M".format(sign, symbol, v)
+	return "{}{}{:.0f}K".format(sign, symbol, v * 1000)
 
 
 def pct_change(current, prior):
