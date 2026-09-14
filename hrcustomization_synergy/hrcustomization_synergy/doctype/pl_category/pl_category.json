@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "name1",
+  "category_group",
   "sort"
  ],
  "fields": [
@@ -20,14 +21,19 @@
   },
   {
    "fieldname": "sort",
-   "fieldtype": "Float",
+   "fieldtype": "Int",
    "label": "Sort"
+  },
+  {
+   "fieldname": "category_group",
+   "fieldtype": "Data",
+   "label": "Category Group"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-14 08:37:24.394293",
+ "modified": "2026-09-14 15:01:21.305423",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "PL Category",
