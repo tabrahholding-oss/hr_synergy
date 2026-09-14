@@ -2,42 +2,29 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "field:name1",
- "creation": "2026-09-14 08:29:09.208071",
+ "creation": "2026-09-14 15:45:50.311951",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "name1",
-  "category_group",
-  "sort"
+  "name1"
  ],
  "fields": [
   {
    "fieldname": "name1",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Category",
+   "label": "Name",
    "reqd": 1,
    "unique": 1
-  },
-  {
-   "fieldname": "sort",
-   "fieldtype": "Int",
-   "label": "Sort"
-  },
-  {
-   "fieldname": "category_group",
-   "fieldtype": "Link",
-   "label": "Category Group",
-   "options": "PL Category Group"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-14 15:46:39.829654",
+ "modified": "2026-09-14 15:46:16.636762",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
- "name": "PL Category",
+ "name": "PL Category Group",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
