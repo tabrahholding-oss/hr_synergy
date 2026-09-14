@@ -731,3 +731,27 @@ function auto_fetch_salary_components(frm) {
         }
     });
 }
+
+
+frappe.ui.form.on("Account", {
+    refresh(frm) {
+        set_pl_report_category_properties(frm);
+    },
+
+    account_type(frm) {
+        set_pl_report_category_properties(frm);
+    },
+
+    report_type(frm) {
+        set_pl_report_category_properties(frm);
+    }
+});
+
+function set_pl_report_category_properties(frm) {
+    const show_field =
+        frm.doc.account_type !== "Group" &&
+        frm.doc.report_type === "Profit and Loss";
+
+    frm.toggle_display("custom_pl_report_category", show_field);
+    frm.toggle_reqd("custom_pl_report_category", show_field);
+}

@@ -166,7 +166,8 @@ fixtures = [
                 "Employee Checkin-custom_project",
                 "Purchase Order Item-custom_history",
                 "Stock Reconciliation-custom_remarks",
-                "Stock Reconciliation Item-custom_remarks"
+                "Stock Reconciliation Item-custom_remarks",
+                "Account-custom_pl_report_category"
             ]]
         ]
     },
@@ -234,7 +235,8 @@ doctype_js = {
     "Leave Application": "public/js/custom.js",
     "Certificate Request Detail": "public/js/custom.js",
     "Purchase Order": "public/js/purchase_order.js",
-    "Material Request": "public/js/material_request.js"
+    "Material Request": "public/js/material_request.js",
+    "Account": "public/js/custom.js"
 }
 # Testing
 # -------
