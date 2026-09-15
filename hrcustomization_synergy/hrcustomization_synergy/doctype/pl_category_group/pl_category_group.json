@@ -6,7 +6,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "name1"
+  "name1",
+  "sort"
  ],
  "fields": [
   {
@@ -16,12 +17,17 @@
    "label": "Name",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "sort",
+   "fieldtype": "Int",
+   "label": "Sort"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-14 15:46:16.636762",
+ "modified": "2026-09-15 11:33:55.583891",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "PL Category Group",

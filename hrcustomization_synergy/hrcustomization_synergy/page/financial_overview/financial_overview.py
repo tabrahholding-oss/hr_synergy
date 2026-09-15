@@ -38,6 +38,49 @@ COLORS = ["#1c6b4a", "#e3a627", "#d9824f", "#7a9e8f", "#b0763f"]
 # Default currency symbol - QAR for Qatar (ر.ق) or you can use "QAR"
 DEFAULT_CURRENCY_SYMBOL = "QAR"
 
+# ---------------------------------------------------------------------------
+# STATEMENTS TAB — CONFIG
+# ---------------------------------------------------------------------------
+# The "Statements" tab is entirely driven by two custom doctypes that already
+# exist on the site:
+#
+#   - "PL Category"       (fields: name1 -> Category, sort, category_group)
+#   - "PL Category Group" (fields: name1 -> Name, sort)
+#
+# ...plus a custom Link field on Account: "custom_pl_report_category" that
+# points to "PL Category".
+#
+# Only accounts where:
+#   account_type != "Group"  AND  report_type == "Profit and Loss"
+#   AND custom_pl_report_category is set
+# are pulled into the statement (exactly the 2 conditions given for this
+# feature).
+#
+# Group ordering follows the "sort" field on PL Category Group itself (not
+# an inferred value), and categories inside a group are ordered by their own
+# "sort" value.
+#
+# After specific groups, a running "Calculated Field" row is inserted
+# (Gross Profit, Operating Income (EBIT)). The pre-tax / net-income rows are
+# conditional on whether the company actually has Tax data mapped for the
+# period — see STATEMENT_PRETAX_GROUP / STATEMENT_TAX_GROUP below.
+STATEMENT_CALC_AFTER_GROUP = {
+	"Cost of Revenue": "Gross Profit",
+	"Operating Expenses": "Operating Income (EBIT)",
+}
+
+# If the "Taxes" group has any GL activity for the period, "Other Income &
+# Expense" gets an "Income Before Tax" row and "Taxes" gets a "Net Income"
+# row after it. If there's no Tax data at all, "Other Income & Expense" gets
+# "Net Income" directly instead (no separate Taxes-based row).
+STATEMENT_PRETAX_GROUP = "Other Income & Expense"
+STATEMENT_TAX_GROUP = "Taxes"
+
+# GL Entries excluded from every Statements-tab total — Period Closing
+# Vouchers would otherwise double-count what the year's category totals
+# already reflect.
+STATEMENT_EXCLUDED_VOUCHER_TYPES = ["Period Closing Voucher"]
+
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -512,6 +555,17 @@ def fmt_m(value_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
 	return "{}{:.0f}K".format(symbol, v * 1000)
 
 
+def fmt_accounting(value_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
+	"""Same scale as fmt_m, but negative values are wrapped in parentheses —
+	the standard way expenses/losses are shown on a P&L statement."""
+	v = flt(value_in_millions)
+	if v < 0:
+		if abs(v) >= 1:
+			return "({}{:.1f}M)".format(symbol, abs(v))
+		return "({}{:.0f}K)".format(symbol, abs(v) * 1000)
+	return fmt_m(v, symbol)
+
+
 def fmt_delta(diff_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
 	v = flt(diff_in_millions)
 	sign = "+" if v >= 0 else "-"
@@ -531,3 +585,310 @@ def pct_of(part, whole):
 	if not whole:
 		return 0
 	return (part / whole) * 100
+
+
+# ---------------------------------------------------------------------------
+# STATEMENTS TAB — entry point
+# ---------------------------------------------------------------------------
+# Fully data-driven from PL Category / PL Category Group + the
+# custom_pl_report_category link field on Account. See the CONFIG note near
+# the top of the file for the 2 eligibility conditions and the calc-field
+# sequence.
+# ---------------------------------------------------------------------------
+
+@frappe.whitelist()
+def get_pl_statement_data(company=None, fiscal_year=None):
+	"""Data for the 'Statements' tab — a category-wise P&L."""
+
+	if not company:
+		company = frappe.defaults.get_user_default("Company")
+	if not company:
+		company = get_first_company()
+	if not company:
+		frappe.throw(_("No company found. Please set up a Company first."))
+
+	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
+	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	currency_symbol = get_currency_symbol(company)
+
+	categories = get_pl_categories(company)
+
+	if not categories:
+		return {
+			"company": company,
+			"fiscal_year": fy_name,
+			"prior_fiscal_year": py_name,
+			"currency_symbol": currency_symbol,
+			"rows": [],
+			"empty_message": _(
+				"No Profit and Loss accounts are mapped to a PL Category yet. "
+				"Set the \"custom_pl_report_category\" field on your accounts "
+				"first (only non-Group accounts with Report Type = "
+				"\"Profit and Loss\" are picked up)."
+			),
+		}
+
+	all_accounts = [acc for cat in categories.values() for acc in cat["accounts"]]
+
+	cy_totals = get_account_signed_totals(all_accounts, company, fy_start, fy_end)
+	py_totals = get_account_signed_totals(all_accounts, company, py_start, py_end) if py_start else {}
+
+	for cat in categories.values():
+		cat["cy"] = sum(cy_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
+		cat["py"] = sum(py_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
+
+	# Group categories -> ordered by each PL Category Group's own "sort"
+	# field (set directly on the PL Category Group doctype); categories
+	# inside a group are ordered by their own "sort" value.
+	groups = {}
+	for cat in categories.values():
+		bucket = groups.setdefault(cat["group"], {"sort": cat["group_sort"], "categories": []})
+		bucket["categories"].append(cat)
+
+	group_order = sorted(groups.keys(), key=lambda g: groups[g]["sort"])
+
+	# The Taxes group only counts as "having data" if there's actual GL
+	# activity against its mapped accounts for this period — not just a
+	# structural mapping with nothing posted. This decides whether we show
+	# a separate "Income Before Tax" row, or fold straight into "Net Income"
+	# right after "Other Income & Expense".
+	tax_accounts = [acc for cat in groups.get(STATEMENT_TAX_GROUP, {}).get("categories", []) for acc in cat["accounts"]]
+	has_tax_data = group_has_gl_activity(tax_accounts, company, fy_start, fy_end)
+
+	rows = []
+	running_cy = 0
+	running_py = 0
+	
+	# Track values for summary cards
+	summary_data = {
+		"revenue_cy": 0,
+		"revenue_py": 0,
+		"gross_profit_cy": 0,
+		"gross_profit_py": 0,
+		"operating_income_cy": 0,
+		"operating_income_py": 0,
+		"net_income_cy": 0,
+		"net_income_py": 0,
+	}
+
+	for group_name in group_order:
+		group_categories = sorted(groups[group_name]["categories"], key=lambda c: c["sort"])
+
+		rows.append({"row_type": "group_header", "label": group_name})
+
+		group_cy = 0
+		group_py = 0
+
+		for cat in group_categories:
+			rows.append(build_statement_row("line", cat["label"], cat["cy"], cat["py"], currency_symbol))
+			group_cy += cat["cy"]
+			group_py += cat["py"]
+
+		rows.append(
+			build_statement_row("total", _("Total {0}").format(group_name), group_cy, group_py, currency_symbol)
+		)
+
+		running_cy += group_cy
+		running_py += group_py
+
+		# Capture summary data
+		if group_name == "Revenue":
+			summary_data["revenue_cy"] = group_cy
+			summary_data["revenue_py"] = group_py
+		elif group_name == "Cost of Revenue":
+			summary_data["gross_profit_cy"] = running_cy
+			summary_data["gross_profit_py"] = running_py
+
+		calc_label = STATEMENT_CALC_AFTER_GROUP.get(group_name)
+
+		if group_name == STATEMENT_PRETAX_GROUP:
+			calc_label = "Income Before Tax" if has_tax_data else "Net Income"
+		elif group_name == STATEMENT_TAX_GROUP and has_tax_data:
+			calc_label = "Net Income"
+
+		if calc_label:
+			rows.append(build_statement_row("calculated", _(calc_label), running_cy, running_py, currency_symbol))
+			
+			# Capture summary data for calculated fields
+			if "Gross Profit" in calc_label:
+				summary_data["gross_profit_cy"] = running_cy
+				summary_data["gross_profit_py"] = running_py
+			elif "Operating Income" in calc_label:
+				summary_data["operating_income_cy"] = running_cy
+				summary_data["operating_income_py"] = running_py
+			elif "Net Income" in calc_label:
+				summary_data["net_income_cy"] = running_cy
+				summary_data["net_income_py"] = running_py
+
+	return {
+		"company": company,
+		"fiscal_year": fy_name,
+		"prior_fiscal_year": py_name,
+		"currency_symbol": currency_symbol,
+		"rows": rows,
+		"summary_cards": build_summary_cards(summary_data, currency_symbol),
+	}
+
+
+def build_summary_cards(summary_data, currency_symbol):
+	"""Build summary card data for Revenue, Gross Profit, Operating Income, Net Income"""
+	return [
+		{
+			"label": _("Revenue"),
+			"icon": "dollar-sign",
+			"value_fmt": fmt_accounting(summary_data["revenue_cy"], currency_symbol),
+			"prior_value_fmt": fmt_accounting(summary_data["revenue_py"], currency_symbol),
+			"change_pct": pct_change(summary_data["revenue_cy"], summary_data["revenue_py"]),
+			"change_pct_class": "fo-badge-up" if summary_data["revenue_cy"] >= summary_data["revenue_py"] else "fo-badge-down",
+		},
+		{
+			"label": _("Gross Profit"),
+			"icon": "pie-chart",
+			"value_fmt": fmt_accounting(summary_data["gross_profit_cy"], currency_symbol),
+			"prior_value_fmt": fmt_accounting(summary_data["gross_profit_py"], currency_symbol),
+			"change_pct": pct_change(summary_data["gross_profit_cy"], summary_data["gross_profit_py"]),
+			"change_pct_class": "fo-badge-up" if summary_data["gross_profit_cy"] >= summary_data["gross_profit_py"] else "fo-badge-down",
+		},
+		{
+			"label": _("Operating Income"),
+			"icon": "bar-chart-2",
+			"value_fmt": fmt_accounting(summary_data["operating_income_cy"], currency_symbol),
+			"prior_value_fmt": fmt_accounting(summary_data["operating_income_py"], currency_symbol),
+			"change_pct": pct_change(summary_data["operating_income_cy"], summary_data["operating_income_py"]),
+			"change_pct_class": "fo-badge-up" if summary_data["operating_income_cy"] >= summary_data["operating_income_py"] else "fo-badge-down",
+		},
+		{
+			"label": _("Net Income"),
+			"icon": "credit-card",
+			"value_fmt": fmt_accounting(summary_data["net_income_cy"], currency_symbol),
+			"prior_value_fmt": fmt_accounting(summary_data["net_income_py"], currency_symbol),
+			"change_pct": pct_change(summary_data["net_income_cy"], summary_data["net_income_py"]),
+			"change_pct_class": "fo-badge-up" if summary_data["net_income_cy"] >= summary_data["net_income_py"] else "fo-badge-down",
+		},
+	]
+
+
+def build_statement_row(row_type, label, cy, py, currency_symbol):
+	return {
+		"row_type": row_type,
+		"label": label,
+		"cy_fmt": fmt_accounting(cy, currency_symbol),
+		"py_fmt": fmt_accounting(py, currency_symbol),
+		"var_amt_fmt": fmt_delta(cy - py, currency_symbol),
+		"var_pct": pct_change(cy, py),
+		"is_negative": cy < 0,
+	}
+
+
+def get_pl_categories(company):
+	"""All PL Categories that have at least one eligible account mapped to
+	them on this company. Eligibility (exactly as specified):
+		account_type != "Group"  AND  report_type == "Profit and Loss"
+	"""
+
+	rows = frappe.db.sql(
+		"""
+		SELECT
+			acc.name AS account,
+			cat.name AS category,
+			cat.name1 AS category_label,
+			cat.sort AS sort,
+			cat.category_group AS category_group,
+			plg.sort AS group_sort
+		FROM `tabAccount` acc
+		INNER JOIN `tabPL Category` cat ON cat.name = acc.custom_pl_report_category
+		LEFT JOIN `tabPL Category Group` plg ON plg.name = cat.category_group
+		WHERE acc.company = %(company)s
+			AND IFNULL(acc.account_type, '') != 'Group'
+			AND acc.report_type = 'Profit and Loss'
+			AND IFNULL(acc.custom_pl_report_category, '') != ''
+		""",
+		{"company": company},
+		as_dict=True,
+	)
+
+	categories = {}
+	for row in rows:
+		cat = categories.setdefault(row.category, {
+			"label": row.category_label or row.category,
+			"sort": flt(row.sort) or 0,
+			"group": row.category_group or _("Other"),
+			# Groups without an explicit sort sink to the bottom instead of
+			# jumping to the top.
+			"group_sort": flt(row.group_sort) if row.group_sort is not None else 9999,
+			"accounts": [],
+		})
+		cat["accounts"].append(row.account)
+
+	return categories
+
+
+def get_account_signed_totals(accounts, company, from_date, to_date):
+	"""{account: credit - debit} for the given date range. Positive means an
+	income-normal balance, negative an expense-normal balance — this signed
+	convention is what makes every running P&L total a plain addition.
+
+	Only submitted (docstatus = 1) entries are counted, and Period Closing
+	Voucher entries are excluded — matching the client's query — since
+	they'd otherwise double-count what the year's category totals already
+	reflect."""
+
+	if not accounts or not from_date or not to_date:
+		return {}
+
+	rows = frappe.db.sql(
+		"""
+		SELECT gle.account, SUM(gle.credit) AS credit, SUM(gle.debit) AS debit
+		FROM `tabGL Entry` gle
+		WHERE gle.company = %(company)s
+			AND gle.account IN %(accounts)s
+			AND gle.posting_date BETWEEN %(from_date)s AND %(to_date)s
+			AND gle.docstatus = 1
+			AND gle.is_cancelled = 0
+			AND gle.voucher_type NOT IN %(excluded_voucher_types)s
+		GROUP BY gle.account
+		""",
+		{
+			"company": company,
+			"accounts": accounts,
+			"from_date": from_date,
+			"to_date": to_date,
+			"excluded_voucher_types": STATEMENT_EXCLUDED_VOUCHER_TYPES,
+		},
+		as_dict=True,
+	)
+
+	return {r.account: flt(r.credit) - flt(r.debit) for r in rows}
+
+
+def group_has_gl_activity(accounts, company, from_date, to_date):
+	"""True if any of the given accounts has at least one submitted GL Entry
+	in the period (same filters as get_account_signed_totals). Mirrors the
+	inner join in the client's query, where a category group only "exists"
+	for a period if something was actually posted against it — a structural
+	mapping with zero postings doesn't count."""
+
+	if not accounts or not from_date or not to_date:
+		return False
+
+	hit = frappe.db.sql(
+		"""
+		SELECT 1
+		FROM `tabGL Entry` gle
+		WHERE gle.company = %(company)s
+			AND gle.account IN %(accounts)s
+			AND gle.posting_date BETWEEN %(from_date)s AND %(to_date)s
+			AND gle.docstatus = 1
+			AND gle.is_cancelled = 0
+			AND gle.voucher_type NOT IN %(excluded_voucher_types)s
+		LIMIT 1
+		""",
+		{
+			"company": company,
+			"accounts": accounts,
+			"from_date": from_date,
+			"to_date": to_date,
+			"excluded_voucher_types": STATEMENT_EXCLUDED_VOUCHER_TYPES,
+		},
+	)
+	return bool(hit)

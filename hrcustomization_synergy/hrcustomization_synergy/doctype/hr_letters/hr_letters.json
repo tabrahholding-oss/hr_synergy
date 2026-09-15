@@ -34,6 +34,9 @@
   "section_break_warning",
   "terms_and_conditions_template",
   "terms",
+  "termination_letter_section",
+  "terms_and_conditions_templates",
+  "term",
   "section_break_dates",
   "relieving_date",
   "resignation_letter_date",
@@ -369,13 +372,31 @@
    "fieldname": "terms",
    "fieldtype": "Text Editor",
    "label": "Terms"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Termination Letter\"",
+   "fieldname": "termination_letter_section",
+   "fieldtype": "Section Break",
+   "label": "Termination Letter"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Termination Letter\"",
+   "fieldname": "terms_and_conditions_templates",
+   "fieldtype": "Data",
+   "label": "Terms and Conditions Templates"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Termination Letter\"",
+   "fieldname": "term",
+   "fieldtype": "Text Editor",
+   "label": "Term"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-08 16:12:08.893690",
+ "modified": "2026-09-15 12:16:05.483632",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Letters",
