@@ -8,6 +8,15 @@
 # item-group / account-type mapping to match your actual Chart of Accounts
 # and Item Group tree. Sensible ERPNext defaults are used, but every company
 # sets these up a bit differently.
+#
+# NOTE: The Overview tab's Gross Profit / Operating Income / Net Income
+# stat cards are built from the same PL Category / PL Category Group
+# mapping the Statements tab uses (see compute_pl_category_metrics /
+# build_pl_stat_cards below), NOT from the account_type mapping further
+# down this file. The account_type mapping (COGS_ACCOUNT_TYPE,
+# DEPRECIATION_ACCOUNT_TYPE, NON_OPERATING_ACCOUNT_TYPES, build_stat_card,
+# compute_metric_from_rows) is still used for the Total Revenue hero card's
+# margin figures, kept as-is.
 # ---------------------------------------------------------------------------
 
 import calendar
@@ -39,9 +48,9 @@ COLORS = ["#1c6b4a", "#e3a627", "#d9824f", "#7a9e8f", "#b0763f"]
 DEFAULT_CURRENCY_SYMBOL = "QAR"
 
 # ---------------------------------------------------------------------------
-# EBITDA (Overview tab stat card) — CONFIG
+# EBIT (Overview tab stat card) — CONFIG
 # ---------------------------------------------------------------------------
-# The "EBITDA" stat card on the Overview tab is driven off the same
+# The "EBIT" stat card on the Overview tab is driven off the same
 # custom_pl_report_category / PL Category / PL Category Group mapping used
 # by the Statements tab (NOT the GL Entry account_type mapping used by the
 # rest of this page). This mirrors the client's own query:
@@ -50,8 +59,9 @@ DEFAULT_CURRENCY_SYMBOL = "QAR"
 #           the "Revenue", "Cost of Revenue" or "Operating Expenses" groups.
 #   D&A   = sum of all GL activity on accounts whose PL Category is
 #           "Depreciation & Amortization".
-#   EBITDA = EBIT - D&A   (D&A comes out signed/negative in this convention,
-#            so subtracting it effectively adds the depreciation back).
+#   EBIT (card value) = EBIT - D&A   (D&A comes out signed/negative in this
+#            convention, so subtracting it effectively adds the
+#            depreciation back).
 EBITDA_EBIT_PL_GROUPS = ["Revenue", "Cost of Revenue", "Operating Expenses"]
 EBITDA_DNA_PL_CATEGORY = "Depreciation & Amortization"
 
@@ -128,52 +138,30 @@ def get_dashboard_data(company=None, fiscal_year=None):
 	gl_from = py_start or fy_start
 	gl_rows = load_gl_data(company, gl_from, fy_end)
 
-	# --- top-level revenue -------------------------------------------------
-	revenue_cy = sum_gl_data(gl_rows, fy_start, fy_end, root_type="Income")
-	revenue_py = sum_gl_data(gl_rows, py_start, py_end, root_type="Income") if py_start else 0
+	# --- top-level revenue + profitability metrics --------------------------
+	# The Total Revenue hero card (value, change %, vs amount, gross/net
+	# margin) and the Gross Profit / Operating Income / Net Income stat
+	# cards all use the same PL Category / PL Category Group totals the
+	# Statements tab uses (see compute_pl_category_metrics /
+	# build_pl_stat_cards), instead of the old account_type based GL
+	# mapping — so the Overview and Statements tabs always agree.
+	categories = get_pl_categories(company)
 
-	# --- profitability metrics ---------------------------------------------
-	cogs_cy = sum_gl_data(gl_rows, fy_start, fy_end, root_type="Expense", account_type=COGS_ACCOUNT_TYPE)
-	cogs_py = sum_gl_data(gl_rows, py_start, py_end, root_type="Expense", account_type=COGS_ACCOUNT_TYPE) if py_start else 0
+	hero_metrics_cy = compute_pl_category_metrics(categories, company, fy_start, fy_end)
+	hero_metrics_py = compute_pl_category_metrics(categories, company, py_start, py_end)
 
-	total_expense_cy = sum_gl_data(gl_rows, fy_start, fy_end, root_type="Expense")
-	total_expense_py = sum_gl_data(gl_rows, py_start, py_end, root_type="Expense") if py_start else 0
-
-	depreciation_cy = sum_gl_data(gl_rows, fy_start, fy_end, root_type="Expense", account_type=DEPRECIATION_ACCOUNT_TYPE)
-	depreciation_py = sum_gl_data(gl_rows, py_start, py_end, root_type="Expense", account_type=DEPRECIATION_ACCOUNT_TYPE) if py_start else 0
-
-	operating_expense_cy = sum_gl_data(
-		gl_rows, fy_start, fy_end, root_type="Expense", exclude_account_types=[COGS_ACCOUNT_TYPE] + NON_OPERATING_ACCOUNT_TYPES
-	)
-	operating_expense_py = (
-		sum_gl_data(gl_rows, py_start, py_end, root_type="Expense", exclude_account_types=[COGS_ACCOUNT_TYPE] + NON_OPERATING_ACCOUNT_TYPES)
-		if py_start
-		else 0
-	)
-
-	gross_profit_cy = revenue_cy - cogs_cy
-	gross_profit_py = revenue_py - cogs_py
-
-	operating_income_cy = gross_profit_cy - operating_expense_cy
-	operating_income_py = gross_profit_py - operating_expense_py
-
-	net_income_cy = revenue_cy - total_expense_cy
-	net_income_py = revenue_py - total_expense_py
-
-	ebitda_cy = operating_income_cy + depreciation_cy
-	ebitda_py = operating_income_py + depreciation_py
+	revenue_cy = hero_metrics_cy["revenue"]
+	revenue_py = hero_metrics_py["revenue"]
+	gross_profit_cy = hero_metrics_cy["gross_profit"]
+	net_income_cy = hero_metrics_cy["net_income"]
 
 	# --- quarterly split for the mini bar charts ----------------------------
-	stat_cards = [
-		build_stat_card("gross_profit", "dollar-sign", _("Gross Profit"), gl_rows, fy_start, fy_end, py_start, py_end,
-			currency_symbol, root_type="Expense", account_type=COGS_ACCOUNT_TYPE, is_profit_metric=True, revenue_based=True),
-		build_stat_card("operating_income", "bar-chart-2", _("Operating Income"), gl_rows, fy_start, fy_end, py_start, py_end,
-			currency_symbol, root_type="Expense", exclude_account_types=[COGS_ACCOUNT_TYPE] + NON_OPERATING_ACCOUNT_TYPES,
-			is_profit_metric=True, revenue_based=True, subtract_from="gross_profit"),
-		build_stat_card("net_income", "credit-card", _("Net Income"), gl_rows, fy_start, fy_end, py_start, py_end,
-			currency_symbol, root_type="Expense", is_profit_metric=True, revenue_based=True),
-		build_ebitda_stat_card(company, fy_start, fy_end, py_start, py_end, currency_symbol),
-	]
+	stat_cards = build_pl_stat_cards(
+		categories, company, fy_start, fy_end, py_start, py_end, currency_symbol
+	)
+	stat_cards.append(
+		build_ebit_stat_card(company, fy_start, fy_end, py_start, py_end, currency_symbol)
+	)
 
 	# --- revenue breakdown (donut) ------------------------------------------
 	revenue_breakdown = get_revenue_breakdown(company, fy_start, fy_end, currency_symbol)
@@ -201,7 +189,10 @@ def get_dashboard_data(company=None, fiscal_year=None):
 
 
 # ---------------------------------------------------------------------------
-# Stat card (quarterly bars + YoY tooltip data) builder
+# Stat card (quarterly bars + YoY tooltip data) builder — account_type
+# based. Kept for compatibility; no longer used for the Overview tab's
+# Gross Profit / Operating Income / Net Income cards (see
+# build_pl_stat_cards below), which are now PL Category based instead.
 # ---------------------------------------------------------------------------
 
 def build_stat_card(key, icon, label, gl_rows, fy_start, fy_end, py_start, py_end, currency_symbol,
@@ -273,9 +264,123 @@ def compute_metric_from_rows(rows, start, end, root_type, account_type, exclude_
 
 
 # ---------------------------------------------------------------------------
-# EBITDA stat card — driven off the PL Category / PL Category Group mapping
-# (same mapping the Statements tab uses), not the account_type mapping used
-# by the rest of this page. See EBITDA_* CONFIG at the top of the file.
+# PL Category based stat cards (Gross Profit / Operating Income / Net
+# Income) for the Overview tab — reuses the exact same PL Category / PL
+# Category Group mapping (get_pl_categories / get_account_signed_totals,
+# defined further down in the Statements-tab section) that the Statements
+# tab uses, so the Overview and Statements tabs always agree.
+# ---------------------------------------------------------------------------
+
+def compute_pl_category_metrics(categories, company, start, end):
+	"""Revenue / Cost of Revenue / Operating Expenses / Gross Profit /
+	Operating Income / Net Income for one period, computed from the PL
+	Category / PL Category Group mapping (same accounts + same signed-total
+	convention as get_pl_statement_data)."""
+
+	empty = {
+		"revenue": 0,
+		"cost_of_revenue": 0,
+		"operating_expenses": 0,
+		"gross_profit": 0,
+		"operating_income": 0,
+		"net_income": 0,
+	}
+
+	if not categories or not start or not end:
+		return empty
+
+	all_accounts = [acc for cat in categories.values() for acc in cat["accounts"]]
+	totals = get_account_signed_totals(all_accounts, company, start, end)
+
+	group_sums = {}
+	net_income_total = 0
+
+	for cat in categories.values():
+		cat_total = sum(totals.get(acc, 0) for acc in cat["accounts"])
+		group_sums[cat["group"]] = group_sums.get(cat["group"], 0) + cat_total
+		net_income_total += cat_total
+
+	revenue = group_sums.get("Revenue", 0) / 1_000_000
+	cost_of_revenue = group_sums.get("Cost of Revenue", 0) / 1_000_000
+	operating_expenses = group_sums.get("Operating Expenses", 0) / 1_000_000
+	net_income = net_income_total / 1_000_000
+
+	# cost_of_revenue and operating_expenses are already negative here (same
+	# credit-debit signed convention get_pl_statement_data uses), so they
+	# are ADDED — exactly like the Statements tab's running_cy total — not
+	# subtracted.
+	gross_profit = revenue + cost_of_revenue
+	operating_income = gross_profit + operating_expenses
+
+	return {
+		"revenue": revenue,
+		"cost_of_revenue": cost_of_revenue,
+		"operating_expenses": operating_expenses,
+		"gross_profit": gross_profit,
+		"operating_income": operating_income,
+		"net_income": net_income,
+	}
+
+
+def build_pl_stat_cards(categories, company, fy_start, fy_end, py_start, py_end, currency_symbol):
+	"""Builds the Gross Profit / Operating Income / Net Income stat cards
+	(with quarterly bars + YoY) off compute_pl_category_metrics."""
+
+	q_dates_cy = get_quarter_dates(fy_start, fy_end)
+	q_dates_py = get_quarter_dates(py_start, py_end) if py_start else [(None, None)] * 4
+
+	cy_quarterly = [compute_pl_category_metrics(categories, company, s, e) for s, e in q_dates_cy]
+	py_quarterly = (
+		[compute_pl_category_metrics(categories, company, s, e) for s, e in q_dates_py]
+		if py_start
+		else [None] * 4
+	)
+	py_total = compute_pl_category_metrics(categories, company, py_start, py_end) if py_start else None
+
+	card_defs = [
+		("gross_profit", "dollar-sign", _("Gross Profit"), "gross_profit"),
+		("operating_income", "bar-chart-2", _("Operating Income"), "operating_income"),
+		("net_income", "credit-card", _("Net Income"), "net_income"),
+	]
+
+	cards = []
+	for key, icon, label, metric_key in card_defs:
+		quarters = []
+		for i in range(4):
+			value_cy = cy_quarterly[i][metric_key]
+			value_py = py_quarterly[i][metric_key] if py_start else 0
+
+			quarters.append({
+				"label": "Q%d" % (i + 1),
+				"value": round(value_cy, 3),
+				"change_pct": pct_change(value_cy, value_py),
+			})
+
+		total_cy = sum(q["value"] for q in quarters)
+		total_py_metric = py_total[metric_key] if py_start else 0
+
+		max_abs = max([abs(q["value"]) for q in quarters] + [0.001])
+		for q in quarters:
+			q["bar_pct"] = round(max(6, abs(q["value"]) / max_abs * 100), 1)
+			q["is_down"] = q["value"] < 0 or q["change_pct"] < 0
+
+		cards.append({
+			"key": key,
+			"icon": icon,
+			"label": label,
+			"value_fmt": fmt_m(total_cy, currency_symbol),
+			"prior_value_fmt": fmt_m(total_py_metric, currency_symbol),
+			"change_pct": pct_change(total_cy, total_py_metric),
+			"quarters": quarters,
+		})
+
+	return cards
+
+
+# ---------------------------------------------------------------------------
+# EBIT stat card — driven off the PL Category / PL Category Group mapping
+# (same mapping the Statements tab uses), computed exactly like the
+# client's own query. See EBITDA_* CONFIG at the top of the file.
 # ---------------------------------------------------------------------------
 
 def get_ebit_and_dna(company, from_date, to_date):
@@ -339,9 +444,10 @@ def get_ebit_and_dna(company, from_date, to_date):
 	return ebit, dna
 
 
-def build_ebitda_stat_card(company, fy_start, fy_end, py_start, py_end, currency_symbol):
-	"""EBITDA = EBIT - D&A (D&A comes out signed/negative in this
-	convention, so subtracting it adds the depreciation back)."""
+def build_ebit_stat_card(company, fy_start, fy_end, py_start, py_end, currency_symbol):
+	"""EBIT card — (EBIT - D&A), computed exactly like the client's own
+	query (see get_ebit_and_dna). D&A comes out signed/negative in this
+	convention, so subtracting it adds the depreciation back."""
 
 	quarters = []
 	q_dates_cy = get_quarter_dates(fy_start, fy_end)
@@ -379,9 +485,9 @@ def build_ebitda_stat_card(company, fy_start, fy_end, py_start, py_end, currency
 		q["is_down"] = q["value"] < 0 or q["change_pct"] < 0
 
 	return {
-		"key": "ebitda",
+		"key": "ebit",
 		"icon": "pie-chart",
-		"label": _("EBITDA"),
+		"label": _("EBIT"),
 		"value_fmt": fmt_m(total_cy, currency_symbol),
 		"prior_value_fmt": fmt_m(total_py, currency_symbol),
 		"change_pct": pct_change(total_cy, total_py),
