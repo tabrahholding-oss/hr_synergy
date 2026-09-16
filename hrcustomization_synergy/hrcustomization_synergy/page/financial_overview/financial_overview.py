@@ -78,7 +78,7 @@ EBITDA_DNA_PL_CATEGORY = "Depreciation & Amortization"
 # points to "PL Category".
 #
 # Only accounts where:
-#   account_type != "Group"  AND  report_type == "Profit and Loss"
+#   is_group = 0  AND  report_type == "Profit and Loss"
 #   AND custom_pl_report_category is set
 # are pulled into the statement (exactly the 2 conditions given for this
 # feature).
@@ -487,7 +487,7 @@ def build_ebit_stat_card(company, fy_start, fy_end, py_start, py_end, currency_s
 	return {
 		"key": "ebit",
 		"icon": "pie-chart",
-		"label": _("EBIT"),
+		"label": _("EBITDA"),
 		"value_fmt": fmt_m(total_cy, currency_symbol),
 		"prior_value_fmt": fmt_m(total_py, currency_symbol),
 		"change_pct": pct_change(total_cy, total_py),
@@ -856,7 +856,7 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 			"prior_fiscal_year": py_name,
 			"currency_symbol": currency_symbol,
 			"rows": [],
-			# Accounts that qualify for the P&L (account_type != "Group" AND
+			# Accounts that qualify for the P&L (is_group = 0 AND
 			# report_type == "Profit and Loss") but have no PL Category
 			# mapped yet — purely informational, does not affect any totals.
 			"missing_accounts": get_missing_pl_accounts(company),
@@ -966,10 +966,10 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 		"currency_symbol": currency_symbol,
 		"rows": rows,
 		"summary_cards": build_summary_cards(summary_data, currency_symbol),
-		# Accounts that qualify for the P&L (account_type != "Group" AND
-		# report_type == "Profit and Loss") but have no PL Category mapped
-		# yet, so they're silently missing from the rows above. Purely
-		# informational — does not feed into any of the totals/calculations.
+		# Accounts that qualify for the P&L (is_group = 0 AND report_type ==
+		# "Profit and Loss") but have no PL Category mapped yet, so they're
+		# silently missing from the rows above. Purely informational — does
+		# not feed into any of the totals/calculations.
 		"missing_accounts": get_missing_pl_accounts(company),
 	}
 
@@ -1027,7 +1027,7 @@ def build_statement_row(row_type, label, cy, py, currency_symbol):
 def get_pl_categories(company):
 	"""All PL Categories that have at least one eligible account mapped to
 	them on this company. Eligibility (exactly as specified):
-		account_type != "Group"  AND  report_type == "Profit and Loss"
+		is_group = 0  AND  report_type == "Profit and Loss"
 	"""
 
 	rows = frappe.db.sql(
@@ -1043,7 +1043,7 @@ def get_pl_categories(company):
 		INNER JOIN `tabPL Category` cat ON cat.name = acc.custom_pl_report_category
 		LEFT JOIN `tabPL Category Group` plg ON plg.name = cat.category_group
 		WHERE acc.company = %(company)s
-			AND IFNULL(acc.account_type, '') != 'Group'
+			AND acc.is_group = 0
 			AND acc.report_type = 'Profit and Loss'
 			AND IFNULL(acc.custom_pl_report_category, '') != ''
 		""",
@@ -1071,11 +1071,11 @@ def get_missing_pl_accounts(company):
 	"""Accounts that qualify for the P&L — exactly the same 2 conditions
 	used by get_pl_categories() / the client's own check (same check as the
 	client's own doctype script:
-		frm.doc.account_type !== "Group" &&
+		!frm.doc.is_group &&
 		frm.doc.report_type === "Profit and Loss";
 	):
 
-		account_type != "Group"  AND  report_type == "Profit and Loss"
+		is_group = 0  AND  report_type == "Profit and Loss"
 
 	— but that have NO custom_pl_report_category set, and are therefore
 	silently excluded from the Statements tab above.
@@ -1095,7 +1095,7 @@ def get_missing_pl_accounts(company):
 		SELECT acc.name, acc.account_name, acc.root_type
 		FROM `tabAccount` acc
 		WHERE acc.company = %(company)s
-			AND IFNULL(acc.account_type, '') != 'Group'
+			AND acc.is_group = 0
 			AND acc.report_type = 'Profit and Loss'
 			AND IFNULL(acc.custom_pl_report_category, '') = ''
 		ORDER BY acc.account_name
