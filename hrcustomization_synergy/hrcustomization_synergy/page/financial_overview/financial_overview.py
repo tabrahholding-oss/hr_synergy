@@ -39,6 +39,23 @@ COLORS = ["#1c6b4a", "#e3a627", "#d9824f", "#7a9e8f", "#b0763f"]
 DEFAULT_CURRENCY_SYMBOL = "QAR"
 
 # ---------------------------------------------------------------------------
+# EBITDA (Overview tab stat card) — CONFIG
+# ---------------------------------------------------------------------------
+# The "EBITDA" stat card on the Overview tab is driven off the same
+# custom_pl_report_category / PL Category / PL Category Group mapping used
+# by the Statements tab (NOT the GL Entry account_type mapping used by the
+# rest of this page). This mirrors the client's own query:
+#
+#   EBIT  = sum of all GL activity on accounts whose PL Category belongs to
+#           the "Revenue", "Cost of Revenue" or "Operating Expenses" groups.
+#   D&A   = sum of all GL activity on accounts whose PL Category is
+#           "Depreciation & Amortization".
+#   EBITDA = EBIT - D&A   (D&A comes out signed/negative in this convention,
+#            so subtracting it effectively adds the depreciation back).
+EBITDA_EBIT_PL_GROUPS = ["Revenue", "Cost of Revenue", "Operating Expenses"]
+EBITDA_DNA_PL_CATEGORY = "Depreciation & Amortization"
+
+# ---------------------------------------------------------------------------
 # STATEMENTS TAB — CONFIG
 # ---------------------------------------------------------------------------
 # The "Statements" tab is entirely driven by two custom doctypes that already
@@ -61,18 +78,16 @@ DEFAULT_CURRENCY_SYMBOL = "QAR"
 # "sort" value.
 #
 # After specific groups, a running "Calculated Field" row is inserted
-# (Gross Profit, Operating Income (EBIT)). The pre-tax / net-income rows are
-# conditional on whether the company actually has Tax data mapped for the
-# period — see STATEMENT_PRETAX_GROUP / STATEMENT_TAX_GROUP below.
+# (Gross Profit, Operating Income (EBIT)).
 STATEMENT_CALC_AFTER_GROUP = {
 	"Cost of Revenue": "Gross Profit",
 	"Operating Expenses": "Operating Income (EBIT)",
 }
 
-# If the "Taxes" group has any GL activity for the period, "Other Income &
-# Expense" gets an "Income Before Tax" row and "Taxes" gets a "Net Income"
-# row after it. If there's no Tax data at all, "Other Income & Expense" gets
-# "Net Income" directly instead (no separate Taxes-based row).
+# "Other Income & Expense" always gets an "Income Before Tax" row right
+# after it, and "Taxes" always gets the "Net Income" row right after it —
+# so Net Income is always the very last row, after Taxes, regardless of
+# whether any tax was actually posted for the period.
 STATEMENT_PRETAX_GROUP = "Other Income & Expense"
 STATEMENT_TAX_GROUP = "Taxes"
 
@@ -157,9 +172,7 @@ def get_dashboard_data(company=None, fiscal_year=None):
 			is_profit_metric=True, revenue_based=True, subtract_from="gross_profit"),
 		build_stat_card("net_income", "credit-card", _("Net Income"), gl_rows, fy_start, fy_end, py_start, py_end,
 			currency_symbol, root_type="Expense", is_profit_metric=True, revenue_based=True),
-		build_stat_card("ebitda", "pie-chart", _("EBITDA"), gl_rows, fy_start, fy_end, py_start, py_end,
-			currency_symbol, root_type="Expense", exclude_account_types=NON_OPERATING_ACCOUNT_TYPES,
-			is_profit_metric=True, revenue_based=True, add_back=DEPRECIATION_ACCOUNT_TYPE),
+		build_ebitda_stat_card(company, fy_start, fy_end, py_start, py_end, currency_symbol),
 	]
 
 	# --- revenue breakdown (donut) ------------------------------------------
@@ -257,6 +270,123 @@ def compute_metric_from_rows(rows, start, end, root_type, account_type, exclude_
 		value += sum_gl_data(rows, start, end, root_type="Expense", account_type=add_back)
 
 	return value
+
+
+# ---------------------------------------------------------------------------
+# EBITDA stat card — driven off the PL Category / PL Category Group mapping
+# (same mapping the Statements tab uses), not the account_type mapping used
+# by the rest of this page. See EBITDA_* CONFIG at the top of the file.
+# ---------------------------------------------------------------------------
+
+def get_ebit_and_dna(company, from_date, to_date):
+	"""Returns (ebit, dna) in millions for the given period, computed exactly
+	like the client's own query: signed sums of (debit - credit) * -1 over
+	accounts grouped via custom_pl_report_category -> PL Category ->
+	PL Category Group."""
+
+	if not company or not from_date or not to_date:
+		return 0, 0
+
+	ebit_row = frappe.db.sql(
+		"""
+		SELECT COALESCE(SUM((gl.debit - gl.credit) * -1), 0) AS amount
+		FROM `tabGL Entry` gl
+		JOIN `tabAccount` acc ON acc.name = gl.account
+		JOIN `tabPL Category` pc ON pc.name = acc.custom_pl_report_category
+		JOIN `tabPL Category Group` plg ON plg.name = pc.category_group
+		WHERE gl.company = %(company)s
+			AND gl.docstatus = 1
+			AND gl.is_cancelled = 0
+			AND gl.voucher_type NOT IN %(excluded_voucher_types)s
+			AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+			AND plg.name IN %(groups)s
+		""",
+		{
+			"company": company,
+			"from_date": from_date,
+			"to_date": to_date,
+			"groups": EBITDA_EBIT_PL_GROUPS,
+			"excluded_voucher_types": STATEMENT_EXCLUDED_VOUCHER_TYPES,
+		},
+		as_dict=True,
+	)
+
+	dna_row = frappe.db.sql(
+		"""
+		SELECT COALESCE(SUM((gl.debit - gl.credit) * -1), 0) AS amount
+		FROM `tabGL Entry` gl
+		JOIN `tabAccount` acc ON acc.name = gl.account
+		JOIN `tabPL Category` pc ON pc.name = acc.custom_pl_report_category
+		WHERE gl.company = %(company)s
+			AND gl.docstatus = 1
+			AND gl.is_cancelled = 0
+			AND gl.voucher_type NOT IN %(excluded_voucher_types)s
+			AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+			AND pc.name = %(dna_category)s
+		""",
+		{
+			"company": company,
+			"from_date": from_date,
+			"to_date": to_date,
+			"dna_category": EBITDA_DNA_PL_CATEGORY,
+			"excluded_voucher_types": STATEMENT_EXCLUDED_VOUCHER_TYPES,
+		},
+		as_dict=True,
+	)
+
+	ebit = flt(ebit_row[0].amount) / 1_000_000 if ebit_row else 0
+	dna = flt(dna_row[0].amount) / 1_000_000 if dna_row else 0
+	return ebit, dna
+
+
+def build_ebitda_stat_card(company, fy_start, fy_end, py_start, py_end, currency_symbol):
+	"""EBITDA = EBIT - D&A (D&A comes out signed/negative in this
+	convention, so subtracting it adds the depreciation back)."""
+
+	quarters = []
+	q_dates_cy = get_quarter_dates(fy_start, fy_end)
+	q_dates_py = get_quarter_dates(py_start, py_end) if py_start else [None, None, None, None]
+
+	for i in range(4):
+		q_start, q_end = q_dates_cy[i]
+		ebit_cy, dna_cy = get_ebit_and_dna(company, q_start, q_end)
+		value_cy = ebit_cy - dna_cy
+
+		if py_start:
+			pq_start, pq_end = q_dates_py[i]
+			ebit_py, dna_py = get_ebit_and_dna(company, pq_start, pq_end)
+			value_py = ebit_py - dna_py
+		else:
+			value_py = 0
+
+		quarters.append({
+			"label": "Q%d" % (i + 1),
+			"value": round(value_cy, 3),
+			"change_pct": pct_change(value_cy, value_py),
+		})
+
+	total_cy = sum(q["value"] for q in quarters)
+
+	if py_start:
+		ebit_py_total, dna_py_total = get_ebit_and_dna(company, py_start, py_end)
+		total_py = ebit_py_total - dna_py_total
+	else:
+		total_py = 0
+
+	max_abs = max([abs(q["value"]) for q in quarters] + [0.001])
+	for q in quarters:
+		q["bar_pct"] = round(max(6, abs(q["value"]) / max_abs * 100), 1)
+		q["is_down"] = q["value"] < 0 or q["change_pct"] < 0
+
+	return {
+		"key": "ebitda",
+		"icon": "pie-chart",
+		"label": _("EBITDA"),
+		"value_fmt": fmt_m(total_cy, currency_symbol),
+		"prior_value_fmt": fmt_m(total_py, currency_symbol),
+		"change_pct": pct_change(total_cy, total_py),
+		"quarters": quarters,
+	}
 
 
 # ---------------------------------------------------------------------------
@@ -620,6 +750,10 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 			"prior_fiscal_year": py_name,
 			"currency_symbol": currency_symbol,
 			"rows": [],
+			# Accounts that qualify for the P&L (account_type != "Group" AND
+			# report_type == "Profit and Loss") but have no PL Category
+			# mapped yet — purely informational, does not affect any totals.
+			"missing_accounts": get_missing_pl_accounts(company),
 			"empty_message": _(
 				"No Profit and Loss accounts are mapped to a PL Category yet. "
 				"Set the \"custom_pl_report_category\" field on your accounts "
@@ -646,14 +780,6 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 		bucket["categories"].append(cat)
 
 	group_order = sorted(groups.keys(), key=lambda g: groups[g]["sort"])
-
-	# The Taxes group only counts as "having data" if there's actual GL
-	# activity against its mapped accounts for this period — not just a
-	# structural mapping with nothing posted. This decides whether we show
-	# a separate "Income Before Tax" row, or fold straight into "Net Income"
-	# right after "Other Income & Expense".
-	tax_accounts = [acc for cat in groups.get(STATEMENT_TAX_GROUP, {}).get("categories", []) for acc in cat["accounts"]]
-	has_tax_data = group_has_gl_activity(tax_accounts, company, fy_start, fy_end)
 
 	rows = []
 	running_cy = 0
@@ -701,10 +827,12 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 
 		calc_label = STATEMENT_CALC_AFTER_GROUP.get(group_name)
 
+		# Income Before Tax always sits right after "Other Income & Expense".
+		# Net Income is NOT decided here — it's added once, unconditionally,
+		# after every group has been processed (see below), so it's never
+		# gated on the "Taxes" group existing or having data.
 		if group_name == STATEMENT_PRETAX_GROUP:
-			calc_label = "Income Before Tax" if has_tax_data else "Net Income"
-		elif group_name == STATEMENT_TAX_GROUP and has_tax_data:
-			calc_label = "Net Income"
+			calc_label = "Income Before Tax"
 
 		if calc_label:
 			rows.append(build_statement_row("calculated", _(calc_label), running_cy, running_py, currency_symbol))
@@ -716,9 +844,14 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 			elif "Operating Income" in calc_label:
 				summary_data["operating_income_cy"] = running_cy
 				summary_data["operating_income_py"] = running_py
-			elif "Net Income" in calc_label:
-				summary_data["net_income_cy"] = running_cy
-				summary_data["net_income_py"] = running_py
+
+	# Net Income is always the very last row on the statement — the running
+	# total of every group above it (Revenue, Cost of Revenue, Operating
+	# Expenses, Other Income & Expense, Taxes, and anything else mapped),
+	# added here unconditionally rather than tied to any specific group.
+	rows.append(build_statement_row("calculated", _("Net Income"), running_cy, running_py, currency_symbol))
+	summary_data["net_income_cy"] = running_cy
+	summary_data["net_income_py"] = running_py
 
 	return {
 		"company": company,
@@ -727,6 +860,11 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 		"currency_symbol": currency_symbol,
 		"rows": rows,
 		"summary_cards": build_summary_cards(summary_data, currency_symbol),
+		# Accounts that qualify for the P&L (account_type != "Group" AND
+		# report_type == "Profit and Loss") but have no PL Category mapped
+		# yet, so they're silently missing from the rows above. Purely
+		# informational — does not feed into any of the totals/calculations.
+		"missing_accounts": get_missing_pl_accounts(company),
 	}
 
 
@@ -823,6 +961,49 @@ def get_pl_categories(company):
 	return categories
 
 
+def get_missing_pl_accounts(company):
+	"""Accounts that qualify for the P&L — exactly the same 2 conditions
+	used by get_pl_categories() / the client's own check:
+
+		account_type != "Group"  AND  report_type == "Profit and Loss"
+
+	— but that have NO custom_pl_report_category set, and are therefore
+	silently excluded from the Statements tab above. Returned grouped by
+	parent account purely for display at the bottom of the page.
+
+	This is read-only/informational: it does not touch, feed, or alter any
+	of the totals, sums, or calculated rows built elsewhere in this file.
+	"""
+
+	if not company:
+		return []
+
+	rows = frappe.db.sql(
+		"""
+		SELECT acc.name, acc.account_name, acc.parent_account, acc.root_type
+		FROM `tabAccount` acc
+		WHERE acc.company = %(company)s
+			AND IFNULL(acc.account_type, '') != 'Group'
+			AND acc.report_type = 'Profit and Loss'
+			AND IFNULL(acc.custom_pl_report_category, '') = ''
+		ORDER BY acc.parent_account, acc.name
+		""",
+		{"company": company},
+		as_dict=True,
+	)
+
+	groups = {}
+	for r in rows:
+		key = r.parent_account or _("Ungrouped")
+		groups.setdefault(key, []).append({
+			"name": r.name,
+			"account_name": r.account_name or r.name,
+			"root_type": r.root_type,
+		})
+
+	return [{"group": g, "accounts": accs} for g, accs in groups.items()]
+
+
 def get_account_signed_totals(accounts, company, from_date, to_date):
 	"""{account: credit - debit} for the given date range. Positive means an
 	income-normal balance, negative an expense-normal balance — this signed
@@ -863,10 +1044,7 @@ def get_account_signed_totals(accounts, company, from_date, to_date):
 
 def group_has_gl_activity(accounts, company, from_date, to_date):
 	"""True if any of the given accounts has at least one submitted GL Entry
-	in the period (same filters as get_account_signed_totals). Mirrors the
-	inner join in the client's query, where a category group only "exists"
-	for a period if something was actually posted against it — a structural
-	mapping with zero postings doesn't count."""
+	in the period (same filters as get_account_signed_totals)."""
 
 	if not accounts or not from_date or not to_date:
 		return False

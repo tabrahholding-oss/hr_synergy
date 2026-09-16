@@ -776,63 +776,132 @@ wire_summary_cards() {
 	// Currently just displays the cards
 }
 
+/**
+ * Builds the HTML for the "Accounts Not Mapped to a PL Category" panel
+ * shown at the end of the Statements page. This is purely informational —
+ * it lists, grouped by parent account, every account that qualifies for
+ * the P&L (account_type != "Group" AND report_type === "Profit and Loss")
+ * but has no custom_pl_report_category set, so it's silently missing from
+ * the statement rows above. Renders nothing if the list is empty.
+ */
+get_missing_accounts_html(d) {
+
+	if (!d.missing_accounts || !d.missing_accounts.length) {
+		return '';
+	}
+
+	const groups_html =
+		d.missing_accounts.map(g => `
+
+			<div class="fo-missing-group">
+
+				<div class="fo-missing-group-title">
+					${frappe.utils.escape_html(g.group)}
+				</div>
+
+				<ul class="fo-missing-list">
+
+					${g.accounts.map(a => `
+
+						<li>
+
+							${frappe.utils.escape_html(a.account_name)}
+
+							<span class="fo-missing-roottype">
+								(${frappe.utils.escape_html(a.root_type || '')})
+							</span>
+
+						</li>
+
+					`).join('')}
+
+				</ul>
+
+			</div>
+
+		`).join('');
+
+	return `
+
+		<div class="fo-missing-panel">
+
+			<div class="fo-panel-title">
+				${__('Accounts Not Mapped to a PL Category')}
+			</div>
+
+			<div class="fo-missing-note">
+				${__('These accounts qualify for the P&L (Account Type is not Group, Report Type is Profit and Loss) but have no PL Category set yet, so they are missing from the statement above.')}
+			</div>
+
+			${groups_html}
+
+		</div>
+
+	`;
+}
+
 get_statement_html(d) {
- 
+
+	const missing_accounts_html =
+		this.get_missing_accounts_html(d);
+
 	if (d.empty_message) {
- 
+
 		return `
 			<div class="fo-page fo-statement-page">
- 
+
 				<div class="fo-header">
- 
+
 					<div>
- 
+
 						<h1 class="fo-title">
 							Financial
 							<span class="fo-title-accent">
 								Statements
 							</span>
 						</h1>
- 
+
 						<div class="fo-subtitle">
 							${d.company}
 							|
 							${d.fiscal_year}
 						</div>
- 
+
 					</div>
- 
+
 				</div>
- 
+
 				<div class="fo-statement-empty">
 					${frappe.utils.escape_html(d.empty_message)}
 				</div>
- 
+
+				${missing_accounts_html}
+
 			</div>
 		`;
 	}
- 
- 
+
+
 	const rows_html =
 		(d.rows || [])
 			.map(
 				row => this.get_statement_row_html(row)
 			)
 			.join('');
- 
+
 	// Build summary cards HTML
 	const summary_cards_html =
 		(d.summary_cards || [])
 			.map(c => `
- 
+
 				<div class="fo-statement-card">
- 
+
 					<div class="fo-statement-card-top">
- 
+
 						<span class="fo-icon">
 							${this.icon(c.icon)}
 						</span>
- 
+
 						<span
 							class="fo-badge ${c.change_pct_class}"
 						>
@@ -843,65 +912,65 @@ get_statement_html(d) {
 							}
 							${Math.abs(c.change_pct)}%
 						</span>
- 
+
 					</div>
- 
- 
+
+
 					<div class="fo-statement-card-label">
 						${c.label}
 					</div>
- 
- 
+
+
 					<div class="fo-statement-card-value">
 						${c.value_fmt}
 					</div>
- 
- 
+
+
 					<div class="fo-statement-card-vs">
 						vs. ${c.prior_value_fmt}
 					</div>
- 
+
 				</div>
- 
+
 			`).join('');
- 
- 
+
+
 	return `
- 
+
 		<div class="fo-page fo-statement-page">
- 
+
 			<div class="fo-header">
- 
+
 				<div>
- 
+
 					<h1 class="fo-title">
 						Financial
 						<span class="fo-title-accent">
 							Statements
 						</span>
 					</h1>
- 
+
 					<div class="fo-subtitle">
 						${d.company}
 						|
 						${d.fiscal_year}
 						Performance
 					</div>
- 
+
 				</div>
- 
+
 			</div>
- 
- 
+
+
 			<div class="fo-statement-summary-row">
 				${summary_cards_html}
 			</div>
- 
- 
+
+
 			<div class="fo-statement-panel">
- 
+
 				<table class="fo-statement-table">
- 
+
 					<thead>
 						<tr>
 							<th class="fo-st-line">
@@ -913,15 +982,17 @@ get_statement_html(d) {
 							<th>${__('Var %')}</th>
 						</tr>
 					</thead>
- 
+
 					<tbody>
 						${rows_html}
 					</tbody>
- 
+
 				</table>
- 
+
 			</div>
- 
+
+			${missing_accounts_html}
+
 		</div>
 	`;
 }
@@ -2514,6 +2585,100 @@ get_statement_html(d) {
 
 
 		style.innerHTML = `
+		.fo-missing-panel {
+
+			background:
+				#fff;
+
+			border-radius:
+				16px;
+
+			border:
+				1px dashed #d9d4cc;
+
+			padding:
+				20px;
+
+			margin-top:
+				20px;
+		}
+
+
+		.fo-missing-note {
+
+			color:
+				#999;
+
+			font-size:
+				12px;
+
+			margin:
+				6px 0 16px;
+		}
+
+
+		.fo-missing-group {
+
+			margin-bottom:
+				14px;
+		}
+
+
+		.fo-missing-group-title {
+
+			font-weight:
+				700;
+
+			font-size:
+				12px;
+
+			color:
+				#52605a;
+
+			text-transform:
+				uppercase;
+
+			letter-spacing:
+				0.03em;
+
+			margin-bottom:
+				6px;
+		}
+
+
+		.fo-missing-list {
+
+			margin:
+				0;
+
+			padding-left:
+				20px;
+
+			font-size:
+				13px;
+
+			color:
+				#333;
+		}
+
+
+		.fo-missing-list li {
+
+			margin-bottom:
+				4px;
+		}
+
+
+		.fo-missing-roottype {
+
+			color:
+				#999;
+
+			font-size:
+				11px;
+		}
+
+
 		.fo-statement-summary-row {
  
 			display:
