@@ -1092,7 +1092,7 @@ def get_missing_pl_accounts(company):
 
 	rows = frappe.db.sql(
 		"""
-		SELECT acc.name, acc.account_name, acc.root_type
+		SELECT acc.name, acc.account_name, acc.account_number, acc.root_type
 		FROM `tabAccount` acc
 		WHERE acc.company = %(company)s
 			AND acc.is_group = 0
@@ -1107,7 +1107,10 @@ def get_missing_pl_accounts(company):
 	return [
 		{
 			"name": r.name,
-			"account_name": r.account_name or r.name,
+			"account_name": (
+				"{0} - {1}".format(r.account_number, r.account_name)
+				if r.account_number else (r.account_name or r.name)
+			),
 			"root_type": r.root_type,
 		}
 		for r in rows
