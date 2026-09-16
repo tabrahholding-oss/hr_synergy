@@ -963,16 +963,22 @@ def get_pl_categories(company):
 
 def get_missing_pl_accounts(company):
 	"""Accounts that qualify for the P&L — exactly the same 2 conditions
-	used by get_pl_categories() / the client's own check:
+	used by get_pl_categories() / the client's own check (same check as the
+	client's own doctype script:
+		frm.doc.account_type !== "Group" &&
+		frm.doc.report_type === "Profit and Loss";
+	):
 
 		account_type != "Group"  AND  report_type == "Profit and Loss"
 
 	— but that have NO custom_pl_report_category set, and are therefore
-	silently excluded from the Statements tab above. Returned grouped by
-	parent account purely for display at the bottom of the page.
+	silently excluded from the Statements tab above.
 
-	This is read-only/informational: it does not touch, feed, or alter any
-	of the totals, sums, or calculated rows built elsewhere in this file.
+	Returned as a plain, flat list of account names (no PL Category / PL
+	Category Group / parent-account grouping) for a simple display at the
+	bottom of the page. Read-only/informational only: it does not touch,
+	feed, or alter any of the totals, sums, or calculated rows built
+	elsewhere in this file.
 	"""
 
 	if not company:
@@ -980,28 +986,26 @@ def get_missing_pl_accounts(company):
 
 	rows = frappe.db.sql(
 		"""
-		SELECT acc.name, acc.account_name, acc.parent_account, acc.root_type
+		SELECT acc.name, acc.account_name, acc.root_type
 		FROM `tabAccount` acc
 		WHERE acc.company = %(company)s
 			AND IFNULL(acc.account_type, '') != 'Group'
 			AND acc.report_type = 'Profit and Loss'
 			AND IFNULL(acc.custom_pl_report_category, '') = ''
-		ORDER BY acc.parent_account, acc.name
+		ORDER BY acc.account_name
 		""",
 		{"company": company},
 		as_dict=True,
 	)
 
-	groups = {}
-	for r in rows:
-		key = r.parent_account or _("Ungrouped")
-		groups.setdefault(key, []).append({
+	return [
+		{
 			"name": r.name,
 			"account_name": r.account_name or r.name,
 			"root_type": r.root_type,
-		})
-
-	return [{"group": g, "accounts": accs} for g, accs in groups.items()]
+		}
+		for r in rows
+	]
 
 
 def get_account_signed_totals(accounts, company, from_date, to_date):

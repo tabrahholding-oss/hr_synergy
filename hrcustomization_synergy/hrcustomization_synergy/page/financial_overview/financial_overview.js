@@ -779,10 +779,11 @@ wire_summary_cards() {
 /**
  * Builds the HTML for the "Accounts Not Mapped to a PL Category" panel
  * shown at the end of the Statements page. This is purely informational —
- * it lists, grouped by parent account, every account that qualifies for
- * the P&L (account_type != "Group" AND report_type === "Profit and Loss")
- * but has no custom_pl_report_category set, so it's silently missing from
- * the statement rows above. Renders nothing if the list is empty.
+ * a plain, flat list (no PL Category / PL Category Group / parent-account
+ * grouping) of every account that qualifies for the P&L
+ * (account_type != "Group" AND report_type === "Profit and Loss") but has
+ * no custom_pl_report_category set, so it's silently missing from the
+ * statement rows above. Renders nothing if the list is empty.
  */
 get_missing_accounts_html(d) {
 
@@ -790,34 +791,12 @@ get_missing_accounts_html(d) {
 		return '';
 	}
 
-	const groups_html =
-		d.missing_accounts.map(g => `
+	const items_html =
+		d.missing_accounts.map(a => `
 
-			<div class="fo-missing-group">
-
-				<div class="fo-missing-group-title">
-					${frappe.utils.escape_html(g.group)}
-				</div>
-
-				<ul class="fo-missing-list">
-
-					${g.accounts.map(a => `
-
-						<li>
-
-							${frappe.utils.escape_html(a.account_name)}
-
-							<span class="fo-missing-roottype">
-								(${frappe.utils.escape_html(a.root_type || '')})
-							</span>
-
-						</li>
-
-					`).join('')}
-
-				</ul>
-
-			</div>
+			<li>
+				${frappe.utils.escape_html(a.account_name)}
+			</li>
 
 		`).join('');
 
@@ -833,7 +812,9 @@ get_missing_accounts_html(d) {
 				${__('These accounts qualify for the P&L (Account Type is not Group, Report Type is Profit and Loss) but have no PL Category set yet, so they are missing from the statement above.')}
 			</div>
 
-			${groups_html}
+			<ul class="fo-missing-list">
+				${items_html}
+			</ul>
 
 		</div>
 
