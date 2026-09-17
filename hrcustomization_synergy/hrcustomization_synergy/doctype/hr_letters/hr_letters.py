@@ -14,6 +14,7 @@ FORMAT_MAP = {
     "Employee Clearance Acknowledgement": "Employee Clearance Acknowledgement",
     "Employee Confirmation": "Employee Confirmation",
     "Employee Travel NOC": "Employee Travel NOC",
+    "HMC NOC Letter": "HMC NOC Letter",
 
 }
 

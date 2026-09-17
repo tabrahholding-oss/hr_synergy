@@ -71,7 +71,8 @@ function get_print_format(frm) {
         "Asset Declaration": "Asset Declaration",
         "Employee Clearance Acknowledgement": "Employee Clearance Acknowledgement",
         "Employee Confirmation": "Employee Confirmation",
-        "Employee Travel NOC": "Employee Travel NOC"
+        "Employee Travel NOC": "Employee Travel NOC",
+        "HMC NOC Letter": "HMC NOC Letter",
     };
 
     return format_map[frm.doc.certificate_type];

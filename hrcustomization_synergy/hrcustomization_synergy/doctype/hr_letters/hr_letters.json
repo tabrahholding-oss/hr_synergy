@@ -37,6 +37,9 @@
   "termination_letter_section",
   "terms_and_conditions_templates",
   "term",
+  "hmc_noc_letter_section",
+  "terms_and_conditions",
+  "hmc_terms",
   "section_break_dates",
   "relieving_date",
   "resignation_letter_date",
@@ -390,13 +393,31 @@
    "fieldname": "term",
    "fieldtype": "Text Editor",
    "label": "Term"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"HMC NOC Letter\"",
+   "fieldname": "hmc_noc_letter_section",
+   "fieldtype": "Section Break",
+   "label": "HMC NOC Letter"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"HMC NOC Letter\"",
+   "fieldname": "terms_and_conditions",
+   "fieldtype": "Data",
+   "label": "Terms and Conditions"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"HMC NOC Letter\"",
+   "fieldname": "hmc_terms",
+   "fieldtype": "Text Editor",
+   "label": "HMC Terms"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-15 12:16:05.483632",
+ "modified": "2026-09-17 08:50:14.858265",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Letters",
