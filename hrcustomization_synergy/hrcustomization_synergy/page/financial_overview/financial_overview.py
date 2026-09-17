@@ -1103,10 +1103,29 @@ def get_costs_data(company=None, fiscal_year=None):
 		})
 
 	# ---- OpEx rows -------------------------------------------------------
+	# PL Category Group ka naam har DB me alag ho sakta hai — case-insensitive
+	# aur flexible match use karo, plus fallback bhi rakho.
+	def _is_opex_group(name):
+		n = (name or "").strip().lower()
+		if not n:
+			return False
+		# Explicit variants
+		if n in ("operating expenses", "operating expense", "opex",
+				 "operating cost", "operating costs"):
+			return True
+		# Fuzzy — "operating" + "expense" dono ho
+		if "operating" in n and "expense" in n:
+			return True
+		# "expense" only (but not "cost of revenue")
+		if "expense" in n and "cost" not in n and "revenue" not in n:
+			return True
+		return False
+
 	opex_cats = [
 		cat for cat in categories.values()
-		if (cat["group"] or "").lower() == "operating expenses"
+		if _is_opex_group(cat.get("group"))
 	]
+
 	opex_cats_sorted = sorted(opex_cats, key=lambda c: c["sort"])
 
 	all_opex_accounts = [acc for cat in opex_cats_sorted for acc in cat["accounts"]]
