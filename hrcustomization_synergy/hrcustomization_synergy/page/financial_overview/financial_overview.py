@@ -1,25 +1,15 @@
 # financial_overview.py
 # ---------------------------------------------------------------------------
 # Backend for the "Financial Overview" dashboard page.
-# Pulls live numbers from GL Entry (for revenue/profit) and Sales Invoice
-# Item (for the revenue breakdown by product line).
+# Pulls live numbers from GL Entry (for revenue/profit) and PL Category
+# mapping (for revenue breakdown).
 #
 # IMPORTANT — please review the CONFIG section below and adjust the
-# item-group / account-type mapping to match your actual Chart of Accounts
-# and Item Group tree. Sensible ERPNext defaults are used, but every company
-# sets these up a bit differently.
-#
-# NOTE: The Overview tab's Gross Profit / Operating Income / Net Income
-# stat cards are built from the same PL Category / PL Category Group
-# mapping the Statements tab uses (see compute_pl_category_metrics /
-# build_pl_stat_cards below), NOT from the account_type mapping further
-# down this file. The account_type mapping (COGS_ACCOUNT_TYPE,
-# DEPRECIATION_ACCOUNT_TYPE, NON_OPERATING_ACCOUNT_TYPES, build_stat_card,
-# compute_metric_from_rows) is still used for the Total Revenue hero card's
-# margin figures, kept as-is.
+# item-group / account-type mapping to match your actual Chart of Accounts.
 # ---------------------------------------------------------------------------
 
 import calendar
+from datetime import timedelta
 
 import frappe
 from frappe import _
@@ -29,122 +19,59 @@ from frappe.utils import flt, add_months, getdate
 # CONFIG — adjust to match your setup
 # ---------------------------------------------------------------------------
 
-# Which Item Groups roll up into which bucket on the "Revenue Breakdown" donut.
-# Anything not listed here falls into "Other Revenue".
-REVENUE_BUCKETS = {
-	"Product Sales": ["Products", "Licenses", "Software"],
-	"Service Revenue": ["Services", "Support", "Consulting"],
-}
-
-# Account types that make up cost of goods sold / operating expense / depreciation.
-# These map to the standard ERPNext "Account Type" field on the Account doctype.
+# Account types (kept for backwards compatibility with old helpers)
 COGS_ACCOUNT_TYPE = "Cost of Goods Sold"
 DEPRECIATION_ACCOUNT_TYPE = "Depreciation"
 NON_OPERATING_ACCOUNT_TYPES = ["Tax", "Depreciation"]
 
 COLORS = ["#1c6b4a", "#e3a627", "#d9824f", "#7a9e8f", "#b0763f"]
 
-# Default currency symbol - QAR for Qatar (ر.ق) or you can use "QAR"
 DEFAULT_CURRENCY_SYMBOL = "QAR"
 
 # ---------------------------------------------------------------------------
-# EBIT (Overview tab stat card) — CONFIG
+# EBIT / EBITDA — PL Category based (same mapping as Statements tab)
 # ---------------------------------------------------------------------------
-# The "EBIT" stat card on the Overview tab is driven off the same
-# custom_pl_report_category / PL Category / PL Category Group mapping used
-# by the Statements tab (NOT the GL Entry account_type mapping used by the
-# rest of this page). This mirrors the client's own query:
-#
-#   EBIT  = sum of all GL activity on accounts whose PL Category belongs to
-#           the "Revenue", "Cost of Revenue" or "Operating Expenses" groups.
-#   D&A   = sum of all GL activity on accounts whose PL Category is
-#           "Depreciation & Amortization".
-#   EBIT (card value) = EBIT - D&A   (D&A comes out signed/negative in this
-#            convention, so subtracting it effectively adds the
-#            depreciation back).
 EBITDA_EBIT_PL_GROUPS = ["Revenue", "Cost of Revenue", "Operating Expenses"]
 EBITDA_DNA_PL_CATEGORY = "Depreciation & Amortization"
 
 # ---------------------------------------------------------------------------
 # STATEMENTS TAB — CONFIG
 # ---------------------------------------------------------------------------
-# The "Statements" tab is entirely driven by two custom doctypes that already
-# exist on the site:
-#
-#   - "PL Category"       (fields: name1 -> Category, sort, category_group)
-#   - "PL Category Group" (fields: name1 -> Name, sort)
-#
-# ...plus a custom Link field on Account: "custom_pl_report_category" that
-# points to "PL Category".
-#
-# Only accounts where:
-#   is_group = 0  AND  report_type == "Profit and Loss"
-#   AND custom_pl_report_category is set
-# are pulled into the statement (exactly the 2 conditions given for this
-# feature).
-#
-# Group ordering follows the "sort" field on PL Category Group itself (not
-# an inferred value), and categories inside a group are ordered by their own
-# "sort" value.
-#
-# After specific groups, a running "Calculated Field" row is inserted
-# (Gross Profit, Operating Income (EBIT)).
 STATEMENT_CALC_AFTER_GROUP = {
 	"Cost of Revenue": "Gross Profit",
 	"Operating Expenses": "Operating Income (EBIT)",
 }
 
-# "Other Income & Expense" always gets an "Income Before Tax" row right
-# after it, and "Taxes" always gets the "Net Income" row right after it —
-# so Net Income is always the very last row, after Taxes, regardless of
-# whether any tax was actually posted for the period.
 STATEMENT_PRETAX_GROUP = "Other Income & Expense"
 STATEMENT_TAX_GROUP = "Taxes"
 
-# GL Entries excluded from every Statements-tab total — Period Closing
-# Vouchers would otherwise double-count what the year's category totals
-# already reflect.
 STATEMENT_EXCLUDED_VOUCHER_TYPES = ["Period Closing Voucher"]
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Entry point — Overview tab
 # ---------------------------------------------------------------------------
 
 @frappe.whitelist()
 def get_dashboard_data(company=None, fiscal_year=None):
-	"""Main API called from financial_overview.js"""
+	"""Main API called from financial_overview.js (Overview tab)."""
 
-	# If no company provided, use user's default or first available company
 	if not company:
 		company = frappe.defaults.get_user_default("Company")
 	if not company:
 		company = get_first_company()
-	
+
 	if not company:
 		frappe.throw(_("No company found. Please set up a Company first."))
 
 	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
 	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
 
-	# Every number on this page is rendered in the selected company's own
-	# currency — never hardcoded — so switching companies also switches
-	# the currency symbol shown throughout the page.
 	currency_symbol = get_currency_symbol(company)
 
-	# Load both fiscal years in one GL query. The old implementation issued
-	# dozens of almost-identical SQL queries for totals, quarters and trend.
-	# Keeping the data in memory for this request makes the dashboard much faster.
 	gl_from = py_start or fy_start
 	gl_rows = load_gl_data(company, gl_from, fy_end)
 
-	# --- top-level revenue + profitability metrics --------------------------
-	# The Total Revenue hero card (value, change %, vs amount, gross/net
-	# margin) and the Gross Profit / Operating Income / Net Income stat
-	# cards all use the same PL Category / PL Category Group totals the
-	# Statements tab uses (see compute_pl_category_metrics /
-	# build_pl_stat_cards), instead of the old account_type based GL
-	# mapping — so the Overview and Statements tabs always agree.
 	categories = get_pl_categories(company)
 
 	hero_metrics_cy = compute_pl_category_metrics(categories, company, fy_start, fy_end)
@@ -155,7 +82,6 @@ def get_dashboard_data(company=None, fiscal_year=None):
 	gross_profit_cy = hero_metrics_cy["gross_profit"]
 	net_income_cy = hero_metrics_cy["net_income"]
 
-	# --- quarterly split for the mini bar charts ----------------------------
 	stat_cards = build_pl_stat_cards(
 		categories, company, fy_start, fy_end, py_start, py_end, currency_symbol
 	)
@@ -163,10 +89,11 @@ def get_dashboard_data(company=None, fiscal_year=None):
 		build_ebit_stat_card(company, fy_start, fy_end, py_start, py_end, currency_symbol)
 	)
 
-	# --- revenue breakdown (donut) ------------------------------------------
-	revenue_breakdown = get_revenue_breakdown(company, fy_start, fy_end, currency_symbol)
+	# Revenue breakdown donut — ab PL Category Revenue group se
+	revenue_breakdown = get_revenue_breakdown_from_pl(
+		company, fy_start, fy_end, currency_symbol
+	)
 
-	# --- monthly trend -------------------------------------------------------
 	trend = get_monthly_trend(gl_rows, fy_start, fy_end, py_start, py_end, currency_symbol)
 
 	return {
@@ -189,94 +116,10 @@ def get_dashboard_data(company=None, fiscal_year=None):
 
 
 # ---------------------------------------------------------------------------
-# Stat card (quarterly bars + YoY tooltip data) builder — account_type
-# based. Kept for compatibility; no longer used for the Overview tab's
-# Gross Profit / Operating Income / Net Income cards (see
-# build_pl_stat_cards below), which are now PL Category based instead.
-# ---------------------------------------------------------------------------
-
-def build_stat_card(key, icon, label, gl_rows, fy_start, fy_end, py_start, py_end, currency_symbol,
-	root_type=None, account_type=None, exclude_account_types=None,
-	is_profit_metric=False, revenue_based=False, subtract_from=None, add_back=None):
-	quarters = []
-	q_dates_cy = get_quarter_dates(fy_start, fy_end)
-	q_dates_py = get_quarter_dates(py_start, py_end) if py_start else [None, None, None, None]
-
-	for i in range(4):
-		q_start, q_end = q_dates_cy[i]
-		value_cy = compute_metric_from_rows(
-			gl_rows, q_start, q_end, root_type, account_type, exclude_account_types, add_back, revenue_based
-		)
-
-		if py_start:
-			pq_start, pq_end = q_dates_py[i]
-			value_py = compute_metric_from_rows(
-				gl_rows, pq_start, pq_end, root_type, account_type, exclude_account_types, add_back, revenue_based
-			)
-		else:
-			value_py = 0
-
-		quarters.append({
-			"label": "Q%d" % (i + 1),
-			"value": round(value_cy, 3),
-			"change_pct": pct_change(value_cy, value_py),
-		})
-
-	total_cy = sum(q["value"] for q in quarters)
-	total_py_metric = (
-		compute_metric_from_rows(
-			gl_rows, py_start, py_end, root_type, account_type, exclude_account_types, add_back, revenue_based
-		)
-		if py_start
-		else 0
-	)
-
-	max_abs = max([abs(q["value"]) for q in quarters] + [0.001])
-	for q in quarters:
-		q["bar_pct"] = round(max(6, abs(q["value"]) / max_abs * 100), 1)
-		q["is_down"] = q["value"] < 0 or q["change_pct"] < 0
-
-	return {
-		"key": key,
-		"icon": icon,
-		"label": label,
-		"value_fmt": fmt_m(total_cy, currency_symbol),
-		"prior_value_fmt": fmt_m(total_py_metric, currency_symbol),
-		"change_pct": pct_change(total_cy, total_py_metric),
-		"quarters": quarters,
-	}
-
-
-def compute_metric_from_rows(rows, start, end, root_type, account_type, exclude_account_types, add_back, revenue_based):
-	if not start or not end:
-		return 0
-
-	revenue = sum_gl_data(rows, start, end, root_type="Income")
-	expense = sum_gl_data(
-		rows, start, end, root_type=root_type, account_type=account_type, exclude_account_types=exclude_account_types
-	)
-	value = (revenue - expense) if revenue_based else expense
-
-	if add_back:
-		value += sum_gl_data(rows, start, end, root_type="Expense", account_type=add_back)
-
-	return value
-
-
-# ---------------------------------------------------------------------------
-# PL Category based stat cards (Gross Profit / Operating Income / Net
-# Income) for the Overview tab — reuses the exact same PL Category / PL
-# Category Group mapping (get_pl_categories / get_account_signed_totals,
-# defined further down in the Statements-tab section) that the Statements
-# tab uses, so the Overview and Statements tabs always agree.
+# PL Category based stat cards (Gross Profit / Operating Income / Net Income)
 # ---------------------------------------------------------------------------
 
 def compute_pl_category_metrics(categories, company, start, end):
-	"""Revenue / Cost of Revenue / Operating Expenses / Gross Profit /
-	Operating Income / Net Income for one period, computed from the PL
-	Category / PL Category Group mapping (same accounts + same signed-total
-	convention as get_pl_statement_data)."""
-
 	empty = {
 		"revenue": 0,
 		"cost_of_revenue": 0,
@@ -305,10 +148,6 @@ def compute_pl_category_metrics(categories, company, start, end):
 	operating_expenses = group_sums.get("Operating Expenses", 0) / 1_000_000
 	net_income = net_income_total / 1_000_000
 
-	# cost_of_revenue and operating_expenses are already negative here (same
-	# credit-debit signed convention get_pl_statement_data uses), so they
-	# are ADDED — exactly like the Statements tab's running_cy total — not
-	# subtracted.
 	gross_profit = revenue + cost_of_revenue
 	operating_income = gross_profit + operating_expenses
 
@@ -323,9 +162,6 @@ def compute_pl_category_metrics(categories, company, start, end):
 
 
 def build_pl_stat_cards(categories, company, fy_start, fy_end, py_start, py_end, currency_symbol):
-	"""Builds the Gross Profit / Operating Income / Net Income stat cards
-	(with quarterly bars + YoY) off compute_pl_category_metrics."""
-
 	q_dates_cy = get_quarter_dates(fy_start, fy_end)
 	q_dates_py = get_quarter_dates(py_start, py_end) if py_start else [(None, None)] * 4
 
@@ -378,17 +214,10 @@ def build_pl_stat_cards(categories, company, fy_start, fy_end, py_start, py_end,
 
 
 # ---------------------------------------------------------------------------
-# EBIT stat card — driven off the PL Category / PL Category Group mapping
-# (same mapping the Statements tab uses), computed exactly like the
-# client's own query. See EBITDA_* CONFIG at the top of the file.
+# EBIT / EBITDA
 # ---------------------------------------------------------------------------
 
 def get_ebit_and_dna(company, from_date, to_date):
-	"""Returns (ebit, dna) in millions for the given period, computed exactly
-	like the client's own query: signed sums of (debit - credit) * -1 over
-	accounts grouped via custom_pl_report_category -> PL Category ->
-	PL Category Group."""
-
 	if not company or not from_date or not to_date:
 		return 0, 0
 
@@ -445,10 +274,6 @@ def get_ebit_and_dna(company, from_date, to_date):
 
 
 def build_ebit_stat_card(company, fy_start, fy_end, py_start, py_end, currency_symbol):
-	"""EBIT card — (EBIT - D&A), computed exactly like the client's own
-	query (see get_ebit_and_dna). D&A comes out signed/negative in this
-	convention, so subtracting it adds the depreciation back."""
-
 	quarters = []
 	q_dates_cy = get_quarter_dates(fy_start, fy_end)
 	q_dates_py = get_quarter_dates(py_start, py_end) if py_start else [None, None, None, None]
@@ -496,65 +321,71 @@ def build_ebit_stat_card(company, fy_start, fy_end, py_start, py_end, currency_s
 
 
 # ---------------------------------------------------------------------------
-# Revenue breakdown (donut + sub-item hover breakdown)
+# Revenue breakdown — PL Category "Revenue" group se
 # ---------------------------------------------------------------------------
 
-def get_revenue_breakdown(company, from_date, to_date, currency_symbol):
-	rows = frappe.db.sql(
-		"""
-		SELECT ig.name AS item_group, SUM(sii.base_net_amount) AS amount
-		FROM `tabSales Invoice Item` sii
-		JOIN `tabSales Invoice` si ON si.name = sii.parent
-		JOIN `tabItem Group` ig ON ig.name = sii.item_group
-		WHERE si.docstatus = 1 AND si.company = %(company)s
-			AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
-		GROUP BY ig.name
-		""",
-		{"company": company, "from_date": from_date, "to_date": to_date},
-		as_dict=True,
-	)
+def get_revenue_breakdown_from_pl(company, fy_start, fy_end, currency_symbol):
+	"""Revenue breakdown donut — Statements tab ke Revenue group ki categories
+	se. Har category ek slice hai. Sub-items me us category ke top accounts."""
 
-	buckets = {"Product Sales": 0, "Service Revenue": 0, "Other Revenue": 0}
-	bucket_groups = {"Product Sales": [], "Service Revenue": [], "Other Revenue": []}
+	categories = get_pl_categories(company)
 
-	for row in rows:
-		bucket = classify_item_group(row.item_group)
-		buckets[bucket] += flt(row.amount)
-		bucket_groups[bucket].append(row)
+	revenue_cats = [
+		cat for cat in categories.values()
+		if (cat["group"] or "").lower() == "revenue"
+	]
+	revenue_cats_sorted = sorted(revenue_cats, key=lambda c: c["sort"])
 
-	total = sum(buckets.values()) or 1
+	if not revenue_cats_sorted:
+		return []
+
+	all_rev_accounts = [acc for cat in revenue_cats_sorted for acc in cat["accounts"]]
+	cy_totals = get_account_signed_totals(all_rev_accounts, company, fy_start, fy_end)
+
+	cat_amounts = []
+	for cat in revenue_cats_sorted:
+		amt = sum(cy_totals.get(acc, 0) for acc in cat["accounts"])
+		amt = abs(amt)
+		if amt > 0:
+			cat_amounts.append({
+				"label": cat["label"],
+				"amount": amt,
+				"accounts": cat["accounts"],
+			})
+
+	total = sum(c["amount"] for c in cat_amounts) or 1
+
 	result = []
-	for i, (label, amount) in enumerate(buckets.items()):
-		if amount <= 0:
-			continue
-		sub_items = sorted(bucket_groups[label], key=lambda r: flt(r.amount), reverse=True)[:4]
-		sub_total = sum(flt(r.amount) for r in sub_items) or 1
+	for idx, item in enumerate(cat_amounts):
+		acc_amounts = []
+		for acc in item["accounts"]:
+			a = abs(cy_totals.get(acc, 0))
+			if a > 0:
+				acc_amounts.append({"label": acc, "amount": a})
+		acc_amounts.sort(key=lambda x: x["amount"], reverse=True)
+		sub_top = acc_amounts[:4]
+		sub_total = sum(s["amount"] for s in sub_top) or 1
+
 		result.append({
-			"label": _(label),
-			"value_fmt": fmt_m(amount / 1_000_000, currency_symbol),
-			"pct": round(amount / total * 100, 1),
-			"color": COLORS[i % len(COLORS)],
+			"label": item["label"],
+			"value_fmt": fmt_m(item["amount"] / 1_000_000, currency_symbol),
+			"pct": round(item["amount"] / total * 100, 1),
+			"color": COLORS[idx % len(COLORS)],
 			"sub_items": [
 				{
-					"label": r.item_group,
-					"value_fmt": fmt_m(flt(r.amount) / 1_000_000, currency_symbol),
-					"bar_pct": round(flt(r.amount) / sub_total * 100, 1),
+					"label": s["label"],
+					"value_fmt": fmt_m(s["amount"] / 1_000_000, currency_symbol),
+					"bar_pct": round(s["amount"] / sub_total * 100, 1),
 				}
-				for r in sub_items
+				for s in sub_top
 			],
 		})
+
 	return result
 
 
-def classify_item_group(item_group):
-	for bucket, groups in REVENUE_BUCKETS.items():
-		if item_group in groups:
-			return bucket
-	return "Other Revenue"
-
-
 # ---------------------------------------------------------------------------
-# Monthly trend (current year vs prior year, with YoY per point for hover)
+# Monthly trend (Overview tab sparkline)
 # ---------------------------------------------------------------------------
 
 def get_monthly_trend(gl_rows, fy_start, fy_end, py_start, py_end, currency_symbol):
@@ -567,8 +398,6 @@ def get_monthly_trend(gl_rows, fy_start, fy_end, py_start, py_end, currency_symb
 	for i in range(12):
 		cy_start = add_months(start, i)
 		cy_end = add_months(start, i + 1)
-		cy_end = add_months(cy_end, 0)
-		from datetime import timedelta
 		cy_end = cy_end - timedelta(days=1)
 
 		py_start_month = add_months(prior_start, i) if prior_start else None
@@ -605,7 +434,6 @@ def get_monthly_trend(gl_rows, fy_start, fy_end, py_start, py_end, currency_symb
 # ---------------------------------------------------------------------------
 
 def load_gl_data(company, from_date, to_date):
-	"""Load all relevant GL rows for both fiscal years in one SQL query."""
 	if not company or not from_date or not to_date:
 		return []
 
@@ -635,7 +463,6 @@ def load_gl_data(company, from_date, to_date):
 
 
 def sum_gl_data(rows, start, end, root_type=None, account_type=None, exclude_account_types=None):
-	"""Sum already-loaded GL data, returning values in millions."""
 	if not rows or not start or not end:
 		return 0
 
@@ -663,68 +490,29 @@ def sum_gl_data(rows, start, end, root_type=None, account_type=None, exclude_acc
 	return total / 1_000_000
 
 
-# Kept for compatibility with any other code that may call this helper directly.
-def get_gl_total(company, from_date, to_date, root_type=None, account_type=None, exclude_account_types=None):
-	rows = load_gl_data(company, from_date, to_date)
-	return sum_gl_data(rows, from_date, to_date, root_type, account_type, exclude_account_types)
-
-
-def get_gl_monthly(company, from_date, to_date, root_type=None, account_type=None, exclude_account_types=None):
-	rows = load_gl_data(company, from_date, to_date)
-	if not rows:
-		return {}
-
-	monthly = {}
-	for row in rows:
-		posting_date = getdate(row.posting_date)
-		if posting_date < getdate(from_date) or posting_date > getdate(to_date):
-			continue
-		if root_type and row.root_type != root_type:
-			continue
-		if account_type and row.account_type != account_type:
-			continue
-		if exclude_account_types and row.account_type in set(exclude_account_types):
-			continue
-
-		amount = flt(row.credit) - flt(row.debit) if row.root_type == "Income" else flt(row.debit) - flt(row.credit)
-		monthly[posting_date.month] = monthly.get(posting_date.month, 0) + amount
-
-	return {month: amount / 1_000_000 for month, amount in monthly.items()}
-
-
 # ---------------------------------------------------------------------------
 # Fiscal year helpers
 # ---------------------------------------------------------------------------
 
 def get_fiscal_year_details(fiscal_year=None, company=None):
-	"""
-	Get fiscal year details.
-	Note: Fiscal Year is a global doctype (not company-specific),
-	so we don't filter by company here.
-	"""
 	if fiscal_year:
-		fy = frappe.db.get_value("Fiscal Year", fiscal_year, ["name", "year_start_date", "year_end_date"], as_dict=True)
-	else:
-		# First try to get the current fiscal year (overlapping today's date)
-		filters = {"year_start_date": ["<=", getdate()], "year_end_date": [">=", getdate()]}
-		
 		fy = frappe.db.get_value(
-			"Fiscal Year",
-			filters,
-			["name", "year_start_date", "year_end_date"],
-			as_dict=True,
+			"Fiscal Year", fiscal_year,
+			["name", "year_start_date", "year_end_date"], as_dict=True
 		)
-		
-		# If no current FY, get the latest one
+	else:
+		filters = {"year_start_date": ["<=", getdate()], "year_end_date": [">=", getdate()]}
+		fy = frappe.db.get_value(
+			"Fiscal Year", filters,
+			["name", "year_start_date", "year_end_date"], as_dict=True
+		)
 		if not fy:
 			fy = frappe.db.get_value(
-				"Fiscal Year", 
-				{}, 
-				["name", "year_start_date", "year_end_date"], 
-				as_dict=True, 
-				order_by="year_end_date desc"
+				"Fiscal Year", {},
+				["name", "year_start_date", "year_end_date"],
+				as_dict=True, order_by="year_end_date desc"
 			)
-	
+
 	if not fy:
 		frappe.throw(_("Please set up a Fiscal Year first."))
 	return fy.name, fy.year_start_date, fy.year_end_date
@@ -752,10 +540,7 @@ def get_quarter_dates(fy_start, fy_end):
 	quarters = []
 	for i in range(4):
 		q_start = add_months(start, i * 3)
-		q_end = add_months(start, i * 3 + 3)
-		q_end = add_months(q_end, 0)
-		from datetime import timedelta
-		q_end = q_end - timedelta(days=1)
+		q_end = add_months(start, i * 3 + 3) - timedelta(days=1)
 		quarters.append((q_start, q_end))
 	return quarters
 
@@ -764,15 +549,7 @@ def get_first_company():
 	return frappe.db.get_value("Company", {}, "name", order_by="creation asc")
 
 
-# ---------------------------------------------------------------------------
-# Currency helper — every company can run on a different currency, so the
-# symbol shown across the whole page is resolved per-company, never hardcoded.
-# For QAR (Qatari Riyal), make sure your Currency doctype has the QAR code
-# and the desired symbol (ر.ق or QAR).
-# ---------------------------------------------------------------------------
-
 def get_currency_symbol(company):
-	"""Return the currency code (e.g. QAR, USD, KES) for the selected company."""
 	currency = frappe.get_cached_value("Company", company, "default_currency") if company else None
 	if not currency:
 		currency = frappe.db.get_default("currency")
@@ -784,7 +561,6 @@ def get_currency_symbol(company):
 # ---------------------------------------------------------------------------
 
 def fmt_m(value_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
-	"""value_in_millions is already scaled to $M by get_gl_total/get_gl_monthly."""
 	v = flt(value_in_millions)
 	if abs(v) >= 1:
 		return "{}{:.1f}M".format(symbol, v)
@@ -792,8 +568,6 @@ def fmt_m(value_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
 
 
 def fmt_accounting(value_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
-	"""Same scale as fmt_m, but negative values are wrapped in parentheses —
-	the standard way expenses/losses are shown on a P&L statement."""
 	v = flt(value_in_millions)
 	if v < 0:
 		if abs(v) >= 1:
@@ -826,11 +600,6 @@ def pct_of(part, whole):
 # ---------------------------------------------------------------------------
 # STATEMENTS TAB — entry point
 # ---------------------------------------------------------------------------
-# Fully data-driven from PL Category / PL Category Group + the
-# custom_pl_report_category link field on Account. See the CONFIG note near
-# the top of the file for the 2 eligibility conditions and the calc-field
-# sequence.
-# ---------------------------------------------------------------------------
 
 @frappe.whitelist()
 def get_pl_statement_data(company=None, fiscal_year=None):
@@ -856,9 +625,6 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 			"prior_fiscal_year": py_name,
 			"currency_symbol": currency_symbol,
 			"rows": [],
-			# Accounts that qualify for the P&L (is_group = 0 AND
-			# report_type == "Profit and Loss") but have no PL Category
-			# mapped yet — purely informational, does not affect any totals.
 			"missing_accounts": get_missing_pl_accounts(company),
 			"empty_message": _(
 				"No Profit and Loss accounts are mapped to a PL Category yet. "
@@ -877,9 +643,6 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 		cat["cy"] = sum(cy_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
 		cat["py"] = sum(py_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
 
-	# Group categories -> ordered by each PL Category Group's own "sort"
-	# field (set directly on the PL Category Group doctype); categories
-	# inside a group are ordered by their own "sort" value.
 	groups = {}
 	for cat in categories.values():
 		bucket = groups.setdefault(cat["group"], {"sort": cat["group_sort"], "categories": []})
@@ -890,17 +653,12 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 	rows = []
 	running_cy = 0
 	running_py = 0
-	
-	# Track values for summary cards
+
 	summary_data = {
-		"revenue_cy": 0,
-		"revenue_py": 0,
-		"gross_profit_cy": 0,
-		"gross_profit_py": 0,
-		"operating_income_cy": 0,
-		"operating_income_py": 0,
-		"net_income_cy": 0,
-		"net_income_py": 0,
+		"revenue_cy": 0, "revenue_py": 0,
+		"gross_profit_cy": 0, "gross_profit_py": 0,
+		"operating_income_cy": 0, "operating_income_py": 0,
+		"net_income_cy": 0, "net_income_py": 0,
 	}
 
 	for group_name in group_order:
@@ -923,7 +681,6 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 		running_cy += group_cy
 		running_py += group_py
 
-		# Capture summary data
 		if group_name == "Revenue":
 			summary_data["revenue_cy"] = group_cy
 			summary_data["revenue_py"] = group_py
@@ -933,17 +690,12 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 
 		calc_label = STATEMENT_CALC_AFTER_GROUP.get(group_name)
 
-		# Income Before Tax always sits right after "Other Income & Expense".
-		# Net Income is NOT decided here — it's added once, unconditionally,
-		# after every group has been processed (see below), so it's never
-		# gated on the "Taxes" group existing or having data.
 		if group_name == STATEMENT_PRETAX_GROUP:
 			calc_label = "Income Before Tax"
 
 		if calc_label:
 			rows.append(build_statement_row("calculated", _(calc_label), running_cy, running_py, currency_symbol))
-			
-			# Capture summary data for calculated fields
+
 			if "Gross Profit" in calc_label:
 				summary_data["gross_profit_cy"] = running_cy
 				summary_data["gross_profit_py"] = running_py
@@ -951,10 +703,6 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 				summary_data["operating_income_cy"] = running_cy
 				summary_data["operating_income_py"] = running_py
 
-	# Net Income is always the very last row on the statement — the running
-	# total of every group above it (Revenue, Cost of Revenue, Operating
-	# Expenses, Other Income & Expense, Taxes, and anything else mapped),
-	# added here unconditionally rather than tied to any specific group.
 	rows.append(build_statement_row("calculated", _("Net Income"), running_cy, running_py, currency_symbol))
 	summary_data["net_income_cy"] = running_cy
 	summary_data["net_income_py"] = running_py
@@ -966,16 +714,11 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 		"currency_symbol": currency_symbol,
 		"rows": rows,
 		"summary_cards": build_summary_cards(summary_data, currency_symbol),
-		# Accounts that qualify for the P&L (is_group = 0 AND report_type ==
-		# "Profit and Loss") but have no PL Category mapped yet, so they're
-		# silently missing from the rows above. Purely informational — does
-		# not feed into any of the totals/calculations.
 		"missing_accounts": get_missing_pl_accounts(company),
 	}
 
 
 def build_summary_cards(summary_data, currency_symbol):
-	"""Build summary card data for Revenue, Gross Profit, Operating Income, Net Income"""
 	return [
 		{
 			"label": _("Revenue"),
@@ -1025,11 +768,6 @@ def build_statement_row(row_type, label, cy, py, currency_symbol):
 
 
 def get_pl_categories(company):
-	"""All PL Categories that have at least one eligible account mapped to
-	them on this company. Eligibility (exactly as specified):
-		is_group = 0  AND  report_type == "Profit and Loss"
-	"""
-
 	rows = frappe.db.sql(
 		"""
 		SELECT
@@ -1057,8 +795,6 @@ def get_pl_categories(company):
 			"label": row.category_label or row.category,
 			"sort": flt(row.sort) or 0,
 			"group": row.category_group or _("Other"),
-			# Groups without an explicit sort sink to the bottom instead of
-			# jumping to the top.
 			"group_sort": flt(row.group_sort) if row.group_sort is not None else 9999,
 			"accounts": [],
 		})
@@ -1068,25 +804,6 @@ def get_pl_categories(company):
 
 
 def get_missing_pl_accounts(company):
-	"""Accounts that qualify for the P&L — exactly the same 2 conditions
-	used by get_pl_categories() / the client's own check (same check as the
-	client's own doctype script:
-		!frm.doc.is_group &&
-		frm.doc.report_type === "Profit and Loss";
-	):
-
-		is_group = 0  AND  report_type == "Profit and Loss"
-
-	— but that have NO custom_pl_report_category set, and are therefore
-	silently excluded from the Statements tab above.
-
-	Returned as a plain, flat list of account names (no PL Category / PL
-	Category Group / parent-account grouping) for a simple display at the
-	bottom of the page. Read-only/informational only: it does not touch,
-	feed, or alter any of the totals, sums, or calculated rows built
-	elsewhere in this file.
-	"""
-
 	if not company:
 		return []
 
@@ -1118,15 +835,6 @@ def get_missing_pl_accounts(company):
 
 
 def get_account_signed_totals(accounts, company, from_date, to_date):
-	"""{account: credit - debit} for the given date range. Positive means an
-	income-normal balance, negative an expense-normal balance — this signed
-	convention is what makes every running P&L total a plain addition.
-
-	Only submitted (docstatus = 1) entries are counted, and Period Closing
-	Voucher entries are excluded — matching the client's query — since
-	they'd otherwise double-count what the year's category totals already
-	reflect."""
-
 	if not accounts or not from_date or not to_date:
 		return {}
 
@@ -1155,31 +863,320 @@ def get_account_signed_totals(accounts, company, from_date, to_date):
 	return {r.account: flt(r.credit) - flt(r.debit) for r in rows}
 
 
-def group_has_gl_activity(accounts, company, from_date, to_date):
-	"""True if any of the given accounts has at least one submitted GL Entry
-	in the period (same filters as get_account_signed_totals)."""
+# ===========================================================================
+# TRENDS TAB — entry point
+# ===========================================================================
+# Quarterly Revenue (stacked bars by PL Category inside "Revenue" group)
+# + Margin cards (Gross / Operating / Net / EBITDA) + Margin Trends chart.
 
-	if not accounts or not from_date or not to_date:
-		return False
+@frappe.whitelist()
+def get_trends_data(company=None, fiscal_year=None):
+	if not company:
+		company = frappe.defaults.get_user_default("Company")
+	if not company:
+		company = get_first_company()
+	if not company:
+		frappe.throw(_("No company found. Please set up a Company first."))
 
-	hit = frappe.db.sql(
-		"""
-		SELECT 1
-		FROM `tabGL Entry` gle
-		WHERE gle.company = %(company)s
-			AND gle.account IN %(accounts)s
-			AND gle.posting_date BETWEEN %(from_date)s AND %(to_date)s
-			AND gle.docstatus = 1
-			AND gle.is_cancelled = 0
-			AND gle.voucher_type NOT IN %(excluded_voucher_types)s
-		LIMIT 1
-		""",
-		{
-			"company": company,
-			"accounts": accounts,
-			"from_date": from_date,
-			"to_date": to_date,
-			"excluded_voucher_types": STATEMENT_EXCLUDED_VOUCHER_TYPES,
-		},
+	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
+	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	currency_symbol = get_currency_symbol(company)
+
+	categories = get_pl_categories(company)
+
+	# ---- Quarterly revenue by category (stacked bars) --------------------
+	revenue_cats = [
+		cat for cat in categories.values()
+		if (cat["group"] or "").lower() == "revenue"
+	]
+	revenue_cats_sorted = sorted(revenue_cats, key=lambda c: c["sort"])
+
+	all_rev_accounts = [acc for cat in revenue_cats_sorted for acc in cat["accounts"]]
+
+	q_dates_cy = get_quarter_dates(fy_start, fy_end)
+	q_dates_py = get_quarter_dates(py_start, py_end) if py_start else [(None, None)] * 4
+
+	quarterly_bars = []
+	for i in range(4):
+		q_start_cy, q_end_cy = q_dates_cy[i]
+		q_start_py, q_end_py = q_dates_py[i]
+
+		cy_totals = get_account_signed_totals(
+			all_rev_accounts, company, q_start_cy, q_end_cy
+		) if all_rev_accounts else {}
+
+		py_totals = get_account_signed_totals(
+			all_rev_accounts, company, q_start_py, q_end_py
+		) if (all_rev_accounts and py_start) else {}
+
+		cat_values = []
+		for cat in revenue_cats_sorted:
+			cy_val = sum(cy_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
+			py_val = sum(py_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
+			cy_val = abs(cy_val)
+			py_val = abs(py_val)
+			cat_values.append({
+				"label": cat["label"],
+				"cy": round(cy_val, 3),
+				"py": round(py_val, 3),
+			})
+
+		cy_total = sum(c["cy"] for c in cat_values)
+		py_total = sum(c["py"] for c in cat_values)
+
+		quarterly_bars.append({
+			"label": "Q%d" % (i + 1),
+			"categories": cat_values,
+			"cy_total": round(cy_total, 3),
+			"py_total": round(py_total, 3),
+			"change_pct": pct_change(cy_total, py_total),
+		})
+
+	max_val = max([q["cy_total"] for q in quarterly_bars] + [0.001])
+
+	color_map = {}
+	for idx, cat in enumerate(revenue_cats_sorted):
+		color_map[cat["label"]] = COLORS[idx % len(COLORS)]
+
+	margin_cards = compute_margin_cards(
+		categories, company, fy_start, fy_end, py_start, py_end, currency_symbol
 	)
-	return bool(hit)
+
+	margin_trends = []
+	for i in range(4):
+		q_start, q_end = q_dates_cy[i]
+		metrics = compute_pl_category_metrics(categories, company, q_start, q_end)
+		ebit, dna = get_ebit_and_dna(company, q_start, q_end)
+		ebitda = ebit - dna
+
+		rev = metrics["revenue"]
+		margin_trends.append({
+			"label": "Q%d" % (i + 1),
+			"gross_margin": round(pct_of(metrics["gross_profit"], rev), 1),
+			"operating_margin": round(pct_of(metrics["operating_income"], rev), 1),
+			"net_margin": round(pct_of(metrics["net_income"], rev), 1),
+			"ebitda_margin": round(pct_of(ebitda, rev), 1),
+		})
+
+	return {
+		"company": company,
+		"fiscal_year": fy_name,
+		"prior_fiscal_year": py_name,
+		"currency_symbol": currency_symbol,
+		"quarterly_bars": quarterly_bars,
+		"category_colors": color_map,
+		"category_labels": [cat["label"] for cat in revenue_cats_sorted],
+		"max_val": round(max_val, 3),
+		"margin_cards": margin_cards,
+		"margin_trends": margin_trends,
+	}
+
+
+def compute_margin_cards(categories, company, fy_start, fy_end, py_start, py_end, currency_symbol):
+	cy = compute_pl_category_metrics(categories, company, fy_start, fy_end)
+	py = compute_pl_category_metrics(categories, company, py_start, py_end) if py_start else {
+		"revenue": 0, "gross_profit": 0, "operating_income": 0, "net_income": 0
+	}
+
+	ebit_cy, dna_cy = get_ebit_and_dna(company, fy_start, fy_end)
+	ebitda_cy = ebit_cy - dna_cy
+
+	if py_start:
+		ebit_py, dna_py = get_ebit_and_dna(company, py_start, py_end)
+		ebitda_py = ebit_py - dna_py
+	else:
+		ebitda_py = 0
+
+	def margin(part, whole):
+		return round(pct_of(part, whole), 1)
+
+	def pp_diff(cy_m, py_m):
+		return round(cy_m - py_m, 1)
+
+	gm_cy = margin(cy["gross_profit"], cy["revenue"])
+	gm_py = margin(py["gross_profit"], py["revenue"])
+	om_cy = margin(cy["operating_income"], cy["revenue"])
+	om_py = margin(py["operating_income"], py["revenue"])
+	nm_cy = margin(cy["net_income"], cy["revenue"])
+	nm_py = margin(py["net_income"], py["revenue"])
+	eb_cy = margin(ebitda_cy, cy["revenue"])
+	eb_py = margin(ebitda_py, py["revenue"])
+
+	return [
+		{
+			"label": _("Gross Margin"),
+			"value_pct": gm_cy,
+			"prior_pct": gm_py,
+			"diff_pp": pp_diff(gm_cy, gm_py),
+			"color": "#1c6b4a",
+		},
+		{
+			"label": _("Operating Margin"),
+			"value_pct": om_cy,
+			"prior_pct": om_py,
+			"diff_pp": pp_diff(om_cy, om_py),
+			"color": "#e3a627",
+		},
+		{
+			"label": _("Net Margin"),
+			"value_pct": nm_cy,
+			"prior_pct": nm_py,
+			"diff_pp": pp_diff(nm_cy, nm_py),
+			"color": "#d9824f",
+		},
+		{
+			"label": _("EBITDA Margin"),
+			"value_pct": eb_cy,
+			"prior_pct": eb_py,
+			"diff_pp": pp_diff(eb_cy, eb_py),
+			"color": "#1e3a5f",
+		},
+	]
+
+
+# ===========================================================================
+# COSTS & COMPARISON TAB — entry point
+# ===========================================================================
+
+@frappe.whitelist()
+def get_costs_data(company=None, fiscal_year=None):
+	if not company:
+		company = frappe.defaults.get_user_default("Company")
+	if not company:
+		company = get_first_company()
+	if not company:
+		frappe.throw(_("No company found. Please set up a Company first."))
+
+	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
+	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	currency_symbol = get_currency_symbol(company)
+
+	categories = get_pl_categories(company)
+
+	cy_metrics = compute_pl_category_metrics(categories, company, fy_start, fy_end)
+	py_metrics = compute_pl_category_metrics(categories, company, py_start, py_end) if py_start else {
+		"revenue": 0, "cost_of_revenue": 0, "operating_expenses": 0,
+		"gross_profit": 0, "operating_income": 0, "net_income": 0
+	}
+
+	revenue_cy = cy_metrics["revenue"]
+	revenue_py = py_metrics["revenue"]
+
+	q_dates_cy = get_quarter_dates(fy_start, fy_end)
+	q_dates_py = get_quarter_dates(py_start, py_end) if py_start else [(None, None)] * 4
+
+	left_cards = []
+	card_defs = [
+		("revenue", _("Revenue"), "#1c6b4a", "revenue"),
+		("gross_profit", _("Gross Profit"), "#1c6b4a", "gross_profit"),
+		("operating_income", _("Operating Income"), "#e3a627", "operating_income"),
+		("net_income", _("Net Income"), "#d9824f", "net_income"),
+	]
+
+	for key, label, color, metric_key in card_defs:
+		sparkline_cy = []
+		sparkline_py = []
+		for i in range(4):
+			s, e = q_dates_cy[i]
+			m = compute_pl_category_metrics(categories, company, s, e)
+			sparkline_cy.append(round(m[metric_key], 3))
+
+			if py_start:
+				ps, pe = q_dates_py[i]
+				pm = compute_pl_category_metrics(categories, company, ps, pe)
+				sparkline_py.append(round(pm[metric_key], 3))
+			else:
+				sparkline_py.append(0)
+
+		total_cy = cy_metrics[metric_key]
+		total_py = py_metrics[metric_key] if py_start else 0
+
+		left_cards.append({
+			"key": key,
+			"label": label,
+			"color": color,
+			"value_fmt": fmt_accounting(total_cy, currency_symbol),
+			"prior_value_fmt": fmt_accounting(total_py, currency_symbol),
+			"change_pct": pct_change(total_cy, total_py),
+			"sparkline_cy": sparkline_cy,
+			"sparkline_py": sparkline_py,
+		})
+
+	# ---- OpEx rows -------------------------------------------------------
+	opex_cats = [
+		cat for cat in categories.values()
+		if (cat["group"] or "").lower() == "operating expenses"
+	]
+	opex_cats_sorted = sorted(opex_cats, key=lambda c: c["sort"])
+
+	all_opex_accounts = [acc for cat in opex_cats_sorted for acc in cat["accounts"]]
+	cy_opex_totals = get_account_signed_totals(all_opex_accounts, company, fy_start, fy_end) if all_opex_accounts else {}
+	py_opex_totals = get_account_signed_totals(all_opex_accounts, company, py_start, py_end) if (all_opex_accounts and py_start) else {}
+
+	opex_rows = []
+	opex_total_cy = 0
+	opex_total_py = 0
+	for idx, cat in enumerate(opex_cats_sorted):
+		cy_val = sum(cy_opex_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
+		py_val = sum(py_opex_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
+		cy_abs = abs(cy_val)
+		py_abs = abs(py_val)
+		opex_total_cy += cy_abs
+		opex_total_py += py_abs
+		opex_rows.append({
+			"label": cat["label"],
+			"cy": round(cy_val, 3),
+			"py": round(py_val, 3),
+			"cy_abs_fmt": fmt_m(cy_abs, currency_symbol),
+			"py_abs_fmt": fmt_m(py_abs, currency_symbol),
+			"change_pct": pct_change(cy_abs, py_abs),
+			"color": COLORS[idx % len(COLORS)],
+		})
+
+	max_opex = max([abs(r["cy"]) for r in opex_rows] + [0.001])
+	for r in opex_rows:
+		r["bar_pct"] = round(max(8, abs(r["cy"]) / max_opex * 100), 1)
+
+	# ---- Bottom 3 cards --------------------------------------------------
+	cost_of_revenue_cy = abs(cy_metrics["cost_of_revenue"])
+	cost_of_revenue_py = abs(py_metrics["cost_of_revenue"])
+
+	total_opex_cy = abs(cy_metrics["operating_expenses"])
+	total_opex_py = abs(py_metrics["operating_expenses"])
+
+	opex_ratio_cy = round(pct_of(total_opex_cy, revenue_cy), 1) if revenue_cy else 0
+	opex_ratio_py = round(pct_of(total_opex_py, revenue_py), 1) if revenue_py else 0
+
+	bottom_cards = [
+		{
+			"label": _("Cost of Revenue"),
+			"value_fmt": fmt_m(cost_of_revenue_cy, currency_symbol),
+			"prior_value_fmt": fmt_m(cost_of_revenue_py, currency_symbol),
+			"change_pct": pct_change(cost_of_revenue_cy, cost_of_revenue_py),
+		},
+		{
+			"label": _("Total OpEx"),
+			"value_fmt": fmt_m(total_opex_cy, currency_symbol),
+			"prior_value_fmt": fmt_m(total_opex_py, currency_symbol),
+			"change_pct": pct_change(total_opex_cy, total_opex_py),
+		},
+		{
+			"label": _("OpEx Ratio"),
+			"value_fmt": "{:.1f}%".format(opex_ratio_cy),
+			"prior_value_fmt": "{:.1f}%".format(opex_ratio_py),
+			"change_pct": round(opex_ratio_cy - opex_ratio_py, 1),
+		},
+	]
+
+	return {
+		"company": company,
+		"fiscal_year": fy_name,
+		"prior_fiscal_year": py_name,
+		"currency_symbol": currency_symbol,
+		"left_cards": left_cards,
+		"opex_rows": opex_rows,
+		"opex_total_cy_fmt": fmt_m(opex_total_cy, currency_symbol),
+		"opex_total_py_fmt": fmt_m(opex_total_py, currency_symbol),
+		"opex_total_change_pct": pct_change(opex_total_cy, opex_total_py),
+		"bottom_cards": bottom_cards,
+	}
