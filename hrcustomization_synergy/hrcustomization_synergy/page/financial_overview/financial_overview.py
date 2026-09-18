@@ -1199,3 +1199,346 @@ def get_costs_data(company=None, fiscal_year=None):
 		"opex_total_change_pct": pct_change(opex_total_cy, opex_total_py),
 		"bottom_cards": bottom_cards,
 	}
+
+# ===========================================================================
+# BALANCE SHEET (Statements tab — second view)
+# ===========================================================================
+
+BS_EXCLUDED_VOUCHER_TYPES = ["Period Closing Voucher"]
+
+BS_SECTION_ORDER = ["Asset", "Liability", "Equity"]
+
+BS_SECTION_LABELS = {
+	"Asset": _("ASSETS"),
+	"Liability": _("LIABILITIES"),
+	"Equity": _("SHAREHOLDERS' EQUITY"),
+}
+
+BS_SECTION_TOTAL_LABELS = {
+	"Asset": _("Total Assets"),
+	"Liability": _("Total Liabilities"),
+	"Equity": _("Total Equity"),
+}
+
+
+@frappe.whitelist()
+def get_bl_statement_data(company=None, fiscal_year=None):
+	"""Data for the 'Balance Sheet' view under the Statements tab."""
+
+	if not company:
+		company = frappe.defaults.get_user_default("Company")
+	if not company:
+		company = get_first_company()
+	if not company:
+		frappe.throw(_("No company found. Please set up a Company first."))
+
+	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
+	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	currency_symbol = get_currency_symbol(company)
+
+	categories = get_bl_categories(company)
+
+	if not categories:
+		return {
+			"company": company,
+			"fiscal_year": fy_name,
+			"prior_fiscal_year": py_name,
+			"currency_symbol": currency_symbol,
+			"rows": [],
+			"summary_cards": [],
+			"missing_accounts": get_missing_bl_accounts(company),
+			"empty_message": _(
+				"No Balance Sheet accounts are mapped to a BL Category yet. "
+				"Set the \"custom_bl_category\" field on your accounts first "
+				"(only non-Group accounts with Report Type = \"Balance Sheet\" "
+				"are picked up)."
+			),
+		}
+
+	all_accounts = [acc for cat in categories.values() for acc in cat["accounts"]]
+
+	cy_totals = get_account_signed_totals_bs(all_accounts, company, fy_start, fy_end)
+	py_totals = (
+		get_account_signed_totals_bs(all_accounts, company, py_start, py_end)
+		if py_start else {}
+	)
+
+	account_root_types = get_account_root_types(all_accounts)
+
+	# Attach totals + section to each category
+	for cat in categories.values():
+		cat["cy"] = sum(cy_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
+		cat["py"] = sum(py_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
+		root_types = [account_root_types.get(acc) for acc in cat["accounts"]]
+		cat["section"] = get_dominant_root_type(root_types)
+
+	# Group categories
+	groups = {}
+	for cat in categories.values():
+		bucket = groups.setdefault(cat["group"], {
+			"sort": cat["group_sort"],
+			"section": cat["section"],
+			"categories": [],
+		})
+		bucket["categories"].append(cat)
+
+	# Build rows section by section (Assets → Liabilities → Equity)
+	rows = []
+	section_totals = {
+		"Asset": {"cy": 0, "py": 0},
+		"Liability": {"cy": 0, "py": 0},
+		"Equity": {"cy": 0, "py": 0},
+	}
+
+	for section_key in BS_SECTION_ORDER:
+		section_groups = [
+			g for g, data in groups.items()
+			if data["section"] == section_key
+		]
+		if not section_groups:
+			continue
+
+		section_groups_sorted = sorted(
+			section_groups, key=lambda g: groups[g]["sort"]
+		)
+
+		rows.append({
+			"row_type": "section_header",
+			"label": BS_SECTION_LABELS[section_key],
+		})
+
+		for g in section_groups_sorted:
+			gdata = groups[g]
+			group_cats = sorted(gdata["categories"], key=lambda c: c["sort"])
+
+			rows.append({"row_type": "group_header", "label": g})
+
+			g_cy = 0
+			g_py = 0
+			for cat in group_cats:
+				rows.append(build_statement_row(
+					"line", cat["label"], cat["cy"], cat["py"], currency_symbol
+				))
+				g_cy += cat["cy"]
+				g_py += cat["py"]
+
+			rows.append(build_statement_row(
+				"total", _("Total {0}").format(g), g_cy, g_py, currency_symbol
+			))
+
+			section_totals[section_key]["cy"] += g_cy
+			section_totals[section_key]["py"] += g_py
+
+		rows.append(build_statement_row(
+			"calculated",
+			BS_SECTION_TOTAL_LABELS[section_key],
+			section_totals[section_key]["cy"],
+			section_totals[section_key]["py"],
+			currency_symbol,
+		))
+
+	summary_data = {
+		"assets_cy": section_totals["Asset"]["cy"],
+		"assets_py": section_totals["Asset"]["py"],
+		"liabilities_cy": section_totals["Liability"]["cy"],
+		"liabilities_py": section_totals["Liability"]["py"],
+		"equity_cy": section_totals["Equity"]["cy"],
+		"equity_py": section_totals["Equity"]["py"],
+	}
+
+	return {
+		"company": company,
+		"fiscal_year": fy_name,
+		"prior_fiscal_year": py_name,
+		"currency_symbol": currency_symbol,
+		"rows": rows,
+		"summary_cards": build_bs_summary_cards(summary_data, currency_symbol),
+		"missing_accounts": get_missing_bl_accounts(company),
+	}
+
+
+def build_bs_summary_cards(summary_data, currency_symbol):
+	return [
+		{
+			"label": _("Total Assets"),
+			"icon": "dollar-sign",
+			"value_fmt": fmt_accounting(summary_data["assets_cy"], currency_symbol),
+			"prior_value_fmt": fmt_accounting(summary_data["assets_py"], currency_symbol),
+			"change_pct": pct_change(summary_data["assets_cy"], summary_data["assets_py"]),
+			"change_pct_class": "fo-badge-up" if summary_data["assets_cy"] >= summary_data["assets_py"] else "fo-badge-down",
+		},
+		{
+			"label": _("Total Liabilities"),
+			"icon": "credit-card",
+			"value_fmt": fmt_accounting(summary_data["liabilities_cy"], currency_symbol),
+			"prior_value_fmt": fmt_accounting(summary_data["liabilities_py"], currency_symbol),
+			"change_pct": pct_change(summary_data["liabilities_cy"], summary_data["liabilities_py"]),
+			"change_pct_class": "fo-badge-up" if summary_data["liabilities_cy"] >= summary_data["liabilities_py"] else "fo-badge-down",
+		},
+		{
+			"label": _("Total Equity"),
+			"icon": "pie-chart",
+			"value_fmt": fmt_accounting(summary_data["equity_cy"], currency_symbol),
+			"prior_value_fmt": fmt_accounting(summary_data["equity_py"], currency_symbol),
+			"change_pct": pct_change(summary_data["equity_cy"], summary_data["equity_py"]),
+			"change_pct_class": "fo-badge-up" if summary_data["equity_cy"] >= summary_data["equity_py"] else "fo-badge-down",
+		},
+		{
+			"label": _("Liabilities + Equity"),
+			"icon": "bar-chart-2",
+			"value_fmt": fmt_accounting(
+				summary_data["liabilities_cy"] + summary_data["equity_cy"],
+				currency_symbol,
+			),
+			"prior_value_fmt": fmt_accounting(
+				summary_data["liabilities_py"] + summary_data["equity_py"],
+				currency_symbol,
+			),
+			"change_pct": pct_change(
+				summary_data["liabilities_cy"] + summary_data["equity_cy"],
+				summary_data["liabilities_py"] + summary_data["equity_py"],
+			),
+			"change_pct_class": "fo-badge-up",
+		},
+	]
+
+
+def get_bl_categories(company):
+	"""All BL Categories with eligible Balance Sheet accounts."""
+
+	rows = frappe.db.sql(
+		"""
+		SELECT
+			acc.name AS account,
+			cat.name AS category,
+			cat.name1 AS category_label,
+			cat.sort AS sort,
+			cat.category_group AS category_group,
+			grp.sort AS group_sort
+		FROM `tabAccount` acc
+		INNER JOIN `tabBL Category` cat ON cat.name = acc.custom_bl_category
+		LEFT JOIN `tabBL Category Group` grp ON grp.name = cat.category_group
+		WHERE acc.company = %(company)s
+			AND acc.is_group = 0
+			AND acc.report_type = 'Balance Sheet'
+			AND IFNULL(acc.custom_bl_category, '') != ''
+		""",
+		{"company": company},
+		as_dict=True,
+	)
+
+	categories = {}
+	for row in rows:
+		cat = categories.setdefault(row.category, {
+			"label": row.category_label or row.category,
+			"sort": flt(row.sort) or 0,
+			"group": row.category_group or _("Other"),
+			"group_sort": flt(row.group_sort) if row.group_sort is not None else 9999,
+			"accounts": [],
+		})
+		cat["accounts"].append(row.account)
+
+	return categories
+
+
+def get_missing_bl_accounts(company):
+	"""Balance Sheet accounts with no BL Category set."""
+
+	if not company:
+		return []
+
+	rows = frappe.db.sql(
+		"""
+		SELECT acc.name, acc.account_name, acc.account_number, acc.root_type
+		FROM `tabAccount` acc
+		WHERE acc.company = %(company)s
+			AND acc.is_group = 0
+			AND acc.report_type = 'Balance Sheet'
+			AND IFNULL(acc.custom_bl_category, '') = ''
+		ORDER BY acc.account_name
+		""",
+		{"company": company},
+		as_dict=True,
+	)
+
+	return [
+		{
+			"name": r.name,
+			"account_name": (
+				"{0} - {1}".format(r.account_number, r.account_name)
+				if r.account_number else (r.account_name or r.name)
+			),
+			"root_type": r.root_type,
+		}
+		for r in rows
+	]
+
+
+def get_account_root_types(accounts):
+	if not accounts:
+		return {}
+
+	rows = frappe.db.sql(
+		"""
+		SELECT name, root_type FROM `tabAccount`
+		WHERE name IN %(accounts)s
+		""",
+		{"accounts": accounts},
+		as_dict=True,
+	)
+
+	return {r.name: r.root_type for r in rows}
+
+
+def get_dominant_root_type(root_types_list):
+	counts = {}
+	for rt in root_types_list:
+		if rt:
+			counts[rt] = counts.get(rt, 0) + 1
+	if not counts:
+		return None
+	return max(counts.keys(), key=lambda k: counts[k])
+
+
+def get_account_signed_totals_bs(accounts, company, from_date, to_date):
+	"""BS-signed totals: debit-credit for Asset, credit-debit for Liability/Equity
+	so a normal balance is always positive."""
+
+	if not accounts or not from_date or not to_date:
+		return {}
+
+	rows = frappe.db.sql(
+		"""
+		SELECT
+			gle.account,
+			acc.root_type,
+			SUM(gle.credit) AS credit,
+			SUM(gle.debit) AS debit
+		FROM `tabGL Entry` gle
+		JOIN `tabAccount` acc ON acc.name = gle.account
+		WHERE gle.company = %(company)s
+			AND gle.account IN %(accounts)s
+			AND gle.posting_date BETWEEN %(from_date)s AND %(to_date)s
+			AND gle.docstatus = 1
+			AND gle.is_cancelled = 0
+			AND gle.voucher_type NOT IN %(excluded_voucher_types)s
+		GROUP BY gle.account, acc.root_type
+		""",
+		{
+			"company": company,
+			"accounts": accounts,
+			"from_date": from_date,
+			"to_date": to_date,
+			"excluded_voucher_types": BS_EXCLUDED_VOUCHER_TYPES,
+		},
+		as_dict=True,
+	)
+
+	result = {}
+	for r in rows:
+		if r.root_type == "Asset":
+			result[r.account] = flt(r.debit) - flt(r.credit)
+		else:
+			result[r.account] = flt(r.credit) - flt(r.debit)
+
+	return result

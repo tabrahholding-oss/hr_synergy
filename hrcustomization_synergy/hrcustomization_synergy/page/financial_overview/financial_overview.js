@@ -15,11 +15,14 @@ class FinancialOverview {
 		this.method_statement = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_pl_statement_data';
 		this.method_trends = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_trends_data';
 		this.method_costs = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_costs_data';
+		this.method_bs_statement = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_bl_statement_data';  // <-- ADD
 		this.data = null;
 		this.statement_data = null;
+		this.bs_statement_data = null; 
 		this.trends_data = null;
 		this.costs_data = null;
 		this.active_tab = 'overview';
+		this.active_statement_view = 'pl'; 
 		this.active_trend_view = 'revenue'; // <-- NEW: 'revenue' or 'costs'
 		this.request_id = 0;
 		this.inject_styles();
@@ -180,11 +183,17 @@ class FinancialOverview {
 
 	load_active_tab() {
 		if (this.active_tab === 'statement') {
-			this.load_statement();
+			if (this.active_statement_view === 'bs') {
+				this.load_bs_statement();
+			} else {
+				this.load_statement();
+			}
 		} else if (this.active_tab === 'trends') {
-			this.load_trends();
-		} else if (this.active_tab === 'costs') {
-			this.load_costs();
+			if (this.active_trend_view === 'costs') {
+				this.load_costs();
+			} else {
+				this.load_trends();
+			}
 		} else {
 			this.load();
 		}
@@ -193,26 +202,31 @@ class FinancialOverview {
 
 	switch_tab(tab) {
 
-		if (tab === this.active_tab && tab !== 'trends') {
+		if (tab === this.active_tab && tab !== 'trends' && tab !== 'statement') {
 			return;
 		}
 
-		// If switching INTO trends, keep the current trend view (revenue/costs)
-		// If switching OUT to another tab, remember but keep state
 		this.active_tab = tab;
 		this.ensure_shell();
 
 		if (tab === 'statement') {
 
-			if (this.statement_data) {
-				this.render_statement();
+			if (this.active_statement_view === 'bs') {
+				if (this.bs_statement_data) {
+					this.render_bs_statement();
+				} else {
+					this.load_bs_statement();
+				}
 			} else {
-				this.load_statement();
+				if (this.statement_data) {
+					this.render_statement();
+				} else {
+					this.load_statement();
+				}
 			}
 
 		} else if (tab === 'trends') {
 
-			// If cost view selected, load costs instead of trends
 			if (this.active_trend_view === 'costs') {
 				if (this.costs_data) {
 					this.render_costs();
@@ -228,13 +242,11 @@ class FinancialOverview {
 			}
 
 		} else {
-
 			if (this.data) {
 				this.render_overview();
 			} else {
 				this.load();
 			}
-
 		}
 	}
 
@@ -379,6 +391,46 @@ class FinancialOverview {
 			error: (xhr) => {
 				if (request_id !== this.request_id) return;
 				console.error('Financial Statement request failed', xhr);
+				this.render_error();
+			}
+		});
+	}
+	load_bs_statement() {
+
+		const company = this.company_control.get_value();
+		const fiscal_year = this.fiscal_year_control.get_value();
+		const request_id = ++this.request_id;
+
+		if (!company) {
+			this.render_error('Please select a company');
+			return;
+		}
+
+		this.render_loading();
+
+		frappe.call({
+			method: this.method_bs_statement,
+			args: { company: company, fiscal_year: fiscal_year },
+			callback: (r) => {
+				if (request_id !== this.request_id) return;
+
+				if (!r.message) {
+					console.error('Balance Sheet returned no data', r);
+					this.render_error();
+					return;
+				}
+
+				try {
+					this.bs_statement_data = r.message;
+					this.render_bs_statement();
+				} catch (error) {
+					console.error('Balance Sheet failed while rendering', error, r.message);
+					this.render_error(error);
+				}
+			},
+			error: (xhr) => {
+				if (request_id !== this.request_id) return;
+				console.error('Balance Sheet request failed', xhr);
 				this.render_error();
 			}
 		});
@@ -540,12 +592,68 @@ class FinancialOverview {
 	 * --------------------------------------------------------- */
 
 	render_statement() {
-
 		const d = this.statement_data;
 		const $content = this.ensure_shell();
-
 		$content.empty();
 		$content.append(this.get_statement_html(d));
+		this.wire_statement_toggles();
+	}
+
+
+	render_bs_statement() {
+		const d = this.bs_statement_data;
+		const $content = this.ensure_shell();
+		$content.empty();
+		$content.append(this.get_bs_statement_html(d));
+		this.wire_statement_toggles();
+	}
+
+
+	wire_statement_toggles() {
+		$(this.page.body)
+			.find('.fo-toggle-btn')
+			.off('click.stmt')
+			.on('click.stmt', (e) => {
+				const view = $(e.currentTarget).data('view');
+				if (view === this.active_statement_view) return;
+
+				this.active_statement_view = view;
+				this.active_tab = 'statement';
+
+				if (view === 'bs') {
+					if (this.bs_statement_data) {
+						this.render_bs_statement();
+					} else {
+						this.load_bs_statement();
+					}
+				} else {
+					if (this.statement_data) {
+						this.render_statement();
+					} else {
+						this.load_statement();
+					}
+				}
+			});
+	}
+
+
+	get_statement_toggle_html() {
+		return `
+			<div class="fo-trends-toggle">
+				<button type="button"
+					class="fo-toggle-btn ${this.active_statement_view === 'pl' ? 'fo-toggle-btn-active' : ''}"
+					data-view="pl">
+					${this.icon('dollar-sign')}
+					${__('P&L Statement')}
+				</button>
+				<button type="button"
+					class="fo-toggle-btn ${this.active_statement_view === 'bs' ? 'fo-toggle-btn-active' : ''}"
+					data-view="bs">
+					${this.icon('bar-chart-2')}
+					${__('Balance Sheet')}
+				</button>
+			</div>
+		`;
 	}
 
 
@@ -581,21 +689,21 @@ class FinancialOverview {
 	get_statement_html(d) {
 
 		const missing_accounts_html = this.get_missing_accounts_html(d);
+		const toggle_html = this.get_statement_toggle_html();
 
 		if (d.empty_message) {
 			return `
 				<div class="fo-page fo-statement-page">
 
-					<div class="fo-header">
+					<div class="fo-header fo-trends-header">
 						<div>
 							<h1 class="fo-title">
 								Financial
 								<span class="fo-title-accent">Statements</span>
 							</h1>
-							<div class="fo-subtitle">
-								${d.company} | ${d.fiscal_year}
-							</div>
+							<div class="fo-subtitle">${d.company} | ${d.fiscal_year}</div>
 						</div>
+						${toggle_html}
 					</div>
 
 					<div class="fo-statement-empty">
@@ -630,7 +738,7 @@ class FinancialOverview {
 		return `
 			<div class="fo-page fo-statement-page">
 
-				<div class="fo-header">
+				<div class="fo-header fo-trends-header">
 					<div>
 						<h1 class="fo-title">
 							Financial
@@ -640,6 +748,7 @@ class FinancialOverview {
 							${d.company} | ${d.fiscal_year} Performance
 						</div>
 					</div>
+					${toggle_html}
 				</div>
 
 				<div class="fo-statement-summary-row">
@@ -666,10 +775,105 @@ class FinancialOverview {
 			</div>
 		`;
 	}
+	get_bs_statement_html(d) {
+
+		const missing_accounts_html = this.get_missing_accounts_html(d);
+		const toggle_html = this.get_statement_toggle_html();
+
+		if (d.empty_message) {
+			return `
+				<div class="fo-page fo-statement-page">
+
+					<div class="fo-header fo-trends-header">
+						<div>
+							<h1 class="fo-title">
+								Financial
+								<span class="fo-title-accent">Statements</span>
+							</h1>
+							<div class="fo-subtitle">${d.company} | ${d.fiscal_year}</div>
+						</div>
+						${toggle_html}
+					</div>
+
+					<div class="fo-statement-empty">
+						${frappe.utils.escape_html(d.empty_message)}
+					</div>
+
+					${missing_accounts_html}
+
+				</div>
+			`;
+		}
+
+		const rows_html = (d.rows || [])
+			.map(row => this.get_statement_row_html(row))
+			.join('');
+
+		const summary_cards_html = (d.summary_cards || []).map(c => `
+			<div class="fo-statement-card">
+				<div class="fo-statement-card-top">
+					<span class="fo-icon">${this.icon(c.icon)}</span>
+					<span class="fo-badge ${c.change_pct_class}">
+						${c.change_pct >= 0 ? '&uarr;' : '&darr;'}
+						${Math.abs(c.change_pct)}%
+					</span>
+				</div>
+				<div class="fo-statement-card-label">${c.label}</div>
+				<div class="fo-statement-card-value">${c.value_fmt}</div>
+				<div class="fo-statement-card-vs">vs. ${c.prior_value_fmt}</div>
+			</div>
+		`).join('');
+
+		return `
+			<div class="fo-page fo-statement-page">
+
+				<div class="fo-header fo-trends-header">
+					<div>
+						<h1 class="fo-title">
+							Financial
+							<span class="fo-title-accent">Statements</span>
+						</h1>
+						<div class="fo-subtitle">
+							${d.company} | ${d.fiscal_year} Balance Sheet
+						</div>
+					</div>
+					${toggle_html}
+				</div>
+
+				<div class="fo-statement-summary-row">
+					${summary_cards_html}
+				</div>
+
+				<div class="fo-statement-panel">
+					<table class="fo-statement-table">
+						<thead>
+							<tr>
+								<th class="fo-st-line">${__('Line Item')}</th>
+								<th>${d.fiscal_year}</th>
+								<th>${d.prior_fiscal_year || ''}</th>
+								<th>${__('Change $')}</th>
+								<th>${__('Change %')}</th>
+							</tr>
+						</thead>
+						<tbody>${rows_html}</tbody>
+					</table>
+				</div>
+
+				${missing_accounts_html}
+
+			</div>
+		`;
+	}
 
 
 	get_statement_row_html(row) {
-
+		if (row.row_type === 'section_header') {
+			return `
+				<tr class="fo-st-section-row">
+					<td colspan="5">${frappe.utils.escape_html(row.label)}</td>
+				</tr>
+			`;
+		}
 		if (row.row_type === 'group_header') {
 			return `
 				<tr class="fo-st-group-row">
@@ -2356,6 +2560,17 @@ class FinancialOverview {
 			color: #52605a;
 			padding-top: 14px;
 			padding-bottom: 8px;
+		}
+		.fo-st-section-row td {
+			background: #d8e8df;
+			color: #1c6b4a;
+			font-weight: 800;
+			font-size: 12px;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			padding: 14px 18px;
+			border-top: 2px solid #1c6b4a;
+			border-bottom: 1px solid #c5dcd0;
 		}
 
 		.fo-st-line-row td.fo-st-line {

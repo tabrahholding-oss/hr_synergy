@@ -735,23 +735,66 @@ function auto_fetch_salary_components(frm) {
 
 frappe.ui.form.on("Account", {
     refresh(frm) {
-        set_pl_report_category_properties(frm);
+        set_account_field_properties(frm);
     },
 
     account_type(frm) {
-        set_pl_report_category_properties(frm);
+        set_account_field_properties(frm);
     },
 
     report_type(frm) {
-        set_pl_report_category_properties(frm);
+        set_account_field_properties(frm);
+    },
+
+    root_type(frm) {
+        set_account_field_properties(frm);
+    },
+
+    is_group(frm) {
+        set_account_field_properties(frm);
     }
 });
 
-function set_pl_report_category_properties(frm) {
-    const show_field =
+function set_account_field_properties(frm) {
+
+    // -----------------------------------
+    // P&L Report Category
+    // Account Type != Group
+    // Report Type = Profit and Loss
+    // -----------------------------------
+    const show_pl_report_category =
         frm.doc.account_type !== "Group" &&
         frm.doc.report_type === "Profit and Loss";
 
-    frm.toggle_display("custom_pl_report_category", show_field);
-    frm.toggle_reqd("custom_pl_report_category", show_field);
+    frm.toggle_display(
+        "custom_pl_report_category",
+        show_pl_report_category
+    );
+
+    frm.toggle_reqd(
+        "custom_pl_report_category",
+        show_pl_report_category
+    );
+
+
+    // -----------------------------------
+    // BL Category
+    // Is Group = unchecked
+    // Report Type = Balance Sheet
+    // Root Type = Asset
+    // -----------------------------------
+    const show_bl_category =
+        frm.doc.account_type !== "Group" &&
+        frm.doc.report_type === "Balance Sheet" &&
+        frm.doc.root_type === "Asset";
+
+    frm.toggle_display(
+        "custom_bl_category",
+        show_bl_category
+    );
+
+    frm.toggle_reqd(
+        "custom_bl_category",
+        show_bl_category
+    );
 }

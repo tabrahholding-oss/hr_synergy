@@ -168,7 +168,9 @@ fixtures = [
                 "Stock Reconciliation-custom_remarks",
                 "Stock Reconciliation Item-custom_remarks",
                 "Account-custom_pl_report_category",
+                "Account-custom_bl_category",
                 "Stock Entry Detail-custom_comments"
+                
             ]]
         ]
     },
