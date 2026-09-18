@@ -16,13 +16,16 @@ class FinancialOverview {
 		this.method_trends = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_trends_data';
 		this.method_costs = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_costs_data';
 		this.method_bs_statement = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_bl_statement_data';  // <-- ADD
+		this.method_ratios = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_financial_ratios_data';   // ADD
 		this.data = null;
 		this.statement_data = null;
-		this.bs_statement_data = null; 
+		this.bs_statement_data = null;
 		this.trends_data = null;
 		this.costs_data = null;
 		this.active_tab = 'overview';
-		this.active_statement_view = 'pl'; 
+		this.ratios_data = null;
+		this.active_statement_view = 'pl';
+		this.active_statement_view = 'pl';
 		this.active_trend_view = 'revenue'; // <-- NEW: 'revenue' or 'costs'
 		this.request_id = 0;
 		this.inject_styles();
@@ -185,6 +188,8 @@ class FinancialOverview {
 		if (this.active_tab === 'statement') {
 			if (this.active_statement_view === 'bs') {
 				this.load_bs_statement();
+			} else if (this.active_statement_view === 'ratios') {
+				this.load_ratios();
 			} else {
 				this.load_statement();
 			}
@@ -216,6 +221,12 @@ class FinancialOverview {
 					this.render_bs_statement();
 				} else {
 					this.load_bs_statement();
+				}
+			} else if (this.active_statement_view === 'ratios') {
+				if (this.ratios_data) {
+					this.render_ratios();
+				} else {
+					this.load_ratios();
 				}
 			} else {
 				if (this.statement_data) {
@@ -435,12 +446,118 @@ class FinancialOverview {
 			}
 		});
 	}
+	load_ratios() {
 
+		const company = this.company_control.get_value();
+		const fiscal_year = this.fiscal_year_control.get_value();
+		const request_id = ++this.request_id;
+
+		if (!company) {
+			this.render_error('Please select a company');
+			return;
+		}
+
+		this.render_loading();
+
+		frappe.call({
+			method: this.method_ratios,
+			args: { company: company, fiscal_year: fiscal_year },
+			callback: (r) => {
+				if (request_id !== this.request_id) return;
+
+				if (!r.message) {
+					console.error('Financial Ratios returned no data', r);
+					this.render_error();
+					return;
+				}
+
+				try {
+					this.ratios_data = r.message;
+					this.render_ratios();
+				} catch (error) {
+					console.error('Ratios failed while rendering', error, r.message);
+					this.render_error(error);
+				}
+			},
+			error: (xhr) => {
+				if (request_id !== this.request_id) return;
+				console.error('Financial Ratios request failed', xhr);
+				this.render_error();
+			}
+		});
+	}
 
 	/* ---------------------------------------------------------
 	 * Trends tab
 	 * --------------------------------------------------------- */
+	render_ratios() {
+		const d = this.ratios_data;
+		const $content = this.ensure_shell();
+		$content.empty();
+		$content.append(this.get_ratios_html(d));
+		this.wire_statement_toggles();
+	}
 
+
+	get_ratios_html(d) {
+
+		const blocks_html = (d.blocks || []).map(block => {
+
+			const rows_html = block.rows.map(row => `
+			<div class="fo-ratio-row">
+				<div class="fo-ratio-label">${row.label}</div>
+				<div class="fo-ratio-value-wrap">
+					<span class="fo-ratio-value">${row.value_fmt}</span>
+					<span class="fo-badge ${row.change_class}">
+						${row.change_fmt}
+					</span>
+				</div>
+			</div>
+		`).join('');
+
+			return `
+			<div class="fo-ratio-block" style="border-top: 4px solid ${block.color};">
+
+				<div class="fo-ratio-block-header">
+					<span class="fo-ratio-block-icon" style="color:${block.color};">
+						${this.icon(block.icon)}
+					</span>
+					<span class="fo-ratio-block-title">${block.title}</span>
+				</div>
+
+				<div class="fo-ratio-block-rows">
+					${rows_html}
+				</div>
+
+			</div>
+		`;
+		}).join('');
+
+		const toggle_html = this.get_statement_toggle_html();
+
+		return `
+		<div class="fo-page fo-statement-page">
+
+			<div class="fo-header fo-trends-header">
+				<div>
+					<h1 class="fo-title">
+						Financial
+						<span class="fo-title-accent">Statements</span>
+					</h1>
+					<div class="fo-subtitle">
+						${d.company} | ${d.fiscal_year} Performance
+					</div>
+				</div>
+				${toggle_html}
+			</div>
+
+			<div class="fo-ratios-grid">
+				${blocks_html}
+			</div>
+
+		</div>
+	`;
+	}
 	load_trends() {
 
 		const company = this.company_control.get_value();
@@ -626,6 +743,12 @@ class FinancialOverview {
 					} else {
 						this.load_bs_statement();
 					}
+				} else if (view === 'ratios') {
+					if (this.ratios_data) {
+						this.render_ratios();
+					} else {
+						this.load_ratios();
+					}
 				} else {
 					if (this.statement_data) {
 						this.render_statement();
@@ -651,6 +774,12 @@ class FinancialOverview {
 					data-view="bs">
 					${this.icon('bar-chart-2')}
 					${__('Balance Sheet')}
+				</button>
+				<button type="button"
+					class="fo-toggle-btn ${this.active_statement_view === 'ratios' ? 'fo-toggle-btn-active' : ''}"
+					data-view="ratios">
+					${this.icon('pie-chart')}
+					${__('Financial Ratios')}
 				</button>
 			</div>
 		`;
@@ -1176,10 +1305,10 @@ class FinancialOverview {
 		const gap = group_w * 0.03;
 
 		const metrics = [
-			{ key: 'net_margin',       color: '#d9824f', label: 'Net Margin' },
+			{ key: 'net_margin', color: '#d9824f', label: 'Net Margin' },
 			{ key: 'operating_margin', color: '#e3a627', label: 'Operating Margin' },
-			{ key: 'ebitda_margin',    color: '#1e3a5f', label: 'EBITDA Margin' },
-			{ key: 'gross_margin',     color: '#1c6b4a', label: 'Gross Margin' },
+			{ key: 'ebitda_margin', color: '#1e3a5f', label: 'EBITDA Margin' },
+			{ key: 'gross_margin', color: '#1c6b4a', label: 'Gross Margin' },
 		];
 
 		let bars = '';
@@ -2028,6 +2157,90 @@ class FinancialOverview {
 			justify-content: space-between;
 			align-items: center;
 			margin-bottom: 10px;
+		}
+		/* -------------------------------------------------
+		* FINANCIAL RATIOS
+		* ------------------------------------------------- */
+
+		.fo-ratios-grid {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 18px;
+		}
+
+		.fo-ratio-block {
+			background: #fff;
+			border-radius: 14px;
+			padding: 20px 22px;
+			border: 1px solid #ececec;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+		}
+
+		.fo-ratio-block-header {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 18px;
+			padding-bottom: 12px;
+			border-bottom: 1px solid #f0eee9;
+		}
+
+		.fo-ratio-block-icon svg {
+			width: 20px;
+			height: 20px;
+		}
+
+		.fo-ratio-block-title {
+			font-size: 16px;
+			font-weight: 700;
+			color: #1a1a1a;
+		}
+
+		.fo-ratio-block-rows {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.fo-ratio-row {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px 0;
+			border-bottom: 1px solid #f5f3ef;
+		}
+
+		.fo-ratio-row:last-child {
+			border-bottom: none;
+		}
+
+		.fo-ratio-label {
+			font-size: 13px;
+			color: #555;
+			font-weight: 500;
+		}
+
+		.fo-ratio-value-wrap {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.fo-ratio-value {
+			font-size: 15px;
+			font-weight: 800;
+			color: #1a1a1a;
+			font-variant-numeric: tabular-nums;
+		}
+
+		.fo-ratio-value-wrap .fo-badge {
+			font-size: 11px;
+			padding: 3px 8px;
+		}
+
+		@media (max-width: 1000px) {
+			.fo-ratios-grid {
+				grid-template-columns: 1fr;
+			}
 		}
 
 		.fo-statement-card-label {

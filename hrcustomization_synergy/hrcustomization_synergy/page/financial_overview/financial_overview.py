@@ -1257,10 +1257,10 @@ def get_bl_statement_data(company=None, fiscal_year=None):
 
 	all_accounts = [acc for cat in categories.values() for acc in cat["accounts"]]
 
-	cy_totals = get_account_signed_totals_bs(all_accounts, company, fy_start, fy_end)
+	cy_totals = get_account_signed_totals_bs_cumulative(all_accounts, company, fy_end)
 	py_totals = (
-		get_account_signed_totals_bs(all_accounts, company, py_start, py_end)
-		if py_start else {}
+		get_account_signed_totals_bs_cumulative(all_accounts, company, py_end)
+		if py_end else {}
 	)
 
 	account_root_types = get_account_root_types(all_accounts)
@@ -1542,3 +1542,416 @@ def get_account_signed_totals_bs(accounts, company, from_date, to_date):
 			result[r.account] = flt(r.credit) - flt(r.debit)
 
 	return result
+
+
+# ===========================================================================
+# BALANCE SHEET — cumulative (till date) helpers
+# ===========================================================================
+# Balance Sheet is cumulative: "till date" — from the very first transaction
+# up to the cutoff date. NOT period-based like P&L.
+
+def get_account_signed_totals_bs_cumulative(accounts, company, as_of_date):
+	"""Cumulative BS balance from beginning of records to as_of_date.
+	Assets = debit - credit; Liabilities/Equity = credit - debit."""
+	if not accounts or not as_of_date:
+		return {}
+
+	rows = frappe.db.sql(
+		"""
+		SELECT
+			gle.account,
+			acc.root_type,
+			SUM(gle.credit) AS credit,
+			SUM(gle.debit) AS debit
+		FROM `tabGL Entry` gle
+		JOIN `tabAccount` acc ON acc.name = gle.account
+		WHERE gle.company = %(company)s
+			AND gle.account IN %(accounts)s
+			AND gle.posting_date <= %(to_date)s
+			AND gle.docstatus = 1
+			AND gle.is_cancelled = 0
+			AND gle.voucher_type NOT IN %(excluded_voucher_types)s
+		GROUP BY gle.account, acc.root_type
+		""",
+		{
+			"company": company,
+			"accounts": accounts,
+			"to_date": as_of_date,
+			"excluded_voucher_types": BS_EXCLUDED_VOUCHER_TYPES,
+		},
+		as_dict=True,
+	)
+
+	result = {}
+	for r in rows:
+		if r.root_type == "Asset":
+			result[r.account] = flt(r.debit) - flt(r.credit)
+		else:
+			result[r.account] = flt(r.credit) - flt(r.debit)
+
+	return result
+
+
+# ===========================================================================
+# FINANCIAL RATIOS (Statements tab — third view)
+# ===========================================================================
+
+def _sum_by_account_type(accounts, company, as_of_date, types):
+	"""Sum BS-cumulative balances for accounts whose account_type is in `types`."""
+	if not accounts or not types or not as_of_date:
+		return 0
+
+	rows = frappe.db.sql(
+		"""
+		SELECT acc.root_type,
+			SUM(gle.credit) AS credit,
+			SUM(gle.debit) AS debit
+		FROM `tabGL Entry` gle
+		JOIN `tabAccount` acc ON acc.name = gle.account
+		WHERE gle.company = %(company)s
+			AND gle.account IN %(accounts)s
+			AND gle.posting_date <= %(to_date)s
+			AND gle.docstatus = 1
+			AND gle.is_cancelled = 0
+			AND gle.voucher_type NOT IN %(excluded)s
+			AND acc.account_type IN %(types)s
+		GROUP BY acc.root_type
+		""",
+		{
+			"company": company,
+			"accounts": accounts,
+			"to_date": as_of_date,
+			"excluded": BS_EXCLUDED_VOUCHER_TYPES,
+			"types": types,
+		},
+		as_dict=True,
+	)
+
+	total = 0
+	for r in rows:
+		if r.root_type == "Asset":
+			total += flt(r.debit) - flt(r.credit)
+		else:
+			total += flt(r.credit) - flt(r.debit)
+
+	return total / 1_000_000
+
+
+def _get_bs_metrics(company, bs_categories, as_of_date):
+	"""Collect all BS metrics needed for ratios — cumulative till `as_of_date`."""
+	empty = {
+		"total_assets": 0, "total_liabilities": 0, "total_equity": 0,
+		"current_assets": 0, "current_liabilities": 0,
+		"cash": 0, "inventory": 0, "ar": 0, "ap": 0,
+		"total_debt": 0,
+	}
+
+	if not bs_categories or not as_of_date:
+		return empty
+
+	all_accounts = [acc for cat in bs_categories.values() for acc in cat["accounts"]]
+	totals = get_account_signed_totals_bs_cumulative(all_accounts, company, as_of_date)
+	root_types = get_account_root_types(all_accounts)
+
+	total_assets = 0
+	total_liabilities = 0
+	total_equity = 0
+	current_assets = 0
+	current_liabilities = 0
+
+	for cat in bs_categories.values():
+		cat_total = sum(totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
+		group_lower = (cat.get("group") or "").lower()
+
+		if "current asset" in group_lower:
+			current_assets += cat_total
+		if "current liab" in group_lower:
+			current_liabilities += cat_total
+
+		roots = [root_types.get(acc) for acc in cat["accounts"]]
+		section = get_dominant_root_type(roots)
+		if section == "Asset":
+			total_assets += cat_total
+		elif section == "Liability":
+			total_liabilities += cat_total
+		elif section == "Equity":
+			total_equity += cat_total
+
+	cash = _sum_by_account_type(all_accounts, company, as_of_date, ["Cash", "Bank"])
+	inventory = _sum_by_account_type(all_accounts, company, as_of_date, ["Stock"])
+	ar = _sum_by_account_type(all_accounts, company, as_of_date, ["Receivable"])
+	ap = _sum_by_account_type(all_accounts, company, as_of_date, ["Payable"])
+
+	return {
+		"total_assets": total_assets,
+		"total_liabilities": total_liabilities,
+		"total_equity": total_equity,
+		"current_assets": current_assets,
+		"current_liabilities": current_liabilities,
+		"cash": cash,
+		"inventory": inventory,
+		"ar": ar,
+		"ap": ap,
+		# Total Debt = Total Liabilities (adjust if you want to exclude AP/tax)
+		"total_debt": total_liabilities,
+	}
+
+
+def _get_interest_expense(company, start, end, categories):
+	"""Sum of PL Categories whose label contains 'interest'."""
+	if not start or not end or not categories:
+		return 0
+
+	interest_accounts = []
+	for cat in categories.values():
+		if "interest" in (cat.get("label") or "").lower():
+			interest_accounts.extend(cat["accounts"])
+
+	if not interest_accounts:
+		return 0
+
+	totals = get_account_signed_totals(interest_accounts, company, start, end)
+	total = sum(totals.values())
+	return abs(total) / 1_000_000
+
+
+def _safe_div(a, b):
+	if not b:
+		return 0
+	return a / b
+
+
+@frappe.whitelist()
+def get_financial_ratios_data(company=None, fiscal_year=None):
+	"""Financial Ratios view under the Statements tab."""
+
+	if not company:
+		company = frappe.defaults.get_user_default("Company")
+	if not company:
+		company = get_first_company()
+	if not company:
+		frappe.throw(_("No company found. Please set up a Company first."))
+
+	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
+	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	currency_symbol = get_currency_symbol(company)
+
+	pl_categories = get_pl_categories(company)
+	bs_categories = get_bl_categories(company)
+
+	# ---- CY values ---------------------------------------------------------
+	cy_pl = compute_pl_category_metrics(pl_categories, company, fy_start, fy_end)
+
+	ebit_cy, dna_cy = get_ebit_and_dna(company, fy_start, fy_end)
+	ebitda_cy = ebit_cy - dna_cy
+
+	interest_cy = _get_interest_expense(company, fy_start, fy_end, pl_categories)
+
+	cy_bs = _get_bs_metrics(company, bs_categories, fy_end)
+
+	# ---- PY values ---------------------------------------------------------
+	if py_start:
+		py_pl = compute_pl_category_metrics(pl_categories, company, py_start, py_end)
+		ebit_py, dna_py = get_ebit_and_dna(company, py_start, py_end)
+		ebitda_py = ebit_py - dna_py
+		interest_py = _get_interest_expense(company, py_start, py_end, pl_categories)
+		py_bs = _get_bs_metrics(company, bs_categories, py_end)
+	else:
+		py_pl = {"revenue": 0, "gross_profit": 0, "operating_income": 0, "net_income": 0}
+		ebitda_py = 0
+		interest_py = 0
+		py_bs = {k: 0 for k in cy_bs.keys()}
+
+	# ---- Ratio builders ----------------------------------------------------
+	def pct(part, whole):
+		return round(pct_of(part, whole), 1)
+
+	def num(v):
+		return round(v, 2)
+
+	def fmt_pct(v):
+		return "{:.1f}%".format(v)
+
+	def fmt_num(v):
+		return "{:.2f}".format(v)
+
+	def fmt_days(v):
+		return "{:.2f} days".format(v)
+
+	def fmt_curr(v):
+		return fmt_m(v, currency_symbol)
+
+	def make_row(label, cy_val, py_val, formatter, is_pct=False):
+		if is_pct:
+			change = round(cy_val - py_val, 1)
+			change_str = "{:+.1f}pp".format(change)
+			value_str = formatter(cy_val)
+		else:
+			change = round(cy_val - py_val, 2)
+			change_str = "{:+.2f}".format(change)
+			value_str = formatter(cy_val)
+
+		return {
+			"label": label,
+			"value_fmt": value_str,
+			"change_fmt": change_str,
+			"change_class": "fo-badge-up" if change >= 0 else "fo-badge-down",
+			"change_value": change,
+		}
+
+	# =========== 1. PROFITABILITY ===========
+	profitability_rows = [
+		make_row(
+			_("Gross Margin"),
+			pct(cy_pl["gross_profit"], cy_pl["revenue"]),
+			pct(py_pl["gross_profit"], py_pl["revenue"]),
+			fmt_pct, is_pct=True,
+		),
+		make_row(
+			_("Operating Margin"),
+			pct(cy_pl["operating_income"], cy_pl["revenue"]),
+			pct(py_pl["operating_income"], py_pl["revenue"]),
+			fmt_pct, is_pct=True,
+		),
+		make_row(
+			_("Net Profit Margin"),
+			pct(cy_pl["net_income"], cy_pl["revenue"]),
+			pct(py_pl["net_income"], py_pl["revenue"]),
+			fmt_pct, is_pct=True,
+		),
+		make_row(
+			_("EBITDA Margin"),
+			pct(ebitda_cy, cy_pl["revenue"]),
+			pct(ebitda_py, py_pl["revenue"]),
+			fmt_pct, is_pct=True,
+		),
+		make_row(
+			_("Return on Assets"),
+			pct(cy_pl["net_income"], cy_bs["total_assets"]),
+			pct(py_pl["net_income"], py_bs["total_assets"]),
+			fmt_pct, is_pct=True,
+		),
+		make_row(
+			_("Return on Equity"),
+			pct(cy_pl["net_income"], cy_bs["total_equity"]),
+			pct(py_pl["net_income"], py_bs["total_equity"]),
+			fmt_pct, is_pct=True,
+		),
+	]
+
+	# =========== 2. LIQUIDITY ===========
+	liq_cy_cr = _safe_div(cy_bs["current_assets"], cy_bs["current_liabilities"])
+	liq_py_cr = _safe_div(py_bs["current_assets"], py_bs["current_liabilities"])
+
+	liq_cy_qr = _safe_div(
+		cy_bs["current_assets"] - cy_bs["inventory"],
+		cy_bs["current_liabilities"],
+	)
+	liq_py_qr = _safe_div(
+		py_bs["current_assets"] - py_bs["inventory"],
+		py_bs["current_liabilities"],
+	)
+
+	liq_cy_cash = _safe_div(cy_bs["cash"], cy_bs["current_liabilities"])
+	liq_py_cash = _safe_div(py_bs["cash"], py_bs["current_liabilities"])
+
+	liq_cy_wc = cy_bs["current_assets"] - cy_bs["current_liabilities"]
+	liq_py_wc = py_bs["current_assets"] - py_bs["current_liabilities"]
+
+	liquidity_rows = [
+		make_row(_("Current Ratio"), num(liq_cy_cr), num(liq_py_cr), fmt_num),
+		make_row(_("Quick Ratio"), num(liq_cy_qr), num(liq_py_qr), fmt_num),
+		make_row(_("Cash Ratio"), num(liq_cy_cash), num(liq_py_cash), fmt_num),
+		make_row(_("Working Capital"), liq_cy_wc, liq_py_wc, fmt_curr),
+	]
+
+	# =========== 3. LEVERAGE ===========
+	lev_cy_de = _safe_div(cy_bs["total_debt"], cy_bs["total_equity"])
+	lev_py_de = _safe_div(py_bs["total_debt"], py_bs["total_equity"])
+
+	lev_cy_da = _safe_div(cy_bs["total_debt"], cy_bs["total_assets"])
+	lev_py_da = _safe_div(py_bs["total_debt"], py_bs["total_assets"])
+
+	lev_cy_dep = _safe_div(cy_bs["total_debt"], ebitda_cy)
+	lev_py_dep = _safe_div(py_bs["total_debt"], ebitda_py)
+
+	lev_cy_ic = _safe_div(ebit_cy, interest_cy)
+	lev_py_ic = _safe_div(ebit_py, interest_py)
+
+	leverage_rows = [
+		make_row(_("Debt to Equity"), num(lev_cy_de), num(lev_py_de), fmt_num),
+		make_row(_("Debt to Assets"), num(lev_cy_da), num(lev_py_da), fmt_num),
+		make_row(_("Debt to EBITDA"), num(lev_cy_dep), num(lev_py_dep), fmt_num),
+		make_row(_("Interest Coverage"), num(lev_cy_ic), num(lev_py_ic), fmt_num),
+	]
+
+	# =========== 4. EFFICIENCY ===========
+	# Asset Turnover = Revenue / Total Assets
+	eff_cy_at = _safe_div(cy_pl["revenue"], cy_bs["total_assets"])
+	eff_py_at = _safe_div(py_pl["revenue"], py_bs["total_assets"])
+
+	# DSO = (AR / Revenue) * 365
+	eff_cy_dso = _safe_div(cy_bs["ar"] * 365, cy_pl["revenue"])
+	eff_py_dso = _safe_div(py_bs["ar"] * 365, py_pl["revenue"])
+
+	# DIO = (Inventory / COGS) * 365  — COGS = |cost_of_revenue|
+	cogs_cy = abs(cy_pl["cost_of_revenue"])
+	cogs_py = abs(py_pl["cost_of_revenue"])
+
+	eff_cy_dio = _safe_div(cy_bs["inventory"] * 365, cogs_cy)
+	eff_py_dio = _safe_div(py_bs["inventory"] * 365, cogs_py)
+
+	# DPO = (AP / COGS) * 365
+	eff_cy_dpo = _safe_div(cy_bs["ap"] * 365, cogs_cy)
+	eff_py_dpo = _safe_div(py_bs["ap"] * 365, cogs_py)
+
+	# CCC = DSO + DIO - DPO
+	eff_cy_ccc = eff_cy_dso + eff_cy_dio - eff_cy_dpo
+	eff_py_ccc = eff_py_dso + eff_py_dio - eff_py_dpo
+
+	efficiency_rows = [
+		make_row(_("Asset Turnover"), num(eff_cy_at), num(eff_py_at), fmt_num),
+		make_row(_("Days Sales Outstanding"), num(eff_cy_dso), num(eff_py_dso), fmt_days),
+		make_row(_("Days Inventory Outstanding"), num(eff_cy_dio), num(eff_py_dio), fmt_days),
+		make_row(_("Cash Conversion Cycle"), num(eff_cy_ccc), num(eff_py_ccc), fmt_days),
+	]
+
+	# ---- Assemble blocks ---------------------------------------------------
+	blocks = [
+		{
+			"key": "profitability",
+			"title": _("Profitability"),
+			"icon": "bar-chart-2",
+			"color": "#1c6b4a",
+			"rows": profitability_rows,
+		},
+		{
+			"key": "liquidity",
+			"title": _("Liquidity"),
+			"icon": "dollar-sign",
+			"color": "#e3a627",
+			"rows": liquidity_rows,
+		},
+		{
+			"key": "leverage",
+			"title": _("Leverage"),
+			"icon": "credit-card",
+			"color": "#d9824f",
+			"rows": leverage_rows,
+		},
+		{
+			"key": "efficiency",
+			"title": _("Efficiency"),
+			"icon": "pie-chart",
+			"color": "#1e3a5f",
+			"rows": efficiency_rows,
+		},
+	]
+
+	return {
+		"company": company,
+		"fiscal_year": fy_name,
+		"prior_fiscal_year": py_name,
+		"currency_symbol": currency_symbol,
+		"blocks": blocks,
+	}
