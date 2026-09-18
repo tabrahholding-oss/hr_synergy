@@ -16,6 +16,8 @@
   "section_break_emp",
   "department",
   "designation",
+  "permotion",
+  "change_designation",
   "column_break_2",
   "company",
   "date_of_joining",
@@ -411,13 +413,27 @@
    "fieldname": "hmc_terms",
    "fieldtype": "Text Editor",
    "label": "HMC Terms"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "fieldname": "permotion",
+   "fieldtype": "Check",
+   "label": "Permotion"
+  },
+  {
+   "depends_on": "eval:doc.permotion == 1",
+   "fieldname": "change_designation",
+   "fieldtype": "Link",
+   "label": "Change Designation",
+   "options": "Designation"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-17 08:50:14.858265",
+ "modified": "2026-09-18 12:54:44.184493",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Letters",
