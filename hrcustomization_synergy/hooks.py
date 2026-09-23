@@ -170,8 +170,6 @@ fixtures = [
                 "Account-custom_pl_report_category",
                 "Account-custom_bl_category",
                 "Stock Entry Detail-custom_comments"
-                "Job Offer-custom_user",
-                "Job Offer-custom_signature",
                 
             ]]
         ]
