@@ -15,25 +15,27 @@ class FinancialOverview {
 		this.method_statement = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_pl_statement_data';
 		this.method_trends = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_trends_data';
 		this.method_costs = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_costs_data';
-		this.method_bs_statement = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_bl_statement_data';  // <-- ADD
-		this.method_ratios = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_financial_ratios_data';   // ADD
+		this.method_bs_statement = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_bl_statement_data';
+		this.method_ratios = 'hrcustomization_synergy.hrcustomization_synergy.page.financial_overview.financial_overview.get_financial_ratios_data';
+
 		this.data = null;
 		this.statement_data = null;
 		this.bs_statement_data = null;
 		this.trends_data = null;
 		this.costs_data = null;
-		this.active_tab = 'overview';
 		this.ratios_data = null;
+
+		this.active_tab = 'overview';
 		this.active_statement_view = 'pl';
-		this.active_statement_view = 'pl';
-		this.active_trend_view = 'revenue'; // <-- NEW: 'revenue' or 'costs'
+		this.active_trend_view = 'revenue';
+
 		this.request_id = 0;
 		this.inject_styles();
 		this.setup_filters();
 	}
 
 	/* ---------------------------------------------------------
-	 * Filters (company / fiscal year)
+	 * Filters (company / date range)
 	 * --------------------------------------------------------- */
 
 	setup_filters() {
@@ -43,7 +45,6 @@ class FinancialOverview {
 
 		Promise.all([
 			this.load_companies(),
-			this.load_fiscal_years()
 		]).then(() => {
 
 			const company_names = this.company_options || [];
@@ -55,10 +56,10 @@ class FinancialOverview {
 
 			if (selected_company) {
 				this.company_control.set_value(selected_company);
-				this.load_active_tab();
-			} else {
-				this.render_error('No Company found');
 			}
+
+			this.set_default_dates();
+			this.load_active_tab();
 
 		}).catch(error => {
 			console.error('Financial Overview filters failed to load', error);
@@ -82,13 +83,14 @@ class FinancialOverview {
 					</div>
 				</div>
 
-				<div class="fo-filter-field fo-filter-fiscal-year">
-					<div class="fo-filter-label">${__('Fiscal Year')}</div>
-					<div class="fo-filter-control" data-field="fiscal_year">
-						<select class="fo-native-select" id="fo-fiscal-year-select">
-							<option value="">${__('Loading fiscal years...')}</option>
-						</select>
-					</div>
+				<div class="fo-filter-field fo-filter-from-date">
+					<div class="fo-filter-label">${__('From Date')}</div>
+					<div class="fo-filter-control" data-field="from_date"></div>
+				</div>
+
+				<div class="fo-filter-field fo-filter-to-date">
+					<div class="fo-filter-label">${__('To Date')}</div>
+					<div class="fo-filter-control" data-field="to_date"></div>
 				</div>
 
 				<button type="button" class="btn fo-refresh-btn">
@@ -99,7 +101,6 @@ class FinancialOverview {
 		`);
 
 		const $page_head = $(this.page.wrapper).find('.page-head').first();
-
 		if ($page_head.length) {
 			$page_head.after(this.$filter_bar);
 		} else {
@@ -107,20 +108,47 @@ class FinancialOverview {
 		}
 
 		const $company = this.$filter_bar.find('#fo-company-select');
-		const $fiscal_year = this.$filter_bar.find('#fo-fiscal-year-select');
 
 		this.company_control = {
 			get_value: () => $company.val() || '',
 			set_value: value => { $company.val(value || ''); }
 		};
 
-		this.fiscal_year_control = {
-			get_value: () => $fiscal_year.val() || '',
-			set_value: value => { $fiscal_year.val(value || ''); }
-		};
+		// ---------- From Date control ----------
+		const self = this;
+
+		this.from_date_control = frappe.ui.form.make_control({
+			parent: this.$filter_bar.find('[data-field="from_date"]'),
+			df: {
+				fieldtype: 'Date',
+				fieldname: 'from_date',
+				placeholder: 'dd/mm/yyyy',
+				reqd: 1,
+				change: function () {
+					self.load_active_tab();
+				},
+			},
+			render_input: true,
+		});
+		this.from_date_control.refresh();
+
+		// ---------- To Date control ----------
+		this.to_date_control = frappe.ui.form.make_control({
+			parent: this.$filter_bar.find('[data-field="to_date"]'),
+			df: {
+				fieldtype: 'Date',
+				fieldname: 'to_date',
+				placeholder: 'dd/mm/yyyy',
+				reqd: 1,
+				change: function () {
+					self.load_active_tab();
+				},
+			},
+			render_input: true,
+		});
+		this.to_date_control.refresh();
 
 		$company.on('change', () => this.on_company_change());
-		$fiscal_year.on('change', () => this.load_active_tab());
 
 		this.$filter_bar.find('.fo-refresh-btn').on('click', () => this.load_active_tab());
 	}
@@ -145,37 +173,43 @@ class FinancialOverview {
 	}
 
 
-	load_fiscal_years() {
-		return frappe.db.get_list(
-			'Fiscal Year',
-			{
-				fields: ['name', 'year_start_date', 'year_end_date'],
-				order_by: 'year_start_date desc',
-				limit: 100
+	set_default_dates() {
+
+		const today = frappe.datetime.get_today();
+
+		frappe.db.get_list('Fiscal Year', {
+			fields: ['name', 'year_start_date', 'year_end_date'],
+			filters: [
+				['year_start_date', '<=', today],
+				['year_end_date', '>=', today],
+			],
+			limit: 1,
+			order_by: 'year_start_date desc',
+		}).then(rows => {
+
+			let from_d, to_d;
+
+			if (rows && rows.length) {
+				from_d = rows[0].year_start_date;
+				to_d = rows[0].year_end_date;
+			} else {
+				const y = new Date().getFullYear();
+				from_d = y + '-01-01';
+				to_d = y + '-12-31';
 			}
-		).then(rows => {
-			const years = rows || [];
-			const $select = this.$filter_bar.find('#fo-fiscal-year-select');
-			$select.empty();
 
-			if (!years.length) {
-				$select.append(`
-					<option value="">${__('No Fiscal Year found')}</option>
-				`);
-				return;
-			}
+			this.from_date_control.set_value(from_d);
+			this.to_date_control.set_value(to_d);
 
-			years.forEach(year => {
-				$select.append($('<option>', { value: year.name, text: year.name }));
-			});
-
-			$select.val(years[0].name);
+		}).catch(() => {
+			const y = new Date().getFullYear();
+			this.from_date_control.set_value(y + '-01-01');
+			this.to_date_control.set_value(y + '-12-31');
 		});
 	}
 
 
 	on_company_change() {
-		this.fiscal_year_control.set_value('');
 		this.load_active_tab();
 	}
 
@@ -308,13 +342,14 @@ class FinancialOverview {
 
 
 	/* ---------------------------------------------------------
-	 * Overview tab
+	 * Overview tab — load
 	 * --------------------------------------------------------- */
 
 	load() {
 
 		const company = this.company_control.get_value();
-		const fiscal_year = this.fiscal_year_control.get_value();
+		const from_date = this.from_date_control.get_value();
+		const to_date = this.to_date_control.get_value();
 		const request_id = ++this.request_id;
 
 		if (!company) {
@@ -326,7 +361,7 @@ class FinancialOverview {
 
 		frappe.call({
 			method: this.method,
-			args: { company: company, fiscal_year: fiscal_year },
+			args: { company: company, from_date: from_date, to_date: to_date },
 			callback: (r) => {
 				if (request_id !== this.request_id) return;
 
@@ -338,16 +373,7 @@ class FinancialOverview {
 
 				try {
 					this.data = r.message;
-
-					if (!this.company_control.get_value() && this.data.company) {
-						this.company_control.set_value(this.data.company);
-					}
-					if (!this.fiscal_year_control.get_value() && this.data.fiscal_year) {
-						this.fiscal_year_control.set_value(this.data.fiscal_year);
-					}
-
 					this.render_overview();
-
 				} catch (error) {
 					console.error('Financial Overview failed while rendering', error, r.message);
 					this.render_error(error);
@@ -363,13 +389,14 @@ class FinancialOverview {
 
 
 	/* ---------------------------------------------------------
-	 * Statements tab
+	 * Statements tab — load
 	 * --------------------------------------------------------- */
 
 	load_statement() {
 
 		const company = this.company_control.get_value();
-		const fiscal_year = this.fiscal_year_control.get_value();
+		const from_date = this.from_date_control.get_value();
+		const to_date = this.to_date_control.get_value();
 		const request_id = ++this.request_id;
 
 		if (!company) {
@@ -381,7 +408,7 @@ class FinancialOverview {
 
 		frappe.call({
 			method: this.method_statement,
-			args: { company: company, fiscal_year: fiscal_year },
+			args: { company: company, from_date: from_date, to_date: to_date },
 			callback: (r) => {
 				if (request_id !== this.request_id) return;
 
@@ -406,10 +433,13 @@ class FinancialOverview {
 			}
 		});
 	}
+
+
 	load_bs_statement() {
 
 		const company = this.company_control.get_value();
-		const fiscal_year = this.fiscal_year_control.get_value();
+		const from_date = this.from_date_control.get_value();
+		const to_date = this.to_date_control.get_value();
 		const request_id = ++this.request_id;
 
 		if (!company) {
@@ -421,7 +451,7 @@ class FinancialOverview {
 
 		frappe.call({
 			method: this.method_bs_statement,
-			args: { company: company, fiscal_year: fiscal_year },
+			args: { company: company, from_date: from_date, to_date: to_date },
 			callback: (r) => {
 				if (request_id !== this.request_id) return;
 
@@ -446,10 +476,13 @@ class FinancialOverview {
 			}
 		});
 	}
+
+
 	load_ratios() {
 
 		const company = this.company_control.get_value();
-		const fiscal_year = this.fiscal_year_control.get_value();
+		const from_date = this.from_date_control.get_value();
+		const to_date = this.to_date_control.get_value();
 		const request_id = ++this.request_id;
 
 		if (!company) {
@@ -461,7 +494,7 @@ class FinancialOverview {
 
 		frappe.call({
 			method: this.method_ratios,
-			args: { company: company, fiscal_year: fiscal_year },
+			args: { company: company, from_date: from_date, to_date: to_date },
 			callback: (r) => {
 				if (request_id !== this.request_id) return;
 
@@ -487,81 +520,16 @@ class FinancialOverview {
 		});
 	}
 
+
 	/* ---------------------------------------------------------
-	 * Trends tab
+	 * Trends tab — load
 	 * --------------------------------------------------------- */
-	render_ratios() {
-		const d = this.ratios_data;
-		const $content = this.ensure_shell();
-		$content.empty();
-		$content.append(this.get_ratios_html(d));
-		this.wire_statement_toggles();
-	}
 
-
-	get_ratios_html(d) {
-
-		const blocks_html = (d.blocks || []).map(block => {
-
-			const rows_html = block.rows.map(row => `
-			<div class="fo-ratio-row">
-				<div class="fo-ratio-label">${row.label}</div>
-				<div class="fo-ratio-value-wrap">
-					<span class="fo-ratio-value">${row.value_fmt}</span>
-					<span class="fo-badge ${row.change_class}">
-						${row.change_fmt}
-					</span>
-				</div>
-			</div>
-		`).join('');
-
-			return `
-			<div class="fo-ratio-block" style="border-top: 4px solid ${block.color};">
-
-				<div class="fo-ratio-block-header">
-					<span class="fo-ratio-block-icon" style="color:${block.color};">
-						${this.icon(block.icon)}
-					</span>
-					<span class="fo-ratio-block-title">${block.title}</span>
-				</div>
-
-				<div class="fo-ratio-block-rows">
-					${rows_html}
-				</div>
-
-			</div>
-		`;
-		}).join('');
-
-		const toggle_html = this.get_statement_toggle_html();
-
-		return `
-		<div class="fo-page fo-statement-page">
-
-			<div class="fo-header fo-trends-header">
-				<div>
-					<h1 class="fo-title">
-						Financial
-						<span class="fo-title-accent">Statements</span>
-					</h1>
-					<div class="fo-subtitle">
-						${d.company} | ${d.fiscal_year} Performance
-					</div>
-				</div>
-				${toggle_html}
-			</div>
-
-			<div class="fo-ratios-grid">
-				${blocks_html}
-			</div>
-
-		</div>
-	`;
-	}
 	load_trends() {
 
 		const company = this.company_control.get_value();
-		const fiscal_year = this.fiscal_year_control.get_value();
+		const from_date = this.from_date_control.get_value();
+		const to_date = this.to_date_control.get_value();
 		const request_id = ++this.request_id;
 
 		if (!company) {
@@ -573,7 +541,7 @@ class FinancialOverview {
 
 		frappe.call({
 			method: this.method_trends,
-			args: { company: company, fiscal_year: fiscal_year },
+			args: { company: company, from_date: from_date, to_date: to_date },
 			callback: (r) => {
 				if (request_id !== this.request_id) return;
 
@@ -601,13 +569,14 @@ class FinancialOverview {
 
 
 	/* ---------------------------------------------------------
-	 * Costs & Comparison tab
+	 * Costs & Comparison tab — load
 	 * --------------------------------------------------------- */
 
 	load_costs() {
 
 		const company = this.company_control.get_value();
-		const fiscal_year = this.fiscal_year_control.get_value();
+		const from_date = this.from_date_control.get_value();
+		const to_date = this.to_date_control.get_value();
 		const request_id = ++this.request_id;
 
 		if (!company) {
@@ -619,7 +588,7 @@ class FinancialOverview {
 
 		frappe.call({
 			method: this.method_costs,
-			args: { company: company, fiscal_year: fiscal_year },
+			args: { company: company, from_date: from_date, to_date: to_date },
 			callback: (r) => {
 				if (request_id !== this.request_id) return;
 
@@ -726,6 +695,15 @@ class FinancialOverview {
 	}
 
 
+	render_ratios() {
+		const d = this.ratios_data;
+		const $content = this.ensure_shell();
+		$content.empty();
+		$content.append(this.get_ratios_html(d));
+		this.wire_statement_toggles();
+	}
+
+
 	wire_statement_toggles() {
 		$(this.page.body)
 			.find('.fo-toggle-btn')
@@ -757,37 +735,123 @@ class FinancialOverview {
 					}
 				}
 			});
+
+		// Wire print button
+		$(this.page.body).find('.fo-print-btn')
+			.off('click.print')
+			.on('click.print', () => this.print_current_view());
+	}
+
+
+	print_current_view() {
+
+		const styles_el = document.getElementById('financial-overview-styles');
+		const styles_html = styles_el ? styles_el.innerHTML : '';
+
+		const $clone = $(this.page.body).find('.fo-page').first().clone();
+
+		// Remove interactive elements from print
+		$clone.find('.fo-trends-toggle, .fo-print-btn, .fo-header-actions, .fo-tooltip').remove();
+		$clone.find('.fo-toggle-btn').remove();
+
+		const doc_html = `<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>${__('Financial Statements')}</title>
+	<style>
+		${styles_html}
+
+		body {
+			background: #fff !important;
+			padding: 15px;
+			margin: 0;
+			font-family: 'Inter', Arial, sans-serif;
+		}
+		.fo-page {
+			padding: 0 !important;
+			background: #fff !important;
+		}
+		.fo-statement-table { font-size: 11px !important; }
+		.fo-statement-table th,
+		.fo-statement-table td { padding: 6px 10px !important; }
+		.fo-statement-summary-row {
+			grid-template-columns: repeat(4, 1fr) !important;
+			gap: 10px !important;
+		}
+		.fo-statement-card {
+			padding: 10px !important;
+			box-shadow: none !important;
+		}
+		.fo-header { margin-bottom: 10px !important; }
+		.fo-title { font-size: 22px !important; }
+		.fo-missing-panel { page-break-before: auto; }
+
+		@page { margin: 1cm; }
+		@media print {
+			body { padding: 0; }
+		}
+	</style>
+</head>
+<body>${$clone[0].outerHTML}</body>
+</html>`;
+
+		const w = window.open('', '_blank');
+		if (!w) {
+			frappe.msgprint(__('Please allow popups to print.'));
+			return;
+		}
+		w.document.open();
+		w.document.write(doc_html);
+		w.document.close();
+
+		setTimeout(() => {
+			try {
+				w.focus();
+				w.print();
+			} catch (err) {
+				console.error('Print failed', err);
+			}
+		}, 400);
 	}
 
 
 	get_statement_toggle_html() {
+
+		const show_print =
+			this.active_statement_view === 'pl' ||
+			this.active_statement_view === 'bs';
+
 		return `
-			<div class="fo-trends-toggle">
-				<button type="button"
-					class="fo-toggle-btn ${this.active_statement_view === 'pl' ? 'fo-toggle-btn-active' : ''}"
-					data-view="pl">
-					${this.icon('dollar-sign')}
-					${__('P&L Statement')}
-				</button>
-				<button type="button"
-					class="fo-toggle-btn ${this.active_statement_view === 'bs' ? 'fo-toggle-btn-active' : ''}"
-					data-view="bs">
-					${this.icon('bar-chart-2')}
-					${__('Balance Sheet')}
-				</button>
-				<button type="button"
-					class="fo-toggle-btn ${this.active_statement_view === 'ratios' ? 'fo-toggle-btn-active' : ''}"
-					data-view="ratios">
-					${this.icon('pie-chart')}
-					${__('Financial Ratios')}
-				</button>
+			<div class="fo-header-actions">
+				<div class="fo-trends-toggle">
+					<button type="button"
+						class="fo-toggle-btn ${this.active_statement_view === 'pl' ? 'fo-toggle-btn-active' : ''}"
+						data-view="pl">
+						${this.icon('dollar-sign')}
+						${__('P&L Statement')}
+					</button>
+					<button type="button"
+						class="fo-toggle-btn ${this.active_statement_view === 'bs' ? 'fo-toggle-btn-active' : ''}"
+						data-view="bs">
+						${this.icon('bar-chart-2')}
+						${__('Balance Sheet')}
+					</button>
+					<button type="button"
+						class="fo-toggle-btn ${this.active_statement_view === 'ratios' ? 'fo-toggle-btn-active' : ''}"
+						data-view="ratios">
+						${this.icon('pie-chart')}
+						${__('Financial Ratios')}
+					</button>
+				</div>
+				${show_print ? `
+					<button type="button" class="fo-print-btn" title="${__('Print')}">
+						${this.icon('printer')}
+						${__('Print')}
+					</button>
+				` : ''}
 			</div>
 		`;
-	}
-
-
-	wire_summary_cards() {
-		// Placeholder for future interactivity
 	}
 
 
@@ -904,6 +968,8 @@ class FinancialOverview {
 			</div>
 		`;
 	}
+
+
 	get_bs_statement_html(d) {
 
 		const missing_accounts_html = this.get_missing_accounts_html(d);
@@ -995,6 +1061,67 @@ class FinancialOverview {
 	}
 
 
+	get_ratios_html(d) {
+
+		const blocks_html = (d.blocks || []).map(block => {
+
+			const rows_html = block.rows.map(row => `
+				<div class="fo-ratio-row">
+					<div class="fo-ratio-label">${row.label}</div>
+					<div class="fo-ratio-value-wrap">
+						<span class="fo-ratio-value">${row.value_fmt}</span>
+						<span class="fo-badge ${row.change_class}">
+							${row.change_fmt}
+						</span>
+					</div>
+				</div>
+			`).join('');
+
+			return `
+				<div class="fo-ratio-block" style="border-top: 4px solid ${block.color};">
+
+					<div class="fo-ratio-block-header">
+						<span class="fo-ratio-block-icon" style="color:${block.color};">
+							${this.icon(block.icon)}
+						</span>
+						<span class="fo-ratio-block-title">${block.title}</span>
+					</div>
+
+					<div class="fo-ratio-block-rows">
+						${rows_html}
+					</div>
+
+				</div>
+			`;
+		}).join('');
+
+		const toggle_html = this.get_statement_toggle_html();
+
+		return `
+			<div class="fo-page fo-statement-page">
+
+				<div class="fo-header fo-trends-header">
+					<div>
+						<h1 class="fo-title">
+							Financial
+							<span class="fo-title-accent">Statements</span>
+						</h1>
+						<div class="fo-subtitle">
+							${d.company} | ${d.fiscal_year} Performance
+						</div>
+					</div>
+					${toggle_html}
+				</div>
+
+				<div class="fo-ratios-grid">
+					${blocks_html}
+				</div>
+
+			</div>
+		`;
+	}
+
+
 	get_statement_row_html(row) {
 		if (row.row_type === 'section_header') {
 			return `
@@ -1044,15 +1171,14 @@ class FinancialOverview {
 		$content.empty();
 		$content.append(this.get_trends_html(d));
 
+		this.$tooltip = $(this.page.body).find('.fo-tooltip');
+
 		this.render_quarterly_bars(d);
 		this.render_margin_trend_chart(d);
-
-		// Wire toggle buttons
 		this.wire_trend_toggles();
 	}
 
 
-	/* NEW METHOD — wire the two header buttons */
 	wire_trend_toggles() {
 
 		$(this.page.body)
@@ -1067,8 +1193,6 @@ class FinancialOverview {
 				}
 
 				this.active_trend_view = view;
-
-				// Re-render Trends tab with new view
 				this.active_tab = 'trends';
 
 				if (view === 'costs') {
@@ -1078,7 +1202,6 @@ class FinancialOverview {
 						this.load_costs();
 					}
 				} else {
-					// No need to re-fetch, just re-render
 					this.render_trends();
 				}
 			});
@@ -1162,6 +1285,8 @@ class FinancialOverview {
 					</div>
 
 				</div>
+
+				<div class="fo-tooltip"></div>
 
 			</div>
 		`;
@@ -1254,12 +1379,48 @@ class FinancialOverview {
 
 		$('#fo-quarterly-legend').html(legend_html);
 
-		$(this.page.body).find('.fo-bar-segment').on('mouseenter', (e) => {
-			const $el = $(e.currentTarget);
-			$el.attr('title',
-				`${$el.data('category')} | ${$el.data('quarter')}: ${$el.data('value')}M`
-			);
-		});
+		// ---- Tooltip wiring ----
+		const page_offset = $(this.page.body).find('.fo-page').offset();
+
+		$(this.page.body).find('.fo-bar-segment')
+			.off('mouseenter.tip mouseleave.tip')
+			.on('mouseenter.tip', (e) => {
+
+				const $el = $(e.currentTarget);
+				const quarter = $el.data('quarter');
+				const total = parseFloat($el.data('total'));
+
+				const q_data = bars.find(b => b.label === quarter);
+				const breakdown = (q_data.categories || [])
+					.filter(c => c.cy > 0)
+					.map(c => `
+						<div class="fo-trend-tip-row">
+							<span class="fo-dot" style="background:${colors[c.label] || '#1c6b4a'}"></span>
+							${c.label}
+							<b>${d.currency_symbol}${c.cy.toFixed(1)}M</b>
+						</div>
+					`).join('');
+
+				const html = `
+					<div class="fo-trend-tip-header">
+						${quarter} · ${d.fiscal_year}
+					</div>
+					${breakdown}
+					<div class="fo-trend-tip-yoy">
+						<span>${__('Total')}</span>
+						<span style="margin-left:auto;">
+							<b>${d.currency_symbol}${total.toFixed(1)}M</b>
+						</span>
+					</div>
+				`;
+
+				const rect = e.currentTarget.getBoundingClientRect();
+				const x = rect.left + window.scrollX - page_offset.left + rect.width / 2;
+				const y = rect.top + window.scrollY - page_offset.top - 10;
+
+				this.show_tooltip(html, x, y, 'fo-tooltip-trend');
+			})
+			.on('mouseleave.tip', () => this.hide_tooltip());
 	}
 
 
@@ -1321,7 +1482,12 @@ class FinancialOverview {
 				const y = PAD_T + plot_h - h;
 				bars += `
 					<rect x="${x}" y="${y}" width="${bar_w}" height="${Math.max(h, 1)}"
-						fill="${m.color}" rx="2" />
+						fill="${m.color}" rx="2"
+						class="fo-margin-bar"
+						data-quarter="${q.label}"
+						data-metric="${m.label}"
+						data-value="${val}"
+						data-color="${m.color}" />
 				`;
 			});
 
@@ -1348,6 +1514,38 @@ class FinancialOverview {
 		`;
 
 		$('#fo-margin-trend-chart').html(svg);
+
+		// ---- Tooltip wiring ----
+		const page_offset = $(this.page.body).find('.fo-page').offset();
+
+		$(this.page.body).find('.fo-margin-bar')
+			.off('mouseenter.tip mouseleave.tip')
+			.on('mouseenter.tip', (e) => {
+
+				const $el = $(e.currentTarget);
+				const quarter = $el.data('quarter');
+				const metric = $el.data('metric');
+				const val = parseFloat($el.data('value'));
+				const color = $el.data('color');
+
+				const html = `
+					<div class="fo-trend-tip-header">
+						${quarter} · ${d.fiscal_year}
+					</div>
+					<div class="fo-trend-tip-row">
+						<span class="fo-dot" style="background:${color}"></span>
+						${metric}
+						<b>${val.toFixed(1)}%</b>
+					</div>
+				`;
+
+				const rect = e.currentTarget.getBoundingClientRect();
+				const x = rect.left + window.scrollX - page_offset.left + rect.width / 2;
+				const y = rect.top + window.scrollY - page_offset.top - 10;
+
+				this.show_tooltip(html, x, y, 'fo-tooltip-trend');
+			})
+			.on('mouseleave.tip', () => this.hide_tooltip());
 	}
 
 
@@ -1363,7 +1561,8 @@ class FinancialOverview {
 		$content.empty();
 		$content.append(this.get_costs_html(d));
 
-		// Wire toggle buttons
+		this.$tooltip = $(this.page.body).find('.fo-tooltip');
+
 		this.wire_trend_toggles();
 	}
 
@@ -1495,6 +1694,8 @@ class FinancialOverview {
 					${bottom_html}
 				</div>
 
+				<div class="fo-tooltip"></div>
+
 			</div>
 		`;
 	}
@@ -1545,7 +1746,11 @@ class FinancialOverview {
 				'<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>' +
 				'<line x1="16" y1="2" x2="16" y2="6"></line>' +
 				'<line x1="8" y1="2" x2="8" y2="6"></line>' +
-				'<line x1="3" y1="10" x2="21" y2="10"></line>'
+				'<line x1="3" y1="10" x2="21" y2="10"></line>',
+			'printer':
+				'<polyline points="6 9 6 2 18 2 18 9"></polyline>' +
+				'<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>' +
+				'<rect x="6" y="14" width="12" height="8"></rect>'
 		};
 
 		return `
@@ -1774,8 +1979,8 @@ class FinancialOverview {
 			const sign = change >= 0 ? '+' : '';
 			const pos = $col.find('.fo-bar')[0].getBoundingClientRect();
 
-			const x = pos.left - page_offset.left + pos.width / 2 - $(window).scrollLeft();
-			const y = pos.top - page_offset.top - 8 - $(window).scrollTop();
+			const x = pos.left + window.scrollX - page_offset.left + pos.width / 2;
+			const y = pos.top + window.scrollY - page_offset.top - 8;
 
 			this.show_tooltip(
 				`<b>${q}:</b> ${sign}${change}%`,
@@ -1861,8 +2066,8 @@ class FinancialOverview {
 				${sub_html || `<div class="fo-popup-sub-empty">${__('No item-level data')}</div>`}
 			`;
 
-			const x = target_rect.left - page_offset.left + target_rect.width + 12 - $(window).scrollLeft();
-			const y = target_rect.top - page_offset.top - $(window).scrollTop();
+			const x = target_rect.left + window.scrollX - page_offset.left + target_rect.width + 12;
+			const y = target_rect.top + window.scrollY - page_offset.top;
 
 			this.show_tooltip(html, x, y, 'fo-tooltip-donut');
 		};
@@ -2085,8 +2290,8 @@ class FinancialOverview {
 			const scale_x = svg_rect.width / W;
 			const scale_y = svg_rect.height / H;
 
-			const screen_x = svg_rect.left + cx * scale_x - page_offset.left - $(window).scrollLeft();
-			const screen_y = svg_rect.top + cy_val * scale_y - page_offset.top - $(window).scrollTop();
+			const screen_x = svg_rect.left + window.scrollX + cx * scale_x - page_offset.left;
+			const screen_y = svg_rect.top + window.scrollY + cy_val * scale_y - page_offset.top;
 
 			this.show_tooltip(html, screen_x, screen_y - 10, 'fo-tooltip-trend');
 		}).on('mouseleave', () => {
@@ -2158,9 +2363,10 @@ class FinancialOverview {
 			align-items: center;
 			margin-bottom: 10px;
 		}
+
 		/* -------------------------------------------------
-		* FINANCIAL RATIOS
-		* ------------------------------------------------- */
+		 * FINANCIAL RATIOS
+		 * ------------------------------------------------- */
 
 		.fo-ratios-grid {
 			display: grid;
@@ -2282,7 +2488,7 @@ class FinancialOverview {
 			z-index: 20;
 		}
 
-		.fo-filter-field { flex: 1 1 300px; min-width: 220px; }
+		.fo-filter-field { flex: 1 1 220px; min-width: 200px; }
 
 		.fo-filter-label {
 			display: block;
@@ -2316,6 +2522,45 @@ class FinancialOverview {
 		.fo-native-select:focus {
 			border-color: #207a5b;
 			box-shadow: 0 0 0 2px rgba(32, 122, 91, .12);
+		}
+
+		/* Date picker inputs inside filter bar */
+		.fo-filter-bar .frappe-control {
+			margin-bottom: 0 !important;
+		}
+
+		.fo-filter-bar .frappe-control .form-group {
+			margin-bottom: 0 !important;
+		}
+
+		.fo-filter-bar .frappe-control .control-input-wrapper {
+			margin: 0 !important;
+		}
+
+		.fo-filter-bar .frappe-control input[type="text"],
+		.fo-filter-bar .frappe-control .input-with-feedback {
+			display: block !important;
+			width: 100% !important;
+			height: 40px !important;
+			box-sizing: border-box !important;
+			padding: 0 38px 0 13px !important;
+			border: 1px solid #d9d4cc !important;
+			border-radius: 8px !important;
+			background: #ffffff !important;
+			color: #26352f !important;
+			font-size: 13px !important;
+			font-weight: 500 !important;
+			outline: none !important;
+			transition: border-color .15s ease, box-shadow .15s ease;
+		}
+
+		.fo-filter-bar .frappe-control input[type="text"]:focus {
+			border-color: #207a5b !important;
+			box-shadow: 0 0 0 2px rgba(32, 122, 91, .12) !important;
+		}
+
+		.fo-filter-bar .frappe-control .help-box {
+			display: none !important;
 		}
 
 		.fo-refresh-btn {
@@ -2774,6 +3019,7 @@ class FinancialOverview {
 			padding-top: 14px;
 			padding-bottom: 8px;
 		}
+
 		.fo-st-section-row td {
 			background: #d8e8df;
 			color: #1c6b4a;
@@ -2903,6 +3149,7 @@ class FinancialOverview {
 			background: #1c6b4a;
 			color: #fff;
 			transform: translate(-50%, -100%);
+			min-width: 180px;
 		}
 
 		.fo-trend-tip-header {
@@ -2941,10 +3188,41 @@ class FinancialOverview {
 		.fo-yoy-down { color: #f6c2a4; font-weight: 700; }
 		.fo-trend-tip-amount { opacity: 0.8; }
 
-
 		.fo-trends-header {
 			align-items: center;
 			margin-bottom: 22px;
+		}
+
+		.fo-header-actions {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.fo-print-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 8px 16px;
+			border-radius: 8px;
+			border: 1px solid #1c6b4a;
+			background: #fff;
+			color: #1c6b4a;
+			font-size: 13px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: all 0.18s ease;
+			font-family: inherit;
+		}
+
+		.fo-print-btn svg {
+			width: 15px;
+			height: 15px;
+		}
+
+		.fo-print-btn:hover {
+			background: #1c6b4a;
+			color: #fff;
 		}
 
 		.fo-trends-toggle {
@@ -2993,7 +3271,6 @@ class FinancialOverview {
 		.fo-toggle-btn-active svg {
 			color: #ffffff;
 		}
-
 
 		.fo-trends-layout {
 			display: grid;

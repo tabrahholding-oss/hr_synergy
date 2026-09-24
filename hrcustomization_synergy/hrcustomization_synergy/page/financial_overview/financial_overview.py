@@ -3,9 +3,6 @@
 # Backend for the "Financial Overview" dashboard page.
 # Pulls live numbers from GL Entry (for revenue/profit) and PL Category
 # mapping (for revenue breakdown).
-#
-# IMPORTANT — please review the CONFIG section below and adjust the
-# item-group / account-type mapping to match your actual Chart of Accounts.
 # ---------------------------------------------------------------------------
 
 import calendar
@@ -13,13 +10,12 @@ from datetime import timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import flt, add_months, getdate
+from frappe.utils import flt, add_months, getdate, add_years
 
 # ---------------------------------------------------------------------------
 # CONFIG — adjust to match your setup
 # ---------------------------------------------------------------------------
 
-# Account types (kept for backwards compatibility with old helpers)
 COGS_ACCOUNT_TYPE = "Cost of Goods Sold"
 DEPRECIATION_ACCOUNT_TYPE = "Depreciation"
 NON_OPERATING_ACCOUNT_TYPES = ["Tax", "Depreciation"]
@@ -28,15 +24,9 @@ COLORS = ["#1c6b4a", "#e3a627", "#d9824f", "#7a9e8f", "#b0763f"]
 
 DEFAULT_CURRENCY_SYMBOL = "QAR"
 
-# ---------------------------------------------------------------------------
-# EBIT / EBITDA — PL Category based (same mapping as Statements tab)
-# ---------------------------------------------------------------------------
 EBITDA_EBIT_PL_GROUPS = ["Revenue", "Cost of Revenue", "Operating Expenses"]
 EBITDA_DNA_PL_CATEGORY = "Depreciation & Amortization"
 
-# ---------------------------------------------------------------------------
-# STATEMENTS TAB — CONFIG
-# ---------------------------------------------------------------------------
 STATEMENT_CALC_AFTER_GROUP = {
 	"Cost of Revenue": "Gross Profit",
 	"Operating Expenses": "Operating Income (EBIT)",
@@ -53,7 +43,7 @@ STATEMENT_EXCLUDED_VOUCHER_TYPES = ["Period Closing Voucher"]
 # ---------------------------------------------------------------------------
 
 @frappe.whitelist()
-def get_dashboard_data(company=None, fiscal_year=None):
+def get_dashboard_data(company=None, fiscal_year=None, from_date=None, to_date=None):
 	"""Main API called from financial_overview.js (Overview tab)."""
 
 	if not company:
@@ -64,8 +54,9 @@ def get_dashboard_data(company=None, fiscal_year=None):
 	if not company:
 		frappe.throw(_("No company found. Please set up a Company first."))
 
-	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
-	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	fy_name, fy_start, fy_end, py_name, py_start, py_end = resolve_date_range(
+		company, fiscal_year, from_date, to_date
+	)
 
 	currency_symbol = get_currency_symbol(company)
 
@@ -89,7 +80,6 @@ def get_dashboard_data(company=None, fiscal_year=None):
 		build_ebit_stat_card(company, fy_start, fy_end, py_start, py_end, currency_symbol)
 	)
 
-	# Revenue breakdown donut — ab PL Category Revenue group se
 	revenue_breakdown = get_revenue_breakdown_from_pl(
 		company, fy_start, fy_end, currency_symbol
 	)
@@ -116,7 +106,7 @@ def get_dashboard_data(company=None, fiscal_year=None):
 
 
 # ---------------------------------------------------------------------------
-# PL Category based stat cards (Gross Profit / Operating Income / Net Income)
+# PL Category based stat cards
 # ---------------------------------------------------------------------------
 
 def compute_pl_category_metrics(categories, company, start, end):
@@ -321,13 +311,10 @@ def build_ebit_stat_card(company, fy_start, fy_end, py_start, py_end, currency_s
 
 
 # ---------------------------------------------------------------------------
-# Revenue breakdown — PL Category "Revenue" group se
+# Revenue breakdown — PL Category "Revenue" group
 # ---------------------------------------------------------------------------
 
 def get_revenue_breakdown_from_pl(company, fy_start, fy_end, currency_symbol):
-	"""Revenue breakdown donut — Statements tab ke Revenue group ki categories
-	se. Har category ek slice hai. Sub-items me us category ke top accounts."""
-
 	categories = get_pl_categories(company)
 
 	revenue_cats = [
@@ -385,7 +372,7 @@ def get_revenue_breakdown_from_pl(company, fy_start, fy_end, currency_symbol):
 
 
 # ---------------------------------------------------------------------------
-# Monthly trend (Overview tab sparkline)
+# Monthly trend
 # ---------------------------------------------------------------------------
 
 def get_monthly_trend(gl_rows, fy_start, fy_end, py_start, py_end, currency_symbol):
@@ -533,6 +520,34 @@ def get_prior_fiscal_year(current_start_date):
 	return fy.name, fy.year_start_date, fy.year_end_date
 
 
+def resolve_date_range(company, fiscal_year=None, from_date=None, to_date=None):
+	"""Returns (cy_label, cy_start, cy_end, py_label, py_start, py_end).
+
+	Agar from_date aur to_date diye gaye hain to wahi use honge, aur prior
+	period = same dates last year. Warna fiscal year logic pe fall back.
+	"""
+	if from_date and to_date:
+		cy_start = getdate(from_date)
+		cy_end = getdate(to_date)
+
+		py_start = add_years(cy_start, -1)
+		py_end = add_years(cy_end, -1)
+
+		cy_label = "{0} - {1}".format(
+			cy_start.strftime("%d/%m/%Y"),
+			cy_end.strftime("%d/%m/%Y"),
+		)
+		py_label = "{0} - {1}".format(
+			py_start.strftime("%d/%m/%Y"),
+			py_end.strftime("%d/%m/%Y"),
+		)
+		return cy_label, cy_start, cy_end, py_label, py_start, py_end
+
+	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
+	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	return fy_name, fy_start, fy_end, py_name, py_start, py_end
+
+
 def get_quarter_dates(fy_start, fy_end):
 	if not fy_start:
 		return [(None, None)] * 4
@@ -602,7 +617,7 @@ def pct_of(part, whole):
 # ---------------------------------------------------------------------------
 
 @frappe.whitelist()
-def get_pl_statement_data(company=None, fiscal_year=None):
+def get_pl_statement_data(company=None, fiscal_year=None, from_date=None, to_date=None):
 	"""Data for the 'Statements' tab — a category-wise P&L."""
 
 	if not company:
@@ -612,8 +627,9 @@ def get_pl_statement_data(company=None, fiscal_year=None):
 	if not company:
 		frappe.throw(_("No company found. Please set up a Company first."))
 
-	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
-	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	fy_name, fy_start, fy_end, py_name, py_start, py_end = resolve_date_range(
+		company, fiscal_year, from_date, to_date
+	)
 	currency_symbol = get_currency_symbol(company)
 
 	categories = get_pl_categories(company)
@@ -866,11 +882,9 @@ def get_account_signed_totals(accounts, company, from_date, to_date):
 # ===========================================================================
 # TRENDS TAB — entry point
 # ===========================================================================
-# Quarterly Revenue (stacked bars by PL Category inside "Revenue" group)
-# + Margin cards (Gross / Operating / Net / EBITDA) + Margin Trends chart.
 
 @frappe.whitelist()
-def get_trends_data(company=None, fiscal_year=None):
+def get_trends_data(company=None, fiscal_year=None, from_date=None, to_date=None):
 	if not company:
 		company = frappe.defaults.get_user_default("Company")
 	if not company:
@@ -878,13 +892,13 @@ def get_trends_data(company=None, fiscal_year=None):
 	if not company:
 		frappe.throw(_("No company found. Please set up a Company first."))
 
-	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
-	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	fy_name, fy_start, fy_end, py_name, py_start, py_end = resolve_date_range(
+		company, fiscal_year, from_date, to_date
+	)
 	currency_symbol = get_currency_symbol(company)
 
 	categories = get_pl_categories(company)
 
-	# ---- Quarterly revenue by category (stacked bars) --------------------
 	revenue_cats = [
 		cat for cat in categories.values()
 		if (cat["group"] or "").lower() == "revenue"
@@ -1039,7 +1053,7 @@ def compute_margin_cards(categories, company, fy_start, fy_end, py_start, py_end
 # ===========================================================================
 
 @frappe.whitelist()
-def get_costs_data(company=None, fiscal_year=None):
+def get_costs_data(company=None, fiscal_year=None, from_date=None, to_date=None):
 	if not company:
 		company = frappe.defaults.get_user_default("Company")
 	if not company:
@@ -1047,8 +1061,9 @@ def get_costs_data(company=None, fiscal_year=None):
 	if not company:
 		frappe.throw(_("No company found. Please set up a Company first."))
 
-	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
-	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	fy_name, fy_start, fy_end, py_name, py_start, py_end = resolve_date_range(
+		company, fiscal_year, from_date, to_date
+	)
 	currency_symbol = get_currency_symbol(company)
 
 	categories = get_pl_categories(company)
@@ -1102,21 +1117,15 @@ def get_costs_data(company=None, fiscal_year=None):
 			"sparkline_py": sparkline_py,
 		})
 
-	# ---- OpEx rows -------------------------------------------------------
-	# PL Category Group ka naam har DB me alag ho sakta hai — case-insensitive
-	# aur flexible match use karo, plus fallback bhi rakho.
 	def _is_opex_group(name):
 		n = (name or "").strip().lower()
 		if not n:
 			return False
-		# Explicit variants
 		if n in ("operating expenses", "operating expense", "opex",
 				 "operating cost", "operating costs"):
 			return True
-		# Fuzzy — "operating" + "expense" dono ho
 		if "operating" in n and "expense" in n:
 			return True
-		# "expense" only (but not "cost of revenue")
 		if "expense" in n and "cost" not in n and "revenue" not in n:
 			return True
 		return False
@@ -1156,7 +1165,6 @@ def get_costs_data(company=None, fiscal_year=None):
 	for r in opex_rows:
 		r["bar_pct"] = round(max(8, abs(r["cy"]) / max_opex * 100), 1)
 
-	# ---- Bottom 3 cards --------------------------------------------------
 	cost_of_revenue_cy = abs(cy_metrics["cost_of_revenue"])
 	cost_of_revenue_py = abs(py_metrics["cost_of_revenue"])
 
@@ -1200,6 +1208,7 @@ def get_costs_data(company=None, fiscal_year=None):
 		"bottom_cards": bottom_cards,
 	}
 
+
 # ===========================================================================
 # BALANCE SHEET (Statements tab — second view)
 # ===========================================================================
@@ -1222,7 +1231,7 @@ BS_SECTION_TOTAL_LABELS = {
 
 
 @frappe.whitelist()
-def get_bl_statement_data(company=None, fiscal_year=None):
+def get_bl_statement_data(company=None, fiscal_year=None, from_date=None, to_date=None):
 	"""Data for the 'Balance Sheet' view under the Statements tab."""
 
 	if not company:
@@ -1232,8 +1241,9 @@ def get_bl_statement_data(company=None, fiscal_year=None):
 	if not company:
 		frappe.throw(_("No company found. Please set up a Company first."))
 
-	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
-	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	fy_name, fy_start, fy_end, py_name, py_start, py_end = resolve_date_range(
+		company, fiscal_year, from_date, to_date
+	)
 	currency_symbol = get_currency_symbol(company)
 
 	categories = get_bl_categories(company)
@@ -1265,14 +1275,12 @@ def get_bl_statement_data(company=None, fiscal_year=None):
 
 	account_root_types = get_account_root_types(all_accounts)
 
-	# Attach totals + section to each category
 	for cat in categories.values():
 		cat["cy"] = sum(cy_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
 		cat["py"] = sum(py_totals.get(acc, 0) for acc in cat["accounts"]) / 1_000_000
 		root_types = [account_root_types.get(acc) for acc in cat["accounts"]]
 		cat["section"] = get_dominant_root_type(root_types)
 
-	# Group categories
 	groups = {}
 	for cat in categories.values():
 		bucket = groups.setdefault(cat["group"], {
@@ -1282,7 +1290,6 @@ def get_bl_statement_data(company=None, fiscal_year=None):
 		})
 		bucket["categories"].append(cat)
 
-	# Build rows section by section (Assets → Liabilities → Equity)
 	rows = []
 	section_totals = {
 		"Asset": {"cy": 0, "py": 0},
@@ -1404,8 +1411,6 @@ def build_bs_summary_cards(summary_data, currency_symbol):
 
 
 def get_bl_categories(company):
-	"""All BL Categories with eligible Balance Sheet accounts."""
-
 	rows = frappe.db.sql(
 		"""
 		SELECT
@@ -1442,8 +1447,6 @@ def get_bl_categories(company):
 
 
 def get_missing_bl_accounts(company):
-	"""Balance Sheet accounts with no BL Category set."""
-
 	if not company:
 		return []
 
@@ -1501,9 +1504,6 @@ def get_dominant_root_type(root_types_list):
 
 
 def get_account_signed_totals_bs(accounts, company, from_date, to_date):
-	"""BS-signed totals: debit-credit for Asset, credit-debit for Liability/Equity
-	so a normal balance is always positive."""
-
 	if not accounts or not from_date or not to_date:
 		return {}
 
@@ -1544,15 +1544,7 @@ def get_account_signed_totals_bs(accounts, company, from_date, to_date):
 	return result
 
 
-# ===========================================================================
-# BALANCE SHEET — cumulative (till date) helpers
-# ===========================================================================
-# Balance Sheet is cumulative: "till date" — from the very first transaction
-# up to the cutoff date. NOT period-based like P&L.
-
 def get_account_signed_totals_bs_cumulative(accounts, company, as_of_date):
-	"""Cumulative BS balance from beginning of records to as_of_date.
-	Assets = debit - credit; Liabilities/Equity = credit - debit."""
 	if not accounts or not as_of_date:
 		return {}
 
@@ -1597,7 +1589,6 @@ def get_account_signed_totals_bs_cumulative(accounts, company, as_of_date):
 # ===========================================================================
 
 def _sum_by_account_type(accounts, company, as_of_date, types):
-	"""Sum BS-cumulative balances for accounts whose account_type is in `types`."""
 	if not accounts or not types or not as_of_date:
 		return 0
 
@@ -1638,7 +1629,6 @@ def _sum_by_account_type(accounts, company, as_of_date, types):
 
 
 def _get_bs_metrics(company, bs_categories, as_of_date):
-	"""Collect all BS metrics needed for ratios — cumulative till `as_of_date`."""
 	empty = {
 		"total_assets": 0, "total_liabilities": 0, "total_equity": 0,
 		"current_assets": 0, "current_liabilities": 0,
@@ -1692,13 +1682,11 @@ def _get_bs_metrics(company, bs_categories, as_of_date):
 		"inventory": inventory,
 		"ar": ar,
 		"ap": ap,
-		# Total Debt = Total Liabilities (adjust if you want to exclude AP/tax)
 		"total_debt": total_liabilities,
 	}
 
 
 def _get_interest_expense(company, start, end, categories):
-	"""Sum of PL Categories whose label contains 'interest'."""
 	if not start or not end or not categories:
 		return 0
 
@@ -1722,7 +1710,7 @@ def _safe_div(a, b):
 
 
 @frappe.whitelist()
-def get_financial_ratios_data(company=None, fiscal_year=None):
+def get_financial_ratios_data(company=None, fiscal_year=None, from_date=None, to_date=None):
 	"""Financial Ratios view under the Statements tab."""
 
 	if not company:
@@ -1732,14 +1720,14 @@ def get_financial_ratios_data(company=None, fiscal_year=None):
 	if not company:
 		frappe.throw(_("No company found. Please set up a Company first."))
 
-	fy_name, fy_start, fy_end = get_fiscal_year_details(fiscal_year, company)
-	py_name, py_start, py_end = get_prior_fiscal_year(fy_start)
+	fy_name, fy_start, fy_end, py_name, py_start, py_end = resolve_date_range(
+		company, fiscal_year, from_date, to_date
+	)
 	currency_symbol = get_currency_symbol(company)
 
 	pl_categories = get_pl_categories(company)
 	bs_categories = get_bl_categories(company)
 
-	# ---- CY values ---------------------------------------------------------
 	cy_pl = compute_pl_category_metrics(pl_categories, company, fy_start, fy_end)
 
 	ebit_cy, dna_cy = get_ebit_and_dna(company, fy_start, fy_end)
@@ -1749,7 +1737,6 @@ def get_financial_ratios_data(company=None, fiscal_year=None):
 
 	cy_bs = _get_bs_metrics(company, bs_categories, fy_end)
 
-	# ---- PY values ---------------------------------------------------------
 	if py_start:
 		py_pl = compute_pl_category_metrics(pl_categories, company, py_start, py_end)
 		ebit_py, dna_py = get_ebit_and_dna(company, py_start, py_end)
@@ -1762,7 +1749,6 @@ def get_financial_ratios_data(company=None, fiscal_year=None):
 		interest_py = 0
 		py_bs = {k: 0 for k in cy_bs.keys()}
 
-	# ---- Ratio builders ----------------------------------------------------
 	def pct(part, whole):
 		return round(pct_of(part, whole), 1)
 
@@ -1799,7 +1785,6 @@ def get_financial_ratios_data(company=None, fiscal_year=None):
 			"change_value": change,
 		}
 
-	# =========== 1. PROFITABILITY ===========
 	profitability_rows = [
 		make_row(
 			_("Gross Margin"),
@@ -1839,7 +1824,6 @@ def get_financial_ratios_data(company=None, fiscal_year=None):
 		),
 	]
 
-	# =========== 2. LIQUIDITY ===========
 	liq_cy_cr = _safe_div(cy_bs["current_assets"], cy_bs["current_liabilities"])
 	liq_py_cr = _safe_div(py_bs["current_assets"], py_bs["current_liabilities"])
 
@@ -1865,7 +1849,6 @@ def get_financial_ratios_data(company=None, fiscal_year=None):
 		make_row(_("Working Capital"), liq_cy_wc, liq_py_wc, fmt_curr),
 	]
 
-	# =========== 3. LEVERAGE ===========
 	lev_cy_de = _safe_div(cy_bs["total_debt"], cy_bs["total_equity"])
 	lev_py_de = _safe_div(py_bs["total_debt"], py_bs["total_equity"])
 
@@ -1885,27 +1868,21 @@ def get_financial_ratios_data(company=None, fiscal_year=None):
 		make_row(_("Interest Coverage"), num(lev_cy_ic), num(lev_py_ic), fmt_num),
 	]
 
-	# =========== 4. EFFICIENCY ===========
-	# Asset Turnover = Revenue / Total Assets
 	eff_cy_at = _safe_div(cy_pl["revenue"], cy_bs["total_assets"])
 	eff_py_at = _safe_div(py_pl["revenue"], py_bs["total_assets"])
 
-	# DSO = (AR / Revenue) * 365
 	eff_cy_dso = _safe_div(cy_bs["ar"] * 365, cy_pl["revenue"])
 	eff_py_dso = _safe_div(py_bs["ar"] * 365, py_pl["revenue"])
 
-	# DIO = (Inventory / COGS) * 365  — COGS = |cost_of_revenue|
 	cogs_cy = abs(cy_pl["cost_of_revenue"])
 	cogs_py = abs(py_pl["cost_of_revenue"])
 
 	eff_cy_dio = _safe_div(cy_bs["inventory"] * 365, cogs_cy)
 	eff_py_dio = _safe_div(py_bs["inventory"] * 365, cogs_py)
 
-	# DPO = (AP / COGS) * 365
 	eff_cy_dpo = _safe_div(cy_bs["ap"] * 365, cogs_cy)
 	eff_py_dpo = _safe_div(py_bs["ap"] * 365, cogs_py)
 
-	# CCC = DSO + DIO - DPO
 	eff_cy_ccc = eff_cy_dso + eff_cy_dio - eff_cy_dpo
 	eff_py_ccc = eff_py_dso + eff_py_dio - eff_py_dpo
 
@@ -1916,7 +1893,6 @@ def get_financial_ratios_data(company=None, fiscal_year=None):
 		make_row(_("Cash Conversion Cycle"), num(eff_cy_ccc), num(eff_py_ccc), fmt_days),
 	]
 
-	# ---- Assemble blocks ---------------------------------------------------
 	blocks = [
 		{
 			"key": "profitability",
