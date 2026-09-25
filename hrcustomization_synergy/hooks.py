@@ -238,7 +238,7 @@ doctype_js = {
     "Leave Application": "public/js/custom.js",
     "Certificate Request Detail": "public/js/custom.js",
     "Purchase Order": "public/js/purchase_order.js",
-    # "Material Request": "public/js/material_request.js",
+    "Material Request": "public/js/material_request.js",
     "Account": "public/js/custom.js"
 }
 # Testing

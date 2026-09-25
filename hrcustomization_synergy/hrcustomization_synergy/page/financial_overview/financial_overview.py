@@ -1822,6 +1822,12 @@ def get_financial_ratios_data(company=None, fiscal_year=None, from_date=None, to
 			pct(py_pl["net_income"], py_bs["total_equity"]),
 			fmt_pct, is_pct=True,
 		),
+		make_row(
+			_("Return on Investment (ROI)"),
+			pct(cy_pl["net_income"], cy_bs["total_assets"]),
+			pct(py_pl["net_income"], py_bs["total_assets"]),
+			fmt_pct, is_pct=True,
+		),
 	]
 
 	liq_cy_cr = _safe_div(cy_bs["current_assets"], cy_bs["current_liabilities"])
