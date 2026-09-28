@@ -643,8 +643,16 @@ class EmployeeExplorer {
 				</div>
 
 				<div class="ee-sec">
-					<h3 class="ee-sec-title"><i class="fa fa-money"></i> Salary &amp; Benefits (Current)</h3>
 					${p.salary.components.length ? `
+						<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+							<h3 class="ee-sec-title" style="margin:0">
+								<i class="fa fa-money"></i> Salary &amp; Benefits (Current)
+							</h3>
+							<div style="font-size:12px;color:#64748b">
+ 								<span style="color:#94a3b8">Effective From:</span>
+								<b style="color:#334155">${this.d(p.salary.from_date)}</b>
+							</div>
+						</div>
 						<table class="ee-table" style="max-width:640px">
 							<thead><tr><th>Component</th><th style="text-align:right">Amount</th></tr></thead>
 							<tbody>
@@ -657,10 +665,10 @@ class EmployeeExplorer {
 								</tr>
 							</tbody>
 						</table>
-						<div style="font-size:11.5px;color:#94a3b8;margin-top:8px">
-							Structure: ${frappe.utils.escape_html(p.salary.salary_structure || "-")} •
-							Effective From: ${this.d(p.salary.from_date)}
-						</div>` : `<div class="ee-empty">No salary structure assigned.</div>`}
+					` : `
+						<h3 class="ee-sec-title"><i class="fa fa-money"></i> Salary &amp; Benefits (Current)</h3>
+						<div class="ee-empty">No salary structure assigned.</div>
+					`}
 				</div>
 
 				<div class="ee-sec">
