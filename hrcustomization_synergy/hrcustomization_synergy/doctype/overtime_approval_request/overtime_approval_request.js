@@ -48,6 +48,9 @@ frappe.ui.form.on('Overtime Approval Request', {
                 });
             }, __('Actions'));
         }
+
+        // OT columns mein zero ki jagah khali dikhayen (sirf display) - sab se aakhir mein
+        hide_zero_in_ot_columns(frm);
     },
 
     // Jab company change ho to filter foran update ho
@@ -83,6 +86,49 @@ function apply_employee_filter(frm) {
             }
         };
     });
+}
+
+// OT columns mein 0 ki jagah khali dikhane ka formatter (sirf display, data same rehta hai)
+function hide_zero_in_ot_columns(frm) {
+    try {
+        let grid_field = frm.get_field('overtime_details');
+        if (!grid_field || !grid_field.grid) return;
+
+        let ot_fields = ['normal_ot_hours', 'holiday_ot_hours', 'special_ot_hours', 'total_ot_hours'];
+
+        let zero_blank_formatter = function(value, df, options, doc) {
+            if (flt(value) === 0) {
+                return '';
+            }
+            let default_formatter = frappe.form.get_formatter(df.fieldtype);
+            return default_formatter(value, df, options, doc);
+        };
+
+        let changed = false;
+
+        // Meta docfields pe formatter lagayen
+        ot_fields.forEach(function(fieldname) {
+            let df = frappe.meta.get_docfield('Overtime Approval Request Item', fieldname);
+            if (df && df.formatter !== zero_blank_formatter) {
+                df.formatter = zero_blank_formatter;
+                changed = true;
+            }
+        });
+
+        // Grid ke apne docfields pe bhi lagayen
+        (grid_field.grid.docfields || []).forEach(function(df) {
+            if (ot_fields.includes(df.fieldname) && df.formatter !== zero_blank_formatter) {
+                df.formatter = zero_blank_formatter;
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            grid_field.grid.refresh();
+        }
+    } catch (e) {
+        console.error('hide_zero_in_ot_columns error:', e);
+    }
 }
 
 // Child Table Calculations (Waisa hi hai)
