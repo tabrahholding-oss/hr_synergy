@@ -1,6 +1,5 @@
 /* ============================================================
- * Employee Explorer  –  Desk Page
- * route: /app/employee-explorer
+ * Employee Explorer  –  Desk Page (v2)
  * ============================================================ */
 
 frappe.pages["employee-explorer"].on_page_load = function (wrapper) {
@@ -18,6 +17,8 @@ class EmployeeExplorer {
 		this.$wrap = $(page.body);
 		this.employees = [];
 		this.profile = null;
+		this.state = { search: "" };
+		this._search_timer = null;
 
 		this.inject_css();
 		this.build_shell();
@@ -35,9 +36,31 @@ class EmployeeExplorer {
   padding:14px 22px;border-bottom:1px solid #e6e9ef;border-radius:10px 10px 0 0;flex-wrap:wrap}
 .ee-back{color:#1f6fe5;font-weight:600;cursor:pointer;margin-right:14px;font-size:13px}
 .ee-title{color:#1f6fe5;font-size:22px;font-weight:700;margin:0;display:inline-block}
-.ee-search-wrap{display:flex;gap:8px}
-.ee-input{width:320px;padding:8px 12px;border:1px solid #d8dee8;border-radius:6px;outline:none;font-size:13px}
+.ee-search-wrap{display:flex;gap:8px;position:relative}
+.ee-search-box{position:relative}
+.ee-input{width:320px;padding:8px 32px 8px 12px;border:1px solid #d8dee8;border-radius:6px;
+  outline:none;font-size:13px;background:#fff}
 .ee-input:focus{border-color:#1f6fe5;box-shadow:0 0 0 2px rgba(31,111,229,.12)}
+.ee-search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  background:transparent;border:none;cursor:pointer;color:#94a3b8;font-size:14px;
+  padding:4px 6px;border-radius:4px;display:none;line-height:1}
+.ee-search-clear:hover{background:#f1f5f9;color:#475569}
+.ee-search-clear.show{display:block}
+.ee-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d8dee8;
+  border-radius:8px;margin-top:6px;max-height:380px;overflow-y:auto;z-index:1200;
+  box-shadow:0 12px 32px rgba(15,23,42,.12);display:none}
+.ee-dropdown.show{display:block}
+.ee-dropdown-item{padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid #f1f5f9}
+.ee-dropdown-item:last-child{border-bottom:none}
+.ee-dropdown-item:hover{background:#f8fafc}
+.ee-dropdown-item .av{width:34px;height:34px;border-radius:6px;background:#eef2f7;display:flex;
+  align-items:center;justify-content:center;color:#94a3b8;font-size:14px;overflow:hidden;flex:0 0 34px}
+.ee-dropdown-item .av img{width:100%;height:100%;object-fit:cover}
+.ee-dropdown-item .body{flex:1;min-width:0}
+.ee-dropdown-item .nm{font-weight:700;color:#1f6fe5;font-size:13px;line-height:1.2}
+.ee-dropdown-item .sb{font-size:11.5px;color:#64748b;margin-top:2px}
+.ee-dropdown-empty{padding:16px;text-align:center;color:#94a3b8;font-size:12.5px}
 .ee-btn{padding:8px 18px;border-radius:6px;border:none;cursor:pointer;font-weight:600;font-size:13px}
 .ee-btn-dark{background:#1f2937;color:#fff}
 .ee-btn-dark:hover{background:#111827}
@@ -45,13 +68,10 @@ class EmployeeExplorer {
 
 .ee-sec{margin-bottom:26px}
 .ee-sec-title{display:flex;align-items:center;gap:9px;color:#1f6fe5;font-weight:700;font-size:16px;margin:0 0 14px}
-.ee-sec-title i{font-size:16px}
-
 .ee-grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
 .ee-stat{background:#fff;border:1px solid #e6e9ef;border-radius:9px;padding:16px 18px;border-left:5px solid #1f6fe5}
 .ee-stat .lbl{font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
 .ee-stat .val{font-size:26px;font-weight:700;color:#0f172a;margin-top:6px}
-
 .ee-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.ee-charts{grid-template-columns:1fr}}
 .ee-panel{background:#fff;border:1px solid #e6e9ef;border-radius:9px;padding:16px 18px}
@@ -73,8 +93,8 @@ class EmployeeExplorer {
 .ee-pill-red{background:#fee2e2;color:#b91c1c}
 .ee-pill-grey{background:#e2e8f0;color:#475569}
 
-/* profile */
-.ee-profile-head{display:flex;gap:26px;background:#fff;border:1px solid #e6e9ef;border-radius:9px;padding:22px;align-items:flex-start;flex-wrap:wrap}
+.ee-profile-head{display:flex;gap:26px;background:#fff;border:1px solid #e6e9ef;border-radius:9px;
+  padding:22px;align-items:flex-start;flex-wrap:wrap}
 .ee-photo{width:120px;height:120px;border-radius:10px;background:#eef2f7;display:flex;align-items:center;
   justify-content:center;color:#94a3b8;font-size:44px;overflow:hidden;flex:0 0 120px}
 .ee-photo img{width:100%;height:100%;object-fit:cover}
@@ -107,8 +127,8 @@ class EmployeeExplorer {
 @media(max-width:1000px){.ee-two{grid-template-columns:1fr}}
 .ee-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e6e9ef;border-radius:9px;overflow:hidden}
 .ee-table th{text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;
-  padding:10px 14px;border-bottom:1px solid #e6e9ef;background:#f8fafc}
-.ee-table td{padding:10px 14px;font-size:12.5px;border-bottom:1px solid #f1f5f9;color:#334155}
+  padding:10px 14px;border-bottom:1px solid #e6e9ef;background:#f8fafc;white-space:nowrap}
+.ee-table td{padding:10px 14px;font-size:12.5px;border-bottom:1px solid #f1f5f9;color:#334155;white-space:nowrap}
 .ee-table tr:last-child td{border-bottom:none}
 .ee-table .total-row td{background:#f8fafc;font-weight:700;color:#0f172a}
 .ee-badge{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px}
@@ -117,6 +137,25 @@ class EmployeeExplorer {
 .ee-empty{padding:22px;text-align:center;color:#94a3b8;font-size:12.5px;background:#fff;
   border:1px dashed #e2e8f0;border-radius:9px}
 .ee-loading{padding:60px;text-align:center;color:#94a3b8}
+
+/* Tabs */
+.ee-tabs{display:flex;gap:2px;border-bottom:2px solid #e6e9ef;margin-bottom:22px;margin-top:20px}
+.ee-tab{background:transparent;border:none;padding:11px 22px;font-size:13.5px;font-weight:600;
+  color:#64748b;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;
+  display:flex;align-items:center;gap:8px}
+.ee-tab:hover{color:#1f6fe5}
+.ee-tab.active{color:#1f6fe5;border-bottom-color:#1f6fe5}
+.ee-tab-panel.hide{display:none}
+
+/* Leave history filter */
+.ee-filter-row{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.ee-select{padding:7px 12px;border:1px solid #d8dee8;border-radius:6px;font-size:12.5px;
+  background:#fff;color:#334155;outline:none;min-width:160px}
+.ee-select:focus{border-color:#1f6fe5}
+
+/* Salary payout table scroll */
+.ee-scroll-x{overflow-x:auto;border-radius:9px;border:1px solid #e6e9ef;background:#fff}
+.ee-scroll-x .ee-table{border:none;border-radius:0}
 `}</style>`).appendTo(document.head);
 	}
 
@@ -130,8 +169,11 @@ class EmployeeExplorer {
 						<h1 class="ee-title" id="ee-title">Employee Explorer</h1>
 					</div>
 					<div class="ee-search-wrap" id="ee-search-wrap">
-						<input type="text" class="ee-input" id="ee-search"
-							placeholder="Search by Name, ID or QID...">
+						<div class="ee-search-box">
+							<input type="text" class="ee-input" id="ee-search"
+								placeholder="Search by Name, ID or QID..." autocomplete="off">
+							<button class="ee-search-clear" id="ee-search-clear" title="Clear">&times;</button>
+						</div>
 						<button class="ee-btn ee-btn-dark" id="ee-search-btn">Search</button>
 					</div>
 				</div>
@@ -144,26 +186,116 @@ class EmployeeExplorer {
 	}
 
 	bind_events() {
-		this.$wrap.on("click", "#ee-search-btn", () => this.do_search());
-		this.$wrap.on("keydown", "#ee-search", (e) => {
-			if (e.key === "Enter") this.do_search();
+		const $wrap = this.$wrap;
+		$wrap.on("click", "#ee-search-btn", () => this.do_search());
+		$wrap.on("keydown", "#ee-search", (e) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				this.close_dropdown();
+				this.do_search();
+			}
+			if (e.key === "Escape") this.close_dropdown();
 		});
-		this.$wrap.on("click", "#ee-back", () => this.show_list());
-		this.$wrap.on("click", ".ee-emp-card", (e) => {
+		$wrap.on("input", "#ee-search", (e) => {
+			const val = $(e.currentTarget).val();
+			$wrap.find("#ee-search-clear").toggleClass("show", !!val);
+			clearTimeout(this._search_timer);
+			this._search_timer = setTimeout(() => this.live_search(val), 250);
+		});
+		$wrap.on("click", "#ee-search-clear", () => {
+			$wrap.find("#ee-search").val("").focus();
+			$wrap.find("#ee-search-clear").removeClass("show");
+			this.close_dropdown();
+			this.state.search = "";
+			this.load_employees();
+		});
+		$wrap.on("click", "#ee-back", () => this.show_list());
+		$wrap.on("click", ".ee-emp-card", (e) => {
 			const emp = $(e.currentTarget).data("name");
 			if (emp) this.open_profile(emp);
 		});
+		$wrap.on("click", ".ee-dropdown-item", (e) => {
+			const emp = $(e.currentTarget).data("name");
+			this.close_dropdown();
+			$wrap.find("#ee-search").val("");
+			$wrap.find("#ee-search-clear").removeClass("show");
+			if (emp) this.open_profile(emp);
+		});
+		// close dropdown when clicking outside
+		$(document).on("click.ee", (e) => {
+			if (!$(e.target).closest(".ee-search-box").length) this.close_dropdown();
+		});
+		// tabs
+		$wrap.on("click", ".ee-tab", (e) => {
+			const tab = $(e.currentTarget).data("tab");
+			$wrap.find(".ee-tab").removeClass("active");
+			$(e.currentTarget).addClass("active");
+			$wrap.find(".ee-tab-panel").addClass("hide");
+			$wrap.find(`#tab-${tab}`).removeClass("hide");
+		});
+		// leave history filters
+		$wrap.on("change", "#ee-lh-type, #ee-lh-year", () => this.apply_leave_filter());
+	}
+
+	/* ---------------- LIVE SEARCH DROPDOWN ---------------- */
+	live_search(q) {
+		q = (q || "").trim();
+		if (q.length < 1) {
+			this.close_dropdown();
+			return;
+		}
+		frappe.call({
+			method: "hrcustomization_synergy.hrcustomization_synergy.page.employee_explorer.employee_explorer.get_employees",
+			args: { search: q, limit: 20 },
+		}).then((r) => {
+			const list = r.message || [];
+			this.render_dropdown(list, q);
+		});
+	}
+
+	render_dropdown(list, q) {
+		const $dd = this.$wrap.find(".ee-dropdown");
+		if (!$dd.length) {
+			this.$wrap.find(".ee-search-box").append(`<div class="ee-dropdown"></div>`);
+		}
+		const $d = this.$wrap.find(".ee-dropdown");
+
+		if (!list.length) {
+			$d.html(`<div class="ee-dropdown-empty">No employee matching "<b>${frappe.utils.escape_html(q)}</b>"</div>`)
+			  .addClass("show");
+			return;
+		}
+
+		$d.html(list.map((e) => {
+			const av = e.image ? `<img src="${e.image}">` : `<i class="fa fa-user"></i>`;
+			return `
+			<div class="ee-dropdown-item" data-name="${frappe.utils.escape_html(e.name)}">
+				<div class="av">${av}</div>
+				<div class="body">
+					<div class="nm">${frappe.utils.escape_html(e.employee_name || e.name)}</div>
+					<div class="sb">
+						${frappe.utils.escape_html(e.designation || "-")} •
+						${frappe.utils.escape_html(e.employee_number || e.name)}
+						${e.custom_qid_number ? " • QID " + frappe.utils.escape_html(e.custom_qid_number) : ""}
+					</div>
+				</div>
+			</div>`;
+		}).join("")).addClass("show");
+	}
+
+	close_dropdown() {
+		this.$wrap.find(".ee-dropdown").removeClass("show");
 	}
 
 	do_search() {
-		this.state = this.state || {};
 		this.state.search = this.$wrap.find("#ee-search").val() || "";
+		this.close_dropdown();
 		this.load_employees();
 	}
 
 	/* ---------------- LIST ---------------- */
 	load_employees() {
-		const search = (this.state && this.state.search) || "";
+		const search = this.state.search || "";
 		this.$body.html(`<div class="ee-loading">Loading employees…</div>`);
 
 		frappe.call({
@@ -212,9 +344,7 @@ class EmployeeExplorer {
 		}
 
 		$g.html(this.employees.map((e) => {
-			const av = e.image
-				? `<img src="${e.image}">`
-				: `<i class="fa fa-user"></i>`;
+			const av = e.image ? `<img src="${e.image}">` : `<i class="fa fa-user"></i>`;
 			return `
 			<div class="ee-emp-card" data-name="${frappe.utils.escape_html(e.name)}">
 				<div class="ee-avatar">${av}</div>
@@ -283,7 +413,6 @@ class EmployeeExplorer {
 		if (typeof frappe.Chart === "function") {
 			new frappe.Chart(el, Object.assign({ height: 230, axisOptions: { xAxisMode: "tick" } }, cfg));
 		} else {
-			// fallback: simple bars
 			const labels = cfg.data.labels || [];
 			const values = (cfg.data.datasets[0] || {}).values || [];
 			const max = Math.max(...values, 1);
@@ -304,15 +433,23 @@ class EmployeeExplorer {
 		this.$wrap.find("#ee-back").removeClass("hide");
 		this.$wrap.find("#ee-search-wrap").addClass("hide");
 
-		frappe.call({
-			method: "hrcustomization_synergy.hrcustomization_synergy.page.employee_explorer.employee_explorer.get_employee_profile",
-			args: { employee: employee },
-		}).then((r) => {
-			if (!r.message) return;
-			this.profile = r.message;
-			this.$wrap.find("#ee-title").text(r.message.employee.employee_name || employee);
-			this.render_profile(r.message);
+		Promise.all([
+			this._call("get_employee_profile", { employee }),
+			this._call("get_employee_salary_slips", { employee, limit: 100 }),
+		]).then(([profile, slips]) => {
+			if (!profile) return;
+			this.profile = profile;
+			this.salary_slips = slips || [];
+			this.$wrap.find("#ee-title").text(profile.employee.employee_name || employee);
+			this.render_profile(profile);
 		});
+	}
+
+	_call(method, args) {
+		return frappe.call({
+			method: `hrcustomization_synergy.hrcustomization_synergy.page.employee_explorer.employee_explorer.${method}`,
+			args: args,
+		}).then((r) => r.message);
 	}
 
 	show_list() {
@@ -322,9 +459,7 @@ class EmployeeExplorer {
 
 	render_profile(p) {
 		const e = p.employee || {};
-		const avatar = e.image
-			? `<img src="${e.image}">`
-			: `<i class="fa fa-user"></i>`;
+		const avatar = e.image ? `<img src="${e.image}">` : `<i class="fa fa-user"></i>`;
 
 		const general = [
 			["CODE", e.employee_number], ["NAME", e.employee_name],
@@ -349,7 +484,7 @@ class EmployeeExplorer {
 		];
 
 		this.$body.html(`
-			<!-- HEADER -->
+			<!-- HEADER CARD -->
 			<div class="ee-sec">
 				<div class="ee-profile-head">
 					<div class="ee-photo">${avatar}</div>
@@ -375,85 +510,84 @@ class EmployeeExplorer {
 				</div>
 			</div>
 
-			<!-- IDENTIFICATION -->
-			<div class="ee-sec">
-				<h3 class="ee-sec-title"><i class="fa fa-id-card-o"></i> Identification Details</h3>
-				<div class="ee-qid-card">
-					<div>
-						<div class="ee-qid-lbl">QID NUMBER</div>
-						<div class="ee-qid-num">${frappe.utils.escape_html(p.identification.qid_number || "-")}</div>
-					</div>
-					<div style="text-align:right">
-						<div class="ee-qid-lbl">EXPIRY DATE</div>
-						<div style="font-size:16px;font-weight:700;color:#0f172a;margin:6px 0">
-							${this.d(p.identification.qid_expiry)}</div>
-						${this.validity_badge(p.identification.qid_expiry)}
-					</div>
-				</div>
+			<!-- TABS -->
+			<div class="ee-tabs">
+				<button class="ee-tab active" data-tab="identification">
+					<i class="fa fa-id-card-o"></i> Identification Details
+				</button>
+				<button class="ee-tab" data-tab="salary">
+					<i class="fa fa-money"></i> Salary Payout
+				</button>
 			</div>
 
-			<!-- GENERAL -->
-			<div class="ee-sec">
-				<h3 class="ee-sec-title"><i class="fa fa-info-circle"></i> General Information</h3>
-				<div class="ee-info-grid">
-					${general.map(([k, v]) => `
-						<div class="ee-info-box">
-							<div class="k">${frappe.utils.escape_html(k || "")}</div>
-							<div class="v">${frappe.utils.escape_html(this.s(v))}</div>
-						</div>`).join("")}
-				</div>
-			</div>
+			<!-- TAB 1: IDENTIFICATION DETAILS -->
+			<div class="ee-tab-panel" id="tab-identification">
 
-			<!-- LEAVE & GRATUITY -->
-			<div class="ee-sec">
-				<h3 class="ee-sec-title"><i class="fa fa-calendar-check-o"></i> Leave &amp; Gratuity</h3>
-
-				<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:10px">OVERVIEW</div>
-				<div class="ee-overview" style="margin-bottom:22px">
-					<div class="ee-ov">
-						<div class="k">Total Annual Balance</div>
-						<div class="v">${this.n(p.leave.overview.total_annual_balance)} Days</div>
-						<div class="s">Closing Date : ${p.leave.overview.closing_date}</div>
-					</div>
-					<div class="ee-ov o">
-						<div class="k">Unpaid Leaves</div>
-						<div class="v">${this.n(p.leave.overview.unpaid_leaves)} Days</div>
-						<div class="s">&nbsp;</div>
-					</div>
-					<div class="ee-ov g">
-						<div class="k">Service Period</div>
-						<div class="v" style="font-size:20px">${p.service.text}</div>
-						<div class="s">Joined : ${this.d(e.date_of_joining)}</div>
-					</div>
-					<div class="ee-ov c">
-						<div class="k">Gratuity Amount</div>
-						<div class="v">${this.money(p.gratuity.amount)}</div>
-						<div class="s">As Of ${p.gratuity.as_on}</div>
+				<div class="ee-sec">
+					<h3 class="ee-sec-title"><i class="fa fa-id-card-o"></i> Identification Details</h3>
+					<div class="ee-qid-card">
+						<div>
+							<div class="ee-qid-lbl">QID NUMBER</div>
+							<div class="ee-qid-num">${frappe.utils.escape_html(p.identification.qid_number || "-")}</div>
+						</div>
+						<div style="text-align:right">
+							<div class="ee-qid-lbl">EXPIRY DATE</div>
+							<div style="font-size:16px;font-weight:700;color:#0f172a;margin:6px 0">
+								${this.d(p.identification.qid_expiry)}</div>
+							${this.validity_badge(p.identification.qid_expiry)}
+						</div>
 					</div>
 				</div>
 
-				<div class="ee-two">
-					<div>
-						<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:8px">ANNUAL LEAVE BREAKDOWN</div>
-						<table class="ee-table">
-							<thead><tr><th>Description</th><th style="text-align:right">Days Count</th></tr></thead>
-							<tbody>
-								${p.leave.annual_breakdown.map((r) => `
-									<tr><td>${frappe.utils.escape_html(r.label)}</td>
-									<td style="text-align:right">${this.n(r.value)}</td></tr>`).join("")}
-							</tbody>
-						</table>
+				<div class="ee-sec">
+					<h3 class="ee-sec-title"><i class="fa fa-info-circle"></i> General Information</h3>
+					<div class="ee-info-grid">
+						${general.map(([k, v]) => `
+							<div class="ee-info-box">
+								<div class="k">${frappe.utils.escape_html(k || "")}</div>
+								<div class="v">${frappe.utils.escape_html(this.s(v))}</div>
+							</div>`).join("")}
+					</div>
+				</div>
+
+				<div class="ee-sec">
+					<h3 class="ee-sec-title"><i class="fa fa-calendar-check-o"></i> Leave &amp; Gratuity</h3>
+
+					<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:10px">OVERVIEW</div>
+					<div class="ee-overview" style="margin-bottom:22px">
+						<div class="ee-ov">
+							<div class="k">Total Annual Balance</div>
+							<div class="v">${this.n(p.leave.overview.total_annual_balance)} Days</div>
+							<div class="s">Closing Date : ${p.leave.overview.closing_date}</div>
+						</div>
+						<div class="ee-ov o">
+							<div class="k">Unpaid Leaves</div>
+							<div class="v">${this.n(p.leave.overview.unpaid_leaves)} Days</div>
+							<div class="s">&nbsp;</div>
+						</div>
+						<div class="ee-ov g">
+							<div class="k">Service Period</div>
+							<div class="v" style="font-size:20px">${p.service.text}</div>
+							<div class="s">Joined : ${this.d(e.date_of_joining)}</div>
+						</div>
+						<div class="ee-ov c">
+							<div class="k">Gratuity Amount</div>
+							<div class="v">${this.money(p.gratuity.amount)}</div>
+							<div class="s">As Of ${p.gratuity.as_on}</div>
+						</div>
 					</div>
 
 					<div>
-						<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:8px">OTHER LEAVE BALANCES</div>
+						<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:8px">LEAVE BALANCES</div>
 						<table class="ee-table">
-							<thead><tr>
-								<th>Leave Type</th>
-								<th style="text-align:right">Eligible</th>
-								<th style="text-align:right">Utilized</th>
-								<th style="text-align:right">Balance</th>
-							</tr></thead>
+							<thead>
+								<tr>
+									<th>Leave Type</th>
+									<th style="text-align:right">Eligible</th>
+									<th style="text-align:right">Utilized</th>
+									<th style="text-align:right">Balance</th>
+								</tr>
+							</thead>
 							<tbody>
 								${p.leave.other_balances.length
 									? p.leave.other_balances.map((r) => `
@@ -467,113 +601,325 @@ class EmployeeExplorer {
 							</tbody>
 						</table>
 					</div>
+
+					<div style="margin-top:20px">
+						<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">
+							<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px">LEAVE HISTORY</div>
+							<div class="ee-filter-row" style="margin:0">
+								<select class="ee-select" id="ee-lh-type">
+									<option value="">All Leave Types</option>
+								</select>
+								<select class="ee-select" id="ee-lh-year">
+									<option value="">All Years</option>
+								</select>
+							</div>
+						</div>
+						<div id="ee-lh-table"></div>
+					</div>
 				</div>
 
-				<div style="margin-top:20px">
-					<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:8px">LEAVE HISTORY</div>
-					${p.leave.history.length ? `
+				<div class="ee-sec">
+					<h3 class="ee-sec-title"><i class="fa fa-folder-open-o"></i> Documents</h3>
+					${p.documents.length ? `
 						<table class="ee-table">
 							<thead><tr>
-								<th>Leave Type</th><th>From</th><th>To</th>
-								<th style="text-align:right">Days</th><th>Status</th>
+								<th>Document Type</th><th>Name</th><th>Doc No.</th>
+								<th>Issue Date</th><th>Expiry Date</th><th>Status</th>
 							</tr></thead>
 							<tbody>
-								${p.leave.history.map((h) => `
+								${p.documents.map((d) => `
 									<tr>
-										<td>${frappe.utils.escape_html(h.leave_type)}</td>
-										<td>${this.d(h.from_date)}</td>
-										<td>${this.d(h.to_date)}</td>
-										<td style="text-align:right">${this.n(h.total_leave_days)}</td>
-										<td>${frappe.utils.escape_html(h.status)}</td>
+										<td>${frappe.utils.escape_html(d.document_type || "-")}</td>
+										<td>${frappe.utils.escape_html(d.name || "-")}</td>
+										<td>${frappe.utils.escape_html(d.document_number || "-")}</td>
+										<td>${this.d(d.issue_date)}</td>
+										<td>${this.d(d.expiry_date)}</td>
+										<td>${d.status === "Valid"
+											? `<span class="ee-badge ee-badge-green">Valid</span>`
+											: `<span class="ee-badge ee-badge-red">Expired</span>`}</td>
 									</tr>`).join("")}
 							</tbody>
-						</table>` : `<div class="ee-empty">No leave history found.</div>`}
+						</table>` : `<div class="ee-empty">No documents found.</div>`}
 				</div>
-			</div>
 
-			<!-- DOCUMENTS -->
-			<div class="ee-sec">
-				<h3 class="ee-sec-title"><i class="fa fa-folder-open-o"></i> Documents</h3>
-				${p.documents.length ? `
-					<table class="ee-table">
-						<thead><tr>
-							<th>Document Type</th><th>Name</th><th>Doc No.</th>
-							<th>Issue Date</th><th>Expiry Date</th><th>Status</th>
-						</tr></thead>
-						<tbody>
-							${p.documents.map((d) => `
-								<tr>
-									<td>${frappe.utils.escape_html(d.document_type || "-")}</td>
-									<td>${frappe.utils.escape_html(d.name || "-")}</td>
-									<td>${frappe.utils.escape_html(d.document_number || "-")}</td>
-									<td>${this.d(d.issue_date)}</td>
-									<td>${this.d(d.expiry_date)}</td>
-									<td>${d.status === "Valid"
-										? `<span class="ee-badge ee-badge-green">Valid</span>`
-										: `<span class="ee-badge ee-badge-red">Expired</span>`}</td>
-								</tr>`).join("")}
-						</tbody>
-					</table>` : `<div class="ee-empty">No documents found.</div>`}
-			</div>
+				<div class="ee-sec">
+					<h3 class="ee-sec-title"><i class="fa fa-money"></i> Salary &amp; Benefits (Current)</h3>
+					${p.salary.components.length ? `
+						<table class="ee-table" style="max-width:640px">
+							<thead><tr><th>Component</th><th style="text-align:right">Amount</th></tr></thead>
+							<tbody>
+								${p.salary.components.map((c) => `
+									<tr><td>${frappe.utils.escape_html(c.label)}</td>
+									<td style="text-align:right">${this.money(c.amount)}</td></tr>`).join("")}
+								<tr class="total-row">
+									<td>Total</td>
+									<td style="text-align:right">${this.money(p.salary.total)}</td>
+								</tr>
+							</tbody>
+						</table>
+						<div style="font-size:11.5px;color:#94a3b8;margin-top:8px">
+							Structure: ${frappe.utils.escape_html(p.salary.salary_structure || "-")} •
+							Effective From: ${this.d(p.salary.from_date)}
+						</div>` : `<div class="ee-empty">No salary structure assigned.</div>`}
+				</div>
 
-			<!-- SALARY -->
-			<div class="ee-sec">
-				<h3 class="ee-sec-title"><i class="fa fa-money"></i> Salary &amp; Benefits</h3>
-				${p.salary.components.length ? `
-					<table class="ee-table" style="max-width:640px">
-						<thead><tr><th>Component</th><th style="text-align:right">Amount</th></tr></thead>
-						<tbody>
-							${p.salary.components.map((c) => `
-								<tr><td>${frappe.utils.escape_html(c.label)}</td>
-								<td style="text-align:right">${this.money(c.amount)}</td></tr>`).join("")}
-							<tr class="total-row">
-								<td>Total</td>
-								<td style="text-align:right">${this.money(p.salary.total)}</td>
-							</tr>
-						</tbody>
-					</table>
-					<div style="font-size:11.5px;color:#94a3b8;margin-top:8px">
-						Structure: ${frappe.utils.escape_html(p.salary.salary_structure || "-")} •
-						Effective From: ${this.d(p.salary.from_date)}
-					</div>` : `<div class="ee-empty">No salary structure assigned.</div>`}
-			</div>
-
-			<!-- FAMILY & TICKETS -->
-			<div class="ee-sec">
-				<h3 class="ee-sec-title"><i class="fa fa-plane"></i> Family &amp; Tickets</h3>
-				<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:10px">
-					AIR TICKET NEXT AVAILMENT</div>
-				<div class="ee-two" style="max-width:820px">
-					<div class="ee-ov c">
-						<div class="k">Next Availment Date</div>
-						<div class="v" style="font-size:20px">
-							${p.tickets.next_availment_date ? this.d(p.tickets.next_availment_date) : "-"}</div>
-						<div class="s">Frequency : ${p.tickets.frequency_months || 0} month(s)</div>
+				<div class="ee-sec">
+					<h3 class="ee-sec-title"><i class="fa fa-plane"></i> Family &amp; Tickets</h3>
+					<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:10px">
+						AIR TICKET NEXT AVAILMENT</div>
+					<div class="ee-two" style="max-width:820px">
+						<div class="ee-ov c">
+							<div class="k">Next Availment Date</div>
+							<div class="v" style="font-size:20px">
+								${p.tickets.next_availment_date ? this.d(p.tickets.next_availment_date) : "-"}</div>
+							<div class="s">Frequency : ${p.tickets.frequency_months || 0} month(s)</div>
+						</div>
+						<div class="ee-ov">
+							<div class="k">Last Availed Date</div>
+							<div class="v" style="font-size:20px">${this.d(p.tickets.last_ticket_date)}</div>
+							<div class="s">Method : ${frappe.utils.escape_html(p.tickets.last_availment_method || "-")}</div>
+						</div>
 					</div>
-					<div class="ee-ov">
-						<div class="k">Last Availed Date</div>
-						<div class="v" style="font-size:20px">${this.d(p.tickets.last_ticket_date)}</div>
-						<div class="s">Method : ${frappe.utils.escape_html(p.tickets.last_availment_method || "-")}</div>
+					<div class="ee-info-grid" style="margin-top:14px;grid-template-columns:repeat(4,1fr)">
+						<div class="ee-info-box"><div class="k">Tickets Availed</div>
+							<div class="v">${this.n(p.tickets.ticket_count)}</div></div>
+						<div class="ee-info-box"><div class="k">Ticket Amount</div>
+							<div class="v">${this.money(p.tickets.ticket_amount)}</div></div>
+						<div class="ee-info-box"><div class="k">Destination</div>
+							<div class="v">${frappe.utils.escape_html(p.tickets.destination || "-")}</div></div>
+						<div class="ee-info-box"><div class="k">Eligibility</div>
+							<div class="v">${frappe.utils.escape_html(p.tickets.eligibility || "-")}</div></div>
+					</div>
+					<div class="ee-info-grid" style="margin-top:10px;grid-template-columns:repeat(4,1fr)">
+						<div class="ee-info-box"><div class="k">Ticket Entitlement</div>
+							<div class="v">${this.money(p.tickets.entitlement)}</div></div>
+						<div class="ee-info-box"><div class="k">Frequency (Months)</div>
+							<div class="v">${p.tickets.frequency_months || 0}</div></div>
 					</div>
 				</div>
-				<div class="ee-info-grid" style="margin-top:14px;grid-template-columns:repeat(4,1fr)">
-					<div class="ee-info-box"><div class="k">Tickets Availed</div>
-						<div class="v">${this.n(p.tickets.ticket_count)}</div></div>
-					<div class="ee-info-box"><div class="k">Ticket Amount</div>
-						<div class="v">${this.money(p.tickets.ticket_amount)}</div></div>
-					<div class="ee-info-box"><div class="k">Destination</div>
-						<div class="v">${frappe.utils.escape_html(p.tickets.destination || "-")}</div></div>
-					<div class="ee-info-box"><div class="k">Eligibility</div>
-						<div class="v">${frappe.utils.escape_html(p.tickets.eligibility || "-")}</div></div>
-				</div>
-				<div class="ee-info-grid" style="margin-top:10px;grid-template-columns:repeat(4,1fr)">
-					<div class="ee-info-box"><div class="k">Ticket Entitlement</div>
-						<div class="v">${this.money(p.tickets.entitlement)}</div></div>
-					<div class="ee-info-box"><div class="k">Frequency (Months)</div>
-						<div class="v">${p.tickets.frequency_months || 0}</div></div>
+			</div>
+
+			<!-- TAB 2: SALARY PAYOUT -->
+			<div class="ee-tab-panel hide" id="tab-salary">
+				<div class="ee-sec">
+					<h3 class="ee-sec-title"><i class="fa fa-money"></i> Salary Payout
+						<span style="color:#94a3b8;font-weight:500;font-size:13px">
+							(${this.salary_slips.length})</span>
+					</h3>
+					${this.render_salary_payout(this.salary_slips)}
 				</div>
 			</div>
 		`);
+
+		// render leave history + populate filters
+		this.render_leave_history(p.leave.history || []);
+	}
+
+/* ---------------- SALARY PAYOUT ---------------- */
+render_salary_payout(slips) {
+    if (!slips.length) {
+        return `<div class="ee-empty">No salary slips found for this employee.</div>`;
+    }
+
+    // ---------- Summary cards compute ----------
+    const total_slips = slips.length;
+
+    let total_earnings = 0;
+    let total_deductions = 0;
+    let total_net = 0;
+    let total_basic = 0;
+    let total_housing = 0;
+    let total_transport = 0;
+    let total_other = 0;
+    let total_ticket = 0;
+    let total_leave_salary = 0;
+    let total_overtime = 0;
+    let total_bonus = 0;
+    let total_days = 0;
+
+    slips.forEach((s) => {
+        const get = (comp) => {
+            const c = (s.components || []).find(
+                (x) => x.salary_component === comp && x.parentfield === "earnings"
+            );
+            return c ? flt(c.amount) : 0;
+        };
+        total_earnings     += flt(s.gross_pay);
+        total_deductions   += flt(s.total_deduction);
+        total_net          += flt(s.net_pay);
+        total_basic        += get("Basic Salary");
+        total_housing      += get("Housing Allowance");
+        total_transport    += get("Transport Allowance");
+        total_other        += get("Other Allowance");
+        total_ticket       += get("Ticket Allowance");
+        total_leave_salary += get("Leave Salary");
+        total_overtime     += get("Overtime");
+        total_bonus        += get("Bonus");
+        total_days         += flt(s.payment_days);
+    });
+
+    // Latest slip (already sorted DESC by start_date from backend)
+    const last = slips[0];
+    const avg_net = total_net / total_slips;
+
+    // ---------- Cards ----------
+    const cards = `
+        <div class="ee-grid-cards" style="margin-bottom:22px">
+            <div class="ee-stat">
+                <div class="lbl">Total Salary Slips</div>
+                <div class="val">${total_slips}</div>
+            </div>
+            <div class="ee-stat" style="border-left-color:#22c55e">
+                <div class="lbl">Total Earnings</div>
+                <div class="val">${this.money(total_earnings)}</div>
+            </div>
+            <div class="ee-stat" style="border-left-color:#ef4444">
+                <div class="lbl">Total Deductions</div>
+                <div class="val">${this.money(total_deductions)}</div>
+            </div>
+            <div class="ee-stat" style="border-left-color:#06b6d4">
+                <div class="lbl">Total Net Pay</div>
+                <div class="val">${this.money(total_net)}</div>
+            </div>
+        </div>
+
+        <div class="ee-grid-cards" style="margin-bottom:22px">
+            <div class="ee-stat" style="border-left-color:#8b5cf6">
+                <div class="lbl">Last Net Pay</div>
+                <div class="val">${this.money(last.net_pay)}</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:4px">
+                    ${this.d(last.start_date)} → ${this.d(last.end_date)}
+                </div>
+            </div>
+            <div class="ee-stat" style="border-left-color:#f59e0b">
+                <div class="lbl">Average Net Pay</div>
+                <div class="val">${this.money(avg_net)}</div>
+            </div>
+            <div class="ee-stat" style="border-left-color:#0ea5e9">
+                <div class="lbl">Total Paid Days</div>
+                <div class="val">${this.n(total_days)}</div>
+            </div>
+            <div class="ee-stat" style="border-left-color:#10b981">
+                <div class="lbl">Last Basic Salary</div>
+                <div class="val">${this.money(
+                    ((last.components || []).find(
+                        (x) => x.salary_component === "Basic Salary" && x.parentfield === "earnings"
+                    ) || {}).amount
+                )}</div>
+            </div>
+        </div>
+    `;
+
+    // ---------- Table rows ----------
+    const rows = slips.map((s) => {
+        const get = (comp) => {
+            const c = (s.components || []).find(
+                (x) => x.salary_component === comp && x.parentfield === "earnings"
+            );
+            return c ? flt(c.amount) : 0;
+        };
+        return `
+        <tr>
+            <td><b>${frappe.utils.escape_html(s.name)}</b></td>
+            <td>${this.d(s.start_date)}</td>
+            <td>${this.d(s.end_date)}</td>
+            <td style="text-align:right">${flt(s.payment_days)}</td>
+            <td style="text-align:right">${this.money(get("Basic Salary"))}</td>
+            <td style="text-align:right">${this.money(get("Housing Allowance"))}</td>
+            <td style="text-align:right">${this.money(get("Transport Allowance"))}</td>
+            <td style="text-align:right">${this.money(get("Other Allowance"))}</td>
+            <td style="text-align:right">${this.money(get("Ticket Allowance"))}</td>
+            <td style="text-align:right">${this.money(get("Leave Salary"))}</td>
+            <td style="text-align:right">${this.money(get("Overtime"))}</td>
+            <td style="text-align:right">${this.money(get("Bonus"))}</td>
+            <td style="text-align:right"><b>${this.money(s.gross_pay)}</b></td>
+            <td style="text-align:right;color:#b91c1c">${this.money(s.total_deduction)}</td>
+            <td style="text-align:right"><b style="color:#15803d">${this.money(s.net_pay)}</b></td>
+        </tr>`;
+    }).join("");
+
+    const table = `
+        <div class="ee-scroll-x">
+            <table class="ee-table">
+                <thead>
+                    <tr>
+                        <th>Salary Slip</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th style="text-align:right">Days</th>
+                        <th style="text-align:right">Basic</th>
+                        <th style="text-align:right">Housing</th>
+                        <th style="text-align:right">Transport</th>
+                        <th style="text-align:right">Other</th>
+                        <th style="text-align:right">Ticket</th>
+                        <th style="text-align:right">Leave Salary</th>
+                        <th style="text-align:right">Overtime</th>
+                        <th style="text-align:right">Bonus</th>
+                        <th style="text-align:right">Total Earnings</th>
+                        <th style="text-align:right">Deductions</th>
+                        <th style="text-align:right">Net Pay</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    `;
+
+    return cards + table;
+}
+
+	/* ---------------- LEAVE HISTORY (with filters) ---------------- */
+	render_leave_history(history) {
+		this._leave_history = history || [];
+
+		// populate Leave Type options
+		const types = [...new Set(this._leave_history.map((h) => h.leave_type).filter(Boolean))].sort();
+		const $t = this.$body.find("#ee-lh-type");
+		$t.html(`<option value="">All Leave Types</option>` +
+			types.map((t) => `<option value="${frappe.utils.escape_html(t)}">${frappe.utils.escape_html(t)}</option>`).join(""));
+
+		// populate Years
+		const years = [...new Set(this._leave_history.map((h) =>
+			h.from_date ? String(h.from_date).slice(0, 4) : null
+		).filter(Boolean))].sort().reverse();
+		const $y = this.$body.find("#ee-lh-year");
+		$y.html(`<option value="">All Years</option>` +
+			years.map((y) => `<option value="${y}">${y}</option>`).join(""));
+
+		this.apply_leave_filter();
+	}
+
+	apply_leave_filter() {
+		const type = this.$body.find("#ee-lh-type").val();
+		const year = this.$body.find("#ee-lh-year").val();
+
+		let rows = this._leave_history || [];
+		if (type) rows = rows.filter((h) => h.leave_type === type);
+		if (year) rows = rows.filter((h) => String(h.from_date || "").slice(0, 4) === year);
+
+		const $c = this.$body.find("#ee-lh-table");
+		if (!rows.length) {
+			$c.html(`<div class="ee-empty">No leave history found for selected filter.</div>`);
+			return;
+		}
+
+		$c.html(`
+			<table class="ee-table">
+				<thead><tr>
+					<th>Leave Type</th><th>From</th><th>To</th>
+					<th style="text-align:right">Days</th><th>Status</th>
+				</tr></thead>
+				<tbody>
+					${rows.map((h) => `
+						<tr>
+							<td>${frappe.utils.escape_html(h.leave_type)}</td>
+							<td>${this.d(h.from_date)}</td>
+							<td>${this.d(h.to_date)}</td>
+							<td style="text-align:right">${this.n(h.total_leave_days)}</td>
+							<td>${frappe.utils.escape_html(h.status)}</td>
+						</tr>`).join("")}
+				</tbody>
+			</table>`);
 	}
 
 	/* ---------------- small helpers ---------------- */

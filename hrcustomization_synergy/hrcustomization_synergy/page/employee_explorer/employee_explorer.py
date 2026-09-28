@@ -29,7 +29,48 @@ SALARY_COMPONENTS = [
     ("Performance Allowance", "custom_performance_allowance"),
 ]
 
+# ===============================================================
+# 4. EMPLOYEE SALARY SLIPS  (Salary Payout tab)
+# ===============================================================
 
+@frappe.whitelist()
+def get_employee_salary_slips(employee, limit=100):
+    """Us employee ki saari submitted Salary Slips ka detail."""
+    if not employee:
+        frappe.throw(_("Employee is required"))
+
+    slips = frappe.db.sql("""
+        SELECT
+            ss.name, ss.posting_date, ss.start_date, ss.end_date,
+            ss.payment_days, ss.gross_pay, ss.total_deduction,
+            ss.net_pay, ss.year_to_date, ss.bank_name, ss.bank_account_no,
+            ss.company, ss.department, ss.designation, ss.currency,
+            ss.status, ss.leave_without_pay
+        FROM `tabSalary Slip` ss
+        WHERE ss.docstatus = 1 AND ss.employee = %(employee)s
+        ORDER BY ss.start_date DESC, ss.posting_date DESC
+        LIMIT %(limit)s
+    """, {"employee": employee, "limit": cint(limit) or 100}, as_dict=True)
+
+    if not slips:
+        return []
+
+    names = [s.name for s in slips]
+
+    details = frappe.db.sql("""
+        SELECT parent, salary_component, amount, parentfield
+        FROM `tabSalary Detail`
+        WHERE parent IN %(names)s AND parenttype = 'Salary Slip'
+    """, {"names": names}, as_dict=True)
+
+    by_parent = {}
+    for d in details:
+        by_parent.setdefault(d.parent, []).append(d)
+
+    for s in slips:
+        s["components"] = by_parent.get(s.name, [])
+
+    return slips
 # ===============================================================
 # HELPERS
 # ===============================================================
@@ -339,15 +380,34 @@ def _get_leave_data(employee):
         limit=15,
     )
 
+
+    annual_balance = None
+    for row in other_balances:
+        if (row["leave_type"] or "").strip().lower() == "annual leave":
+            annual_balance = flt(row["balance"], 2)
+            break
+
+    if annual_balance is None:
+        for row in other_balances:
+            lt = (row["leave_type"] or "").strip().lower()
+            if "annual" in lt and "unpaid" not in lt and "paid" not in lt.replace("unpaid", ""):
+                annual_balance = flt(row["balance"], 2)
+                break
+
+    if annual_balance is None:
+        annual_balance = flt(total_balance, 2)
+
     return {
         "overview": {
-            "total_annual_balance": flt(total_balance, 2),
-            "closing_date": f"31-12-{getdate().year}",
-            "unpaid_leaves": flt(unpaid, 2),
+            "total_annual_balance": annual_balance,
+            "closing_date":         f"31-12-{getdate().year}",
+            "unpaid_leaves":        flt(unpaid, 2),
         },
+        # annual_breakdown ab JS mein use nahi hoga — hata sakte hain,
+        # lekin safety ke liye rakha hai
         "annual_breakdown": breakdown,
-        "other_balances": other_balances,
-        "history": history,
+        "other_balances":   other_balances,
+        "history":          history,
     }
 
 

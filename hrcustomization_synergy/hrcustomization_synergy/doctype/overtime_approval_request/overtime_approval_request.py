@@ -162,15 +162,15 @@ class OvertimeApprovalRequest(Document):
                     if calculated_ot >= (settings.minimum_normal_ot or 0):
                         normal_ot_hours = calculated_ot
             
-            # Row include karne ka decision ORIGINAL (bina cap) values se
-            has_overtime = normal_ot_hours > 0 or holiday_ot_hours > 0 or special_ot_hours > 0
-            
-            # --- Normal OT Hours ki limit (sirf value adjust hogi, row skip nahi hogi) ---
+            # --- Normal OT Hours ki limit ---
             # Agar 1 se kam ho to 0 kar dein, agar 3 se zyada ho to 3 kar dein
             if normal_ot_hours < 1:
                 normal_ot_hours = 0
             elif normal_ot_hours > 3:
                 normal_ot_hours = 3
+            
+            # Row sirf tab include hogi jab Normal OT ya Holiday OT mein data ho (cap ke BAAD check)
+            has_overtime = normal_ot_hours > 0 or holiday_ot_hours > 0
             
             if has_overtime:
                 projects = frappe.db.sql("""
