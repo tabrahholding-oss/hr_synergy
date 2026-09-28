@@ -92,6 +92,113 @@ def get_employee_salary_slips(employee, limit=100):
 # ===============================================================
 # HELPERS
 # ===============================================================
+# ===============================================================
+# 5. EMPLOYEE LETTERS  (HR Letters + Employee Letters)
+# ===============================================================
+
+LETTER_DOCTYPES = {
+    "Employee Letters": "certificate_type",
+    "HR Letters":       "certificate_type",
+}
+
+
+@frappe.whitelist()
+def get_employee_letters(employee, doctype_filter=None,
+                          type_filter=None, status_filter=None):
+    """Us employee ke saare letters + KPI cards + chart data."""
+    if not employee:
+        frappe.throw(_("Employee is required"))
+
+    rows, all_rows = [], []
+
+    for dt, tfield in LETTER_DOCTYPES.items():
+        if doctype_filter and dt != doctype_filter:
+            continue
+        if not frappe.db.exists("DocType", dt):
+            continue
+        if not frappe.has_permission(dt, "read"):
+            continue
+
+        try:
+            recs = frappe.get_all(
+                dt,
+                filters={"employee": employee},
+                fields=["name", "status", "workflow_state",
+                        "creation", "modified", tfield],
+                order_by="creation desc",
+                limit=500,
+            )
+        except Exception as ex:
+            frappe.log_error(
+                title=f"Employee Explorer letters fetch failed ({dt})",
+                message=str(ex),
+            )
+            continue
+
+        for r in recs:
+            item = {
+                "name":     r.get("name"),
+                "doctype":  dt,
+                "type":     r.get(tfield),
+                "status":   r.get("workflow_state") or r.get("status") or "Draft",
+                "creation": r.get("creation"),
+                "modified": r.get("modified"),
+            }
+            all_rows.append(item)
+
+            if type_filter   and item["type"]   != type_filter:   continue
+            if status_filter and item["status"] != status_filter: continue
+            rows.append(item)
+
+    rows.sort(key=lambda x: x.get("creation") or "", reverse=True)
+
+    # ---------- KPIs ----------
+    status_counts = {}
+    type_counts   = {}
+    for r in rows:
+        s = r["status"] or "Draft"
+        t = r["type"] or "Unknown"
+        status_counts[s] = status_counts.get(s, 0) + 1
+        type_counts[t]   = type_counts.get(t, 0) + 1
+
+    approved = status_counts.get("Approved", 0)
+    draft    = status_counts.get("Draft", 0)
+    rejected = status_counts.get("Rejected", 0)
+    pending  = len(rows) - approved - draft - rejected
+
+    # ---------- Filter options (from ALL rows, unfiltered) ----------
+    all_types    = sorted(set(r["type"] for r in all_rows if r["type"]))
+    all_statuses = sorted(set(r["status"] for r in all_rows if r["status"]))
+
+    return {
+        "rows":         rows,
+        "has_letters":  bool(all_rows),
+        "count":        len(rows),
+        "total_count":  len(all_rows),
+        "kpis": {
+            "total":    len(rows),
+            "approved": approved,
+            "draft":    draft,
+            "pending":  pending,
+            "rejected": rejected,
+        },
+        "charts": {
+            "by_status": {
+                "labels": list(status_counts.keys()),
+                "data":   list(status_counts.values()),
+            },
+            "by_type": {
+                "labels": list(type_counts.keys()),
+                "data":   list(type_counts.values()),
+            },
+        },
+        "options": {
+            "types":    all_types,
+            "statuses": all_statuses,
+            "doctypes": list(LETTER_DOCTYPES.keys()),
+        },
+    }
+
 
 def _service_period(date_of_joining, as_on=None):
     """Current date - date_of_joining  =>  Years / Months / Days"""
