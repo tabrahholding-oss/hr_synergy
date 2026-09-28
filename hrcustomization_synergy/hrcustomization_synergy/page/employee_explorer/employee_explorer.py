@@ -35,18 +35,36 @@ SALARY_COMPONENTS = [
 
 @frappe.whitelist()
 def get_employee_salary_slips(employee, limit=100):
-    """Us employee ki saari submitted Salary Slips ka detail."""
+    """Us employee ki saari submitted Salary Slips ka detail (report columns ke saath)."""
     if not employee:
         frappe.throw(_("Employee is required"))
 
     slips = frappe.db.sql("""
         SELECT
-            ss.name, ss.posting_date, ss.start_date, ss.end_date,
-            ss.payment_days, ss.gross_pay, ss.total_deduction,
-            ss.net_pay, ss.year_to_date, ss.bank_name, ss.bank_account_no,
-            ss.company, ss.department, ss.designation, ss.currency,
-            ss.status, ss.leave_without_pay
+            ss.name,
+            ss.employee,
+            ss.employee_name,
+            e.employee_number,
+            e.gender,
+            e.nationality,
+            e.marital_status,
+            ss.company,
+            ss.department,
+            ss.designation,
+            ss.posting_date,
+            ss.start_date,
+            ss.end_date,
+            ss.payment_days,
+            ss.bank_name,
+            ss.bank_account_no,
+            ss.gross_pay,
+            ss.total_deduction,
+            ss.net_pay,
+            ss.year_to_date,
+            ss.currency,
+            ss.status
         FROM `tabSalary Slip` ss
+        LEFT JOIN `tabEmployee` e ON e.name = ss.employee
         WHERE ss.docstatus = 1 AND ss.employee = %(employee)s
         ORDER BY ss.start_date DESC, ss.posting_date DESC
         LIMIT %(limit)s

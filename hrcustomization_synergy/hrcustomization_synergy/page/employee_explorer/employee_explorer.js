@@ -732,43 +732,21 @@ render_salary_payout(slips) {
     // ---------- Summary cards compute ----------
     const total_slips = slips.length;
 
-    let total_earnings = 0;
+    let total_earnings   = 0;
     let total_deductions = 0;
-    let total_net = 0;
-    let total_basic = 0;
-    let total_housing = 0;
-    let total_transport = 0;
-    let total_other = 0;
-    let total_ticket = 0;
-    let total_leave_salary = 0;
-    let total_overtime = 0;
-    let total_bonus = 0;
-    let total_days = 0;
+    let total_net        = 0;
+    let total_days       = 0;
 
     slips.forEach((s) => {
-        const get = (comp) => {
-            const c = (s.components || []).find(
-                (x) => x.salary_component === comp && x.parentfield === "earnings"
-            );
-            return c ? flt(c.amount) : 0;
-        };
-        total_earnings     += flt(s.gross_pay);
-        total_deductions   += flt(s.total_deduction);
-        total_net          += flt(s.net_pay);
-        total_basic        += get("Basic Salary");
-        total_housing      += get("Housing Allowance");
-        total_transport    += get("Transport Allowance");
-        total_other        += get("Other Allowance");
-        total_ticket       += get("Ticket Allowance");
-        total_leave_salary += get("Leave Salary");
-        total_overtime     += get("Overtime");
-        total_bonus        += get("Bonus");
-        total_days         += flt(s.payment_days);
+        total_earnings   += flt(s.gross_pay);
+        total_deductions += flt(s.total_deduction);
+        total_net        += flt(s.net_pay);
+        total_days       += flt(s.payment_days);
     });
 
-    // Latest slip (already sorted DESC by start_date from backend)
-    const last = slips[0];
-    const avg_net = total_net / total_slips;
+    const last        = slips[0];
+    const avg_net     = total_net / total_slips;
+    const last_basic  = this._amt(last, "Basic Salary");
 
     // ---------- Cards ----------
     const cards = `
@@ -809,42 +787,47 @@ render_salary_payout(slips) {
             </div>
             <div class="ee-stat" style="border-left-color:#10b981">
                 <div class="lbl">Last Basic Salary</div>
-                <div class="val">${this.money(
-                    ((last.components || []).find(
-                        (x) => x.salary_component === "Basic Salary" && x.parentfield === "earnings"
-                    ) || {}).amount
-                )}</div>
+                <div class="val">${this.money(last_basic)}</div>
             </div>
         </div>
     `;
 
-    // ---------- Table rows ----------
-    const rows = slips.map((s) => {
-        const get = (comp) => {
-            const c = (s.components || []).find(
-                (x) => x.salary_component === comp && x.parentfield === "earnings"
-            );
-            return c ? flt(c.amount) : 0;
-        };
-        return `
+    // ---------- Helper: get component amount per slip ----------
+    const comp = (s, name) => this._amt(s, name);
+
+    // ---------- Table rows (Bank Name & Account No REMOVED) ----------
+    const rows = slips.map((s) => `
         <tr>
             <td><b>${frappe.utils.escape_html(s.name)}</b></td>
+            <td>${frappe.utils.escape_html(s.employee || "-")}</td>
+            <td>${frappe.utils.escape_html(s.employee_name || "-")}</td>
+            <td>${frappe.utils.escape_html(s.employee_number || "-")}</td>
+            <td>${frappe.utils.escape_html(s.gender || "-")}</td>
+            <td>${frappe.utils.escape_html(s.nationality || "-")}</td>
+            <td>${frappe.utils.escape_html(s.marital_status || "-")}</td>
+            <td>${frappe.utils.escape_html(s.company || "-")}</td>
+            <td>${frappe.utils.escape_html(s.department || "-")}</td>
+            <td>${frappe.utils.escape_html(s.designation || "-")}</td>
+            <td>${this.d(s.posting_date)}</td>
             <td>${this.d(s.start_date)}</td>
             <td>${this.d(s.end_date)}</td>
             <td style="text-align:right">${flt(s.payment_days)}</td>
-            <td style="text-align:right">${this.money(get("Basic Salary"))}</td>
-            <td style="text-align:right">${this.money(get("Housing Allowance"))}</td>
-            <td style="text-align:right">${this.money(get("Transport Allowance"))}</td>
-            <td style="text-align:right">${this.money(get("Other Allowance"))}</td>
-            <td style="text-align:right">${this.money(get("Ticket Allowance"))}</td>
-            <td style="text-align:right">${this.money(get("Leave Salary"))}</td>
-            <td style="text-align:right">${this.money(get("Overtime"))}</td>
-            <td style="text-align:right">${this.money(get("Bonus"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Basic Salary"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Housing Allowance"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Other Allowance"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Transport Allowance"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Ticket Allowance"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Leave Salary"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Advance Salary Paid"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Overtime"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Bonus"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Sales Commission"))}</td>
+            <td style="text-align:right">${this.money(comp(s, "Sales Tips"))}</td>
             <td style="text-align:right"><b>${this.money(s.gross_pay)}</b></td>
             <td style="text-align:right;color:#b91c1c">${this.money(s.total_deduction)}</td>
             <td style="text-align:right"><b style="color:#15803d">${this.money(s.net_pay)}</b></td>
-        </tr>`;
-    }).join("");
+            <td style="text-align:right">${this.money(s.year_to_date)}</td>
+        </tr>`).join("");
 
     const table = `
         <div class="ee-scroll-x">
@@ -852,20 +835,34 @@ render_salary_payout(slips) {
                 <thead>
                     <tr>
                         <th>Salary Slip</th>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th style="text-align:right">Days</th>
-                        <th style="text-align:right">Basic</th>
-                        <th style="text-align:right">Housing</th>
-                        <th style="text-align:right">Transport</th>
-                        <th style="text-align:right">Other</th>
-                        <th style="text-align:right">Ticket</th>
+                        <th>Employee</th>
+                        <th>Employee Name</th>
+                        <th>Employee ID</th>
+                        <th>Gender</th>
+                        <th>Nationality</th>
+                        <th>Marital Status</th>
+                        <th>Company</th>
+                        <th>Department</th>
+                        <th>Designation</th>
+                        <th>Posting Date</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th style="text-align:right">Payment Days</th>
+                        <th style="text-align:right">Basic Salary</th>
+                        <th style="text-align:right">Housing Allowance</th>
+                        <th style="text-align:right">Other Allowance</th>
+                        <th style="text-align:right">Transport Allowance</th>
+                        <th style="text-align:right">Ticket Allowance</th>
                         <th style="text-align:right">Leave Salary</th>
+                        <th style="text-align:right">Advance Salary Paid</th>
                         <th style="text-align:right">Overtime</th>
                         <th style="text-align:right">Bonus</th>
-                        <th style="text-align:right">Total Earnings</th>
-                        <th style="text-align:right">Deductions</th>
+                        <th style="text-align:right">Sales Commission</th>
+                        <th style="text-align:right">Sales Tips</th>
+                        <th style="text-align:right">Total Salary</th>
+                        <th style="text-align:right">Total Deductions</th>
                         <th style="text-align:right">Net Pay</th>
+                        <th style="text-align:right">Year To Date</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
@@ -968,5 +965,11 @@ render_salary_payout(slips) {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2,
 		});
+	}
+	_amt(slip, component_name) {
+		const c = (slip.components || []).find(
+			(x) => x.salary_component === component_name && x.parentfield === "earnings"
+		);
+		return c ? flt(c.amount) : 0;
 	}
 }
