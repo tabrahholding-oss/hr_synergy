@@ -9,7 +9,21 @@ from frappe import _
 from frappe.utils import (
     getdate, date_diff, flt, cint, nowdate, add_days, add_months, format_date
 )
+# ===============================================================
+# ACCESS CONTROL
+# ===============================================================
 
+ALLOWED_ROLES = {"Employee Explorer User", "System Manager"}
+
+
+def _check_access():
+    """Sirf custom role ya System Manager ko ijazat."""
+    user_roles = set(frappe.get_roles(frappe.session.user))
+    if not (user_roles & ALLOWED_ROLES):
+        frappe.throw(
+            _("You are not permitted to access Employee Explorer."),
+            frappe.PermissionError,
+        )
 # ---------------------------------------------------------------
 # CONFIG  (apne leave types / field names yahan adjust kar lein)
 # ---------------------------------------------------------------
@@ -35,6 +49,7 @@ SALARY_COMPONENTS = [
 
 @frappe.whitelist()
 def get_employee_salary_slips(employee, limit=100):
+    _check_access()
     """Us employee ki saari submitted Salary Slips ka detail (report columns ke saath)."""
     if not employee:
         frappe.throw(_("Employee is required"))
@@ -105,6 +120,7 @@ LETTER_DOCTYPES = {
 @frappe.whitelist()
 def get_employee_letters(employee, doctype_filter=None,
                           type_filter=None, status_filter=None):
+    _check_access()
     """Us employee ke saare letters + KPI cards + chart data."""
     if not employee:
         frappe.throw(_("Employee is required"))
@@ -276,6 +292,7 @@ def _latest_ssa(employee):
 
 @frappe.whitelist()
 def get_dashboard():
+    _check_access()
     total  = frappe.db.count("Employee")
     active = frappe.db.count("Employee", {"status": "Active"})
     left   = frappe.db.count("Employee", {"status": "Left"})
@@ -324,6 +341,7 @@ def get_dashboard():
 
 @frappe.whitelist()
 def get_employees(search=None, department=None, status=None, limit=300):
+    _check_access()
     cond = ["1 = 1"]
     vals = {"limit": cint(limit) or 300}
 
@@ -368,6 +386,7 @@ def get_employees(search=None, department=None, status=None, limit=300):
 
 @frappe.whitelist()
 def get_employee_profile(employee):
+    _check_access()
     if not employee:
         frappe.throw(_("Employee is required"))
 

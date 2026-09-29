@@ -3,12 +3,24 @@
  * ============================================================ */
 
 frappe.pages["employee-explorer"].on_page_load = function (wrapper) {
-	const page = frappe.ui.make_app_page({
-		parent: wrapper,
-		title: __("Employee Explorer"),
-		single_column: true,
-	});
-	new EmployeeExplorer(page);
+    const roles = frappe.user_roles || [];
+    const allowed = ["Employee Explorer User", "System Manager"];
+    if (!allowed.some(r => roles.includes(r))) {
+        frappe.msgprint({
+            title: __("Access Denied"),
+            indicator: "red",
+            message: __("Aap ko Employee Explorer access karne ki ijazat nahi hai."),
+        });
+        setTimeout(() => frappe.set_route("app"), 1500);
+        return;
+    }
+
+    const page = frappe.ui.make_app_page({
+        parent: wrapper,
+        title: __("Employee Explorer"),
+        single_column: true,
+    });
+    new EmployeeExplorer(page);
 };
 
 class EmployeeExplorer {

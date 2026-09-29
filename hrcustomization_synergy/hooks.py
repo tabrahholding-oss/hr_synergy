@@ -183,13 +183,23 @@ fixtures = [
             ]]
         ]
     },
-	{
-        "dt": "Role", 
+    {
+        "doctype": "Role",
         "filters": [
-            ["name", "=", "Shift"]
-            ]
+            ["name", "in", [
+                "Employee Explorer User",
+                "Shift"
+            ]]
+        ]
+    },
+    {
+        "doctype": "Page",
+        "filters": [
+            ["name", "in", ["employee-explorer"]]
+        ]
     },
 ]
+
 
 before_request = [
 	"hrcustomization_synergy.overrides.leave_patch.apply_patch",
