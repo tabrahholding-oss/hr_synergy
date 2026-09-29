@@ -4,7 +4,7 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2026-09-29 12:34:38.891359",
+ "modified": "2026-09-29 13:41:36.376527",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "employee-explorer",
@@ -12,10 +12,10 @@
  "page_name": "employee-explorer",
  "roles": [
   {
-   "role": "System Manager"
+   "role": "Employee Explorer User"
   },
   {
-   "role": "Employee Explorer User"
+   "role": "System Manager"
   }
  ],
  "script": null,

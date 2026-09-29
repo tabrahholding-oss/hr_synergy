@@ -191,15 +191,11 @@ fixtures = [
                 "Shift"
             ]]
         ]
-    },
-    {
-        "doctype": "Page",
-        "filters": [
-            ["name", "in", ["employee-explorer"]]
-        ]
-    },
+    }, 
 ]
-
+after_migrate = [
+    "hrcustomization_synergy.setup.create_employee_explorer_page"
+]
 
 before_request = [
 	"hrcustomization_synergy.overrides.leave_patch.apply_patch",
