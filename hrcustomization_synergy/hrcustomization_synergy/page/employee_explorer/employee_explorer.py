@@ -339,11 +339,17 @@ def get_dashboard():
 # 2. EMPLOYEE LIST  (search / filter)
 # ===============================================================
 
+# ===============================================================
+# 2. EMPLOYEE LIST  (search / filter)
+# ===============================================================
+
 @frappe.whitelist()
-def get_employees(search=None, department=None, status=None, limit=300):
+def get_employees(search=None, department=None, status=None,
+                   company=None, employment_type=None, limit=500):
     _check_access()
+
     cond = ["1 = 1"]
-    vals = {"limit": cint(limit) or 300}
+    vals = {"limit": cint(limit) or 500}
 
     if search:
         cond.append("""(
@@ -364,14 +370,22 @@ def get_employees(search=None, department=None, status=None, limit=300):
         cond.append("e.status = %(status)s")
         vals["status"] = status
 
+    if company:
+        cond.append("e.company = %(company)s")
+        vals["company"] = company
+
+    if employment_type:
+        cond.append("e.employment_type = %(employment_type)s")
+        vals["employment_type"] = employment_type
+
     where = " AND ".join(cond)
 
     return frappe.db.sql(f"""
         SELECT
             e.name, e.employee_name, e.employee_number,
             e.designation, e.department, e.company, e.branch,
-            e.status, e.date_of_joining, e.cell_number,
-            e.personal_email, e.company_email, e.image,
+            e.employment_type, e.status, e.date_of_joining,
+            e.cell_number, e.personal_email, e.company_email, e.image,
             e.custom_qid_number, e.custom_valid_to, e.gender
         FROM `tabEmployee` e
         WHERE {where}
@@ -379,6 +393,50 @@ def get_employees(search=None, department=None, status=None, limit=300):
         LIMIT %(limit)s
     """, vals, as_dict=True)
 
+
+# ===============================================================
+# 2b. FILTER OPTIONS  (dynamic dropdowns)
+# ===============================================================
+
+@frappe.whitelist()
+def get_employee_filter_options():
+    """Employee list ke filters ke liye options."""
+    _check_access()
+
+    companies = frappe.db.sql("""
+        SELECT DISTINCT company AS value
+        FROM `tabEmployee`
+        WHERE IFNULL(company, '') != ''
+        ORDER BY company
+    """, as_dict=True)
+
+    statuses = frappe.db.sql("""
+        SELECT DISTINCT status AS value
+        FROM `tabEmployee`
+        WHERE IFNULL(status, '') != ''
+        ORDER BY status
+    """, as_dict=True)
+
+    employment_types = frappe.db.sql("""
+        SELECT DISTINCT employment_type AS value
+        FROM `tabEmployee`
+        WHERE IFNULL(employment_type, '') != ''
+        ORDER BY employment_type
+    """, as_dict=True)
+
+    departments = frappe.db.sql("""
+        SELECT DISTINCT department AS value
+        FROM `tabEmployee`
+        WHERE IFNULL(department, '') != ''
+        ORDER BY department
+    """, as_dict=True)
+
+    return {
+        "companies":        [r.value for r in companies],
+        "statuses":         [r.value for r in statuses],
+        "employment_types": [r.value for r in employment_types],
+        "departments":      [r.value for r in departments],
+    }
 
 # ===============================================================
 # 3. FULL EMPLOYEE PROFILE
