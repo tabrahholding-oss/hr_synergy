@@ -7,15 +7,16 @@
  "field_order": [
   "employee",
   "employee_name",
-  "attendance_date",
   "department",
   "column_break_1",
   "working_hours",
   "normal_ot_hours",
   "holiday_ot_hours",
   "special_ot_hours",
-  "attendance",
-  "project"
+  "total_ot_hours",
+  "project",
+  "attendance_details",
+  "details"
  ],
  "fields": [
   {
@@ -34,13 +35,6 @@
    "in_list_view": 1,
    "label": "Employee Name",
    "read_only": 1
-  },
-  {
-   "fieldname": "attendance_date",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "label": "Attendance Date",
-   "reqd": 1
   },
   {
    "fetch_from": "employee.department",
@@ -88,11 +82,13 @@
    "columns": "1"
   },
   {
-   "fieldname": "attendance",
-   "fieldtype": "Link",
-   "label": "Attendance",
-   "options": "Attendance",
-   "read_only": 1
+   "fieldname": "total_ot_hours",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Total OT Hours",
+   "precision": "2",
+   "read_only": 1,
+   "columns": "1"
   },
   {
    "fieldname": "project",
@@ -100,6 +96,19 @@
    "label": "Project",
    "read_only": 1,
    "in_list_view": 1
+  },
+  {
+   "fieldname": "attendance_details",
+   "fieldtype": "Long Text",
+   "label": "Attendance Details (JSON)",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "details",
+   "fieldtype": "Button",
+   "in_list_view": 1,
+   "label": "Details"
   }
  ],
  "index_web_pages_for_search": 1,
