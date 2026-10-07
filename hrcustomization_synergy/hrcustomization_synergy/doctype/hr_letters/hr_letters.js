@@ -74,7 +74,7 @@ function get_print_format(frm) {
         "Employee Travel NOC": "Employee Travel NOC",
         "HMC NOC Letter": "HMC NOC Letter",
         "Inter-Company Transfer Letter": "Inter-Company Transfer Letter",
-        "Inter-Company Transfer Cum Promotion Letter": "Inter-Company Transfer Cum Promotion Letter",
+        "Inter-Transfer cum Salary Rise": "Inter-Transfer cum Salary Rise",
     };
 
     return format_map[frm.doc.certificate_type];
@@ -105,7 +105,7 @@ function open_print(frm, is_preview) {
 function auto_fetch_salary_components(frm) {
     if (
         !frm.doc.employee ||
-        !["Salary Increment", "Employee Confirmation", "Inter-Company Transfer Letter", "Inter-Company Transfer Cum Promotion Letter"].includes(frm.doc.certificate_type)
+        !["Salary Increment", "Employee Confirmation", "Inter-Company Transfer Letter", "Inter-Transfer cum Salary Rise"].includes(frm.doc.certificate_type)
     ) {
         return;
     }

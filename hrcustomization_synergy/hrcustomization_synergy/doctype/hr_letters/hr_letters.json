@@ -251,19 +251,19 @@
    "label": "Purpose / Reason"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Transfer cum Salary Rise\"",
    "fieldname": "section_break_increment",
    "fieldtype": "Section Break",
    "label": "Salary Increment Details"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Transfer cum Salary Rise\"",
    "fieldname": "increment_percentage",
    "fieldtype": "Float",
    "label": "Increment Percentage"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Transfer cum Salary Rise\"",
    "fieldname": "salary_component",
    "fieldtype": "Table",
    "label": "Salary Component",
@@ -418,7 +418,7 @@
   },
   {
    "default": "0",
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Transfer cum Salary Rise\"",
    "fieldname": "permotion",
    "fieldtype": "Check",
    "label": "Promotion"
@@ -439,7 +439,7 @@
   },
   {
    "default": "0",
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Transfer cum Salary Rise\"",
    "fieldname": "to_company",
    "fieldtype": "Check",
    "label": "To Company"
@@ -449,7 +449,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-07 09:03:02.875419",
+ "modified": "2026-10-07 14:38:19.598886",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Letters",

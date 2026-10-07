@@ -16,7 +16,7 @@ FORMAT_MAP = {
     "Employee Travel NOC": "Employee Travel NOC",
     "HMC NOC Letter": "HMC NOC Letter",
     "Inter-Company Transfer Letter": "Inter-Company Transfer Letter",
-    "Inter-Company Transfer Cum Promotion Letter": "Inter-Company Transfer Cum Promotion Letter",
+    "Inter-Transfer cum Salary Rise": "Inter-Transfer cum Salary Rise",
 
 }
 
