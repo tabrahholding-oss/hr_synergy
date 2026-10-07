@@ -42,7 +42,6 @@ class EmployeeExplorer {
 		this.build_shell();
 		this.bind_events();
 		this.load_filter_options();
-		this.load_dashboard();
 		this.load_employees();
 	}
 
@@ -455,23 +454,32 @@ class EmployeeExplorer {
 	load_employees() {
 		this.$body.html(`<div class="ee-loading">Loading employees…</div>`);
 
-		frappe.call({
-			method: "hrcustomization_synergy.hrcustomization_synergy.page.employee_explorer.employee_explorer.get_employees",
-			args: {
-				search: this.state.search || null,
-				company: this.state.company || null,
-				status: this.state.status || null,
-				employment_type: this.state.employment_type || null,
-			},
-		}).then((r) => {
+		Promise.all([
+			frappe.call({
+				method: "hrcustomization_synergy.hrcustomization_synergy.page.employee_explorer.employee_explorer.get_employees",
+				args: {
+					search: this.state.search || null,
+					company: this.state.company || null,
+					status: this.state.status || null,
+					employment_type: this.state.employment_type || null,
+				},
+			}),
+			this.load_dashboard(),   // 👈 dono ek saath chalao
+		]).then(([r]) => {
 			this.employees = r.message || [];
 			this.render_list();
 		});
 	}
 
 	load_dashboard() {
-		frappe.call({
+		return frappe.call({
 			method: "hrcustomization_synergy.hrcustomization_synergy.page.employee_explorer.employee_explorer.get_dashboard",
+			args: {
+				search: this.state.search || null,
+				company: this.state.company || null,
+				status: this.state.status || null,
+				employment_type: this.state.employment_type || null,
+			},
 		}).then((r) => {
 			this.dashboard = r.message || {};
 			if (this.$body.find("#ee-stats").length) this.render_stats();

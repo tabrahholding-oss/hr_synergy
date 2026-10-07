@@ -291,36 +291,58 @@ def _latest_ssa(employee):
 # ===============================================================
 
 @frappe.whitelist()
-def get_dashboard():
+def get_dashboard(search=None, department=None, status=None,
+                  company=None, employment_type=None):
     _check_access()
-    total  = frappe.db.count("Employee")
-    active = frappe.db.count("Employee", {"status": "Active"})
-    left   = frappe.db.count("Employee", {"status": "Left"})
 
-    by_department = frappe.db.sql("""
-        SELECT IFNULL(department, 'Not Set') AS label, COUNT(*) AS value
-        FROM `tabEmployee`
-        WHERE IFNULL(status,'') != 'Left'
-        GROUP BY department
+    cond = ["1 = 1"]
+    vals = {}
+
+    if search:
+        cond.append("""(
+            e.name LIKE %(search)s
+            OR IFNULL(e.employee_name,'')     LIKE %(search)s
+            OR IFNULL(e.employee_number,'')   LIKE %(search)s
+            OR IFNULL(e.custom_qid_number,'') LIKE %(search)s
+            OR IFNULL(e.cell_number,'')       LIKE %(search)s
+            OR IFNULL(e.personal_email,'')    LIKE %(search)s
+        )""")
+        vals["search"] = f"%{search}%"
+
+    if department:
+        cond.append("e.department = %(department)s")
+        vals["department"] = department
+    if status:
+        cond.append("e.status = %(status)s")
+        vals["status"] = status
+    if company:
+        cond.append("e.company = %(company)s")
+        vals["company"] = company
+    if employment_type:
+        cond.append("e.employment_type = %(employment_type)s")
+        vals["employment_type"] = employment_type
+
+    where = " AND ".join(cond)
+
+    total  = frappe.db.sql(f"SELECT COUNT(*) FROM `tabEmployee` e WHERE {where}", vals)[0][0]
+    active = frappe.db.sql(f"SELECT COUNT(*) FROM `tabEmployee` e WHERE {where} AND e.status='Active'", vals)[0][0]
+    left   = frappe.db.sql(f"SELECT COUNT(*) FROM `tabEmployee` e WHERE {where} AND e.status='Left'", vals)[0][0]
+
+    by_department = frappe.db.sql(f"""
+        SELECT IFNULL(e.department, 'Not Set') AS label, COUNT(*) AS value
+        FROM `tabEmployee` e
+        WHERE {where} AND IFNULL(e.status,'') != 'Left'
+        GROUP BY e.department
         ORDER BY value DESC
         LIMIT 8
-    """, as_dict=True)
+    """, vals, as_dict=True)
 
-    by_gender = frappe.db.sql("""
-        SELECT IFNULL(gender, 'Not Set') AS label, COUNT(*) AS value
-        FROM `tabEmployee`
-        WHERE IFNULL(status,'') != 'Left'
-        GROUP BY gender
-    """, as_dict=True)
-
-    by_designation = frappe.db.sql("""
-        SELECT IFNULL(designation, 'Not Set') AS label, COUNT(*) AS value
-        FROM `tabEmployee`
-        WHERE IFNULL(status,'') != 'Left'
-        GROUP BY designation
-        ORDER BY value DESC
-        LIMIT 8
-    """, as_dict=True)
+    by_gender = frappe.db.sql(f"""
+        SELECT IFNULL(e.gender, 'Not Set') AS label, COUNT(*) AS value
+        FROM `tabEmployee` e
+        WHERE {where} AND IFNULL(e.status,'') != 'Left'
+        GROUP BY e.gender
+    """, vals, as_dict=True)
 
     return {
         "cards": {
@@ -331,7 +353,6 @@ def get_dashboard():
         },
         "by_department": by_department,
         "by_gender": by_gender,
-        "by_designation": by_designation,
     }
 
 

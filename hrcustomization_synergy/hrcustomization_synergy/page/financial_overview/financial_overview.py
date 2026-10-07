@@ -1,8 +1,6 @@
 # financial_overview.py
 # ---------------------------------------------------------------------------
 # Backend for the "Financial Overview" dashboard page.
-# Pulls live numbers from GL Entry (for revenue/profit) and PL Category
-# mapping (for revenue breakdown).
 # ---------------------------------------------------------------------------
 
 import calendar
@@ -13,14 +11,14 @@ from frappe import _
 from frappe.utils import flt, add_months, getdate, add_years
 
 # ---------------------------------------------------------------------------
-# CONFIG — adjust to match your setup
+# CONFIG
 # ---------------------------------------------------------------------------
 
 COGS_ACCOUNT_TYPE = "Cost of Goods Sold"
 DEPRECIATION_ACCOUNT_TYPE = "Depreciation"
 NON_OPERATING_ACCOUNT_TYPES = ["Tax", "Depreciation"]
 
-COLORS = ["#1c6b4a", "#e3a627", "#d9824f", "#7a9e8f", "#b0763f"]
+COLORS = ["#002741", "#9b153e", "#edd6c8", "#333333", "#7a9e8f"]
 
 DEFAULT_CURRENCY_SYMBOL = "QAR"
 
@@ -102,6 +100,192 @@ def get_dashboard_data(company=None, fiscal_year=None, from_date=None, to_date=N
 		"revenue_breakdown": revenue_breakdown,
 		"revenue_total_fmt": fmt_m(revenue_cy, currency_symbol),
 		"trend": trend,
+	}
+
+
+# ---------------------------------------------------------------------------
+# Entry point — P&L Flow tab (Bridge Analysis & Sankey)
+# ---------------------------------------------------------------------------
+
+@frappe.whitelist()
+def get_pl_flow_data(company=None, fiscal_year=None, from_date=None, to_date=None):
+	"""Data for the 'P&L Flow' tab — Bridge Analysis & Sankey."""
+
+	if not company:
+		company = frappe.defaults.get_user_default("Company")
+	if not company:
+		company = get_first_company()
+	if not company:
+		frappe.throw(_("No company found. Please set up a Company first."))
+
+	fy_name, fy_start, fy_end, py_name, py_start, py_end = resolve_date_range(
+		company, fiscal_year, from_date, to_date
+	)
+	currency_symbol = get_currency_symbol(company)
+
+	categories = get_pl_categories(company)
+
+	cy_metrics = compute_pl_category_metrics(categories, company, fy_start, fy_end)
+	py_metrics = compute_pl_category_metrics(categories, company, py_start, py_end) if py_start else {
+		"revenue": 0, "cost_of_revenue": 0, "operating_expenses": 0,
+		"gross_profit": 0, "operating_income": 0, "net_income": 0
+	}
+
+	# Fetch Taxes
+	cy_taxes = 0
+	py_taxes = 0
+	
+	for cat in categories.values():
+		if (cat["group"] or "").lower() == "taxes":
+			cy_taxes += sum(get_account_signed_totals(cat["accounts"], company, fy_start, fy_end).values()) / 1_000_000
+			if py_start:
+				py_taxes += sum(get_account_signed_totals(cat["accounts"], company, py_start, py_end).values()) / 1_000_000
+
+	ebit_cy = cy_metrics["operating_income"]
+	ebit_py = py_metrics["operating_income"]
+	net_income_cy = cy_metrics["net_income"]
+	net_income_py = py_metrics["net_income"]
+
+	# Bridge Deltas
+	ebit_revenue_delta = cy_metrics["revenue"] - py_metrics["revenue"]
+	ebit_cogs_delta = cy_metrics["cost_of_revenue"] - py_metrics["cost_of_revenue"]
+	ebit_opex_delta = cy_metrics["operating_expenses"] - py_metrics["operating_expenses"]
+
+	ni_ebit_delta = ebit_cy - ebit_py
+	ni_tax_delta = cy_taxes - py_taxes
+
+	ebit_change_pct = pct_change(ebit_cy, ebit_py)
+	ebit_margin = round(pct_of(ebit_cy, cy_metrics["revenue"]), 1)
+
+	ni_change_pct = pct_change(net_income_cy, net_income_py)
+	ni_margin = round(pct_of(net_income_cy, cy_metrics["revenue"]), 1)
+
+	# --- Sankey Data Preparation (Summary & Detail) ---
+	revenue_cats = [cat for cat in categories.values() if (cat["group"] or "").lower() == "revenue"]
+	revenue_cats_sorted = sorted(revenue_cats, key=lambda c: c["sort"])
+	
+	cogs_cats = [cat for cat in categories.values() if (cat["group"] or "").lower() == "cost of revenue"]
+	cogs_cats_sorted = sorted(cogs_cats, key=lambda c: c["sort"])
+	
+	opex_cats = [cat for cat in categories.values() if "operating" in (cat["group"] or "").lower() or "expense" in (cat["group"] or "").lower()]
+	opex_cats_sorted = sorted(opex_cats, key=lambda c: c["sort"])
+
+	# Detailed Sankey Data
+	nodes_detail = []
+	links_detail = []
+
+	# Column 1: Revenue Breakdown (Depth 0)
+	for cat in revenue_cats_sorted:
+		val = abs(sum(get_account_signed_totals(cat["accounts"], company, fy_start, fy_end).values()) / 1_000_000)
+		if val > 0:
+			nodes_detail.append({"name": cat["label"], "depth": 0})
+			links_detail.append({"source": cat["label"], "target": "Total Revenue", "value": round(val, 2)})
+
+	# Column 2: Total Revenue (Depth 1)
+	nodes_detail.append({"name": "Total Revenue", "depth": 1})
+
+	# Column 3: COGS & Gross Profit (Depth 2)
+	cogs_total = abs(sum(get_account_signed_totals([acc for cat in cogs_cats_sorted for acc in cat["accounts"]], company, fy_start, fy_end).values()) / 1_000_000)
+	if cogs_total > 0:
+		nodes_detail.append({"name": "COGS", "depth": 2})
+		links_detail.append({"source": "Total Revenue", "target": "COGS", "value": round(cogs_total, 2)})
+
+	gp = cy_metrics["gross_profit"]
+	nodes_detail.append({"name": "Gross Profit", "depth": 2})
+	links_detail.append({"source": "Total Revenue", "target": "Gross Profit", "value": round(gp, 2)})
+
+	# Column 4: OpEx & Operating Income (Depth 3)
+	for cat in opex_cats_sorted:
+		val = abs(sum(get_account_signed_totals(cat["accounts"], company, fy_start, fy_end).values()) / 1_000_000)
+		if val > 0:
+			nodes_detail.append({"name": cat["label"], "depth": 3})
+			links_detail.append({"source": "Gross Profit", "target": cat["label"], "value": round(val, 2)})
+
+	oi = cy_metrics["operating_income"]
+	nodes_detail.append({"name": "Operating Income", "depth": 3})
+	links_detail.append({"source": "Gross Profit", "target": "Operating Income", "value": round(oi, 2)})
+
+	# Column 5: Taxes & Net Income (Depth 4)
+	if cy_taxes > 0:
+		nodes_detail.append({"name": "Taxes", "depth": 4})
+		links_detail.append({"source": "Operating Income", "target": "Taxes", "value": round(cy_taxes, 2)})
+		
+	nodes_detail.append({"name": "Net Income", "depth": 4})
+	links_detail.append({"source": "Operating Income", "target": "Net Income", "value": round(net_income_cy, 2)})
+
+	sankey_detail = {
+		"nodes": nodes_detail,
+		"links": links_detail,
+		"currency_symbol": currency_symbol
+	}
+
+	# Summary Sankey Data (Grouped)
+	nodes_summary = []
+	links_summary = []
+
+	# Total Revenue
+	rev_total = sum(abs(sum(get_account_signed_totals(cat["accounts"], company, fy_start, fy_end).values()) / 1_000_000) for cat in revenue_cats_sorted)
+	nodes_summary.append({"name": "Total Revenue", "depth": 0})
+	
+	# COGS & Gross Profit
+	if cogs_total > 0:
+		nodes_summary.append({"name": "COGS", "depth": 1})
+		links_summary.append({"source": "Total Revenue", "target": "COGS", "value": round(cogs_total, 2)})
+	
+	nodes_summary.append({"name": "Gross Profit", "depth": 1})
+	links_summary.append({"source": "Total Revenue", "target": "Gross Profit", "value": round(gp, 2)})
+
+	# OpEx & Operating Income
+	opex_total_sum = sum(abs(sum(get_account_signed_totals(cat["accounts"], company, fy_start, fy_end).values()) / 1_000_000) for cat in opex_cats_sorted)
+	if opex_total_sum > 0:
+		nodes_summary.append({"name": "Operating Expenses", "depth": 2})
+		links_summary.append({"source": "Gross Profit", "target": "Operating Expenses", "value": round(opex_total_sum, 2)})
+
+	nodes_summary.append({"name": "Operating Income", "depth": 2})
+	links_summary.append({"source": "Gross Profit", "target": "Operating Income", "value": round(oi, 2)})
+
+	# Taxes & Net Income
+	if cy_taxes > 0:
+		nodes_summary.append({"name": "Taxes & Other", "depth": 3})
+		links_summary.append({"source": "Operating Income", "target": "Taxes & Other", "value": round(cy_taxes, 2)})
+	
+	nodes_summary.append({"name": "Net Income", "depth": 3})
+	links_summary.append({"source": "Operating Income", "target": "Net Income", "value": round(net_income_cy, 2)})
+
+	sankey_summary = {
+		"nodes": nodes_summary,
+		"links": links_summary,
+		"currency_symbol": currency_symbol
+	}
+
+	return {
+		"company": company,
+		"fiscal_year": fy_name,
+		"prior_fiscal_year": py_name,
+		"currency_symbol": currency_symbol,
+		"ebit_bridge": {
+			"start": {"label": "EBIT {}".format(py_name), "value": round(ebit_py, 2)},
+			"deltas": [
+				{"label": "Revenue Δ", "value": round(ebit_revenue_delta, 2)},
+				{"label": "COGS Δ", "value": round(ebit_cogs_delta, 2)},
+				{"label": "OpEx Δ", "value": round(ebit_opex_delta, 2)},
+			],
+			"end": {"label": "EBIT {}".format(fy_name), "value": round(ebit_cy, 2)},
+			"change_pct": ebit_change_pct,
+			"margin_pct": ebit_margin,
+		},
+		"net_income_bridge": {
+			"start": {"label": "Net Income {}".format(py_name), "value": round(net_income_py, 2)},
+			"deltas": [
+				{"label": "EBIT Δ", "value": round(ni_ebit_delta, 2)},
+				{"label": "Tax Δ", "value": round(ni_tax_delta, 2)},
+			],
+			"end": {"label": "Net Income {}".format(fy_name), "value": round(net_income_cy, 2)},
+			"change_pct": ni_change_pct,
+			"margin_pct": ni_margin,
+		},
+		"sankey_summary": sankey_summary,
+		"sankey_detail": sankey_detail
 	}
 
 
@@ -311,7 +495,7 @@ def build_ebit_stat_card(company, fy_start, fy_end, py_start, py_end, currency_s
 
 
 # ---------------------------------------------------------------------------
-# Revenue breakdown — PL Category "Revenue" group
+# Revenue breakdown
 # ---------------------------------------------------------------------------
 
 def get_revenue_breakdown_from_pl(company, fy_start, fy_end, currency_symbol):
@@ -521,11 +705,7 @@ def get_prior_fiscal_year(current_start_date):
 
 
 def resolve_date_range(company, fiscal_year=None, from_date=None, to_date=None):
-	"""Returns (cy_label, cy_start, cy_end, py_label, py_start, py_end).
-
-	Agar from_date aur to_date diye gaye hain to wahi use honge, aur prior
-	period = same dates last year. Warna fiscal year logic pe fall back.
-	"""
+	"""Returns (cy_label, cy_start, cy_end, py_label, py_start, py_end)."""
 	if from_date and to_date:
 		cy_start = getdate(from_date)
 		cy_end = getdate(to_date)
@@ -533,13 +713,14 @@ def resolve_date_range(company, fiscal_year=None, from_date=None, to_date=None):
 		py_start = add_years(cy_start, -1)
 		py_end = add_years(cy_end, -1)
 
+		# UPDATED: Date format to "01-Jan-2026 - 31-Dec-2026"
 		cy_label = "{0} - {1}".format(
-			cy_start.strftime("%d/%m/%Y"),
-			cy_end.strftime("%d/%m/%Y"),
+			cy_start.strftime("%d-%b-%Y"),
+			cy_end.strftime("%d-%b-%Y"),
 		)
 		py_label = "{0} - {1}".format(
-			py_start.strftime("%d/%m/%Y"),
-			py_end.strftime("%d/%m/%Y"),
+			py_start.strftime("%d-%b-%Y"),
+			py_end.strftime("%d-%b-%Y"),
 		)
 		return cy_label, cy_start, cy_end, py_label, py_start, py_end
 
@@ -583,11 +764,12 @@ def fmt_m(value_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
 
 
 def fmt_accounting(value_in_millions, symbol=DEFAULT_CURRENCY_SYMBOL):
+	# UPDATED: Remove brackets and use minus sign for negatives
 	v = flt(value_in_millions)
 	if v < 0:
 		if abs(v) >= 1:
-			return "({}{:.1f}M)".format(symbol, abs(v))
-		return "({}{:.0f}K)".format(symbol, abs(v) * 1000)
+			return "-{}{:.1f}M".format(symbol, abs(v))
+		return "-{}{:.0f}K".format(symbol, abs(v) * 1000)
 	return fmt_m(v, symbol)
 
 
@@ -613,7 +795,7 @@ def pct_of(part, whole):
 
 
 # ---------------------------------------------------------------------------
-# STATEMENTS TAB — entry point
+# STATEMENTS TAB
 # ---------------------------------------------------------------------------
 
 @frappe.whitelist()
@@ -880,7 +1062,7 @@ def get_account_signed_totals(accounts, company, from_date, to_date):
 
 
 # ===========================================================================
-# TRENDS TAB — entry point
+# TRENDS TAB
 # ===========================================================================
 
 @frappe.whitelist()
@@ -1022,34 +1204,34 @@ def compute_margin_cards(categories, company, fy_start, fy_end, py_start, py_end
 			"value_pct": gm_cy,
 			"prior_pct": gm_py,
 			"diff_pp": pp_diff(gm_cy, gm_py),
-			"color": "#1c6b4a",
+			"color": "#002741",
 		},
 		{
 			"label": _("Operating Margin"),
 			"value_pct": om_cy,
 			"prior_pct": om_py,
 			"diff_pp": pp_diff(om_cy, om_py),
-			"color": "#e3a627",
+			"color": "#9b153e",
 		},
 		{
 			"label": _("Net Margin"),
 			"value_pct": nm_cy,
 			"prior_pct": nm_py,
 			"diff_pp": pp_diff(nm_cy, nm_py),
-			"color": "#d9824f",
+			"color": "#edd6c8",
 		},
 		{
 			"label": _("EBITDA Margin"),
 			"value_pct": eb_cy,
 			"prior_pct": eb_py,
 			"diff_pp": pp_diff(eb_cy, eb_py),
-			"color": "#1e3a5f",
+			"color": "#333333",
 		},
 	]
 
 
 # ===========================================================================
-# COSTS & COMPARISON TAB — entry point
+# COSTS & COMPARISON TAB
 # ===========================================================================
 
 @frappe.whitelist()
@@ -1082,10 +1264,10 @@ def get_costs_data(company=None, fiscal_year=None, from_date=None, to_date=None)
 
 	left_cards = []
 	card_defs = [
-		("revenue", _("Revenue"), "#1c6b4a", "revenue"),
-		("gross_profit", _("Gross Profit"), "#1c6b4a", "gross_profit"),
-		("operating_income", _("Operating Income"), "#e3a627", "operating_income"),
-		("net_income", _("Net Income"), "#d9824f", "net_income"),
+		("revenue", _("Revenue"), "#002741", "revenue"),
+		("gross_profit", _("Gross Profit"), "#002741", "gross_profit"),
+		("operating_income", _("Operating Income"), "#9b153e", "operating_income"),
+		("net_income", _("Net Income"), "#edd6c8", "net_income"),
 	]
 
 	for key, label, color, metric_key in card_defs:
@@ -1210,7 +1392,7 @@ def get_costs_data(company=None, fiscal_year=None, from_date=None, to_date=None)
 
 
 # ===========================================================================
-# BALANCE SHEET (Statements tab — second view)
+# BALANCE SHEET
 # ===========================================================================
 
 BS_EXCLUDED_VOUCHER_TYPES = ["Period Closing Voucher"]
@@ -1585,7 +1767,7 @@ def get_account_signed_totals_bs_cumulative(accounts, company, as_of_date):
 
 
 # ===========================================================================
-# FINANCIAL RATIOS (Statements tab — third view)
+# FINANCIAL RATIOS
 # ===========================================================================
 
 def _sum_by_account_type(accounts, company, as_of_date, types):
@@ -1904,28 +2086,28 @@ def get_financial_ratios_data(company=None, fiscal_year=None, from_date=None, to
 			"key": "profitability",
 			"title": _("Profitability"),
 			"icon": "bar-chart-2",
-			"color": "#1c6b4a",
+			"color": "#002741",
 			"rows": profitability_rows,
 		},
 		{
 			"key": "liquidity",
 			"title": _("Liquidity"),
 			"icon": "dollar-sign",
-			"color": "#e3a627",
+			"color": "#9b153e",
 			"rows": liquidity_rows,
 		},
 		{
 			"key": "leverage",
 			"title": _("Leverage"),
 			"icon": "credit-card",
-			"color": "#d9824f",
+			"color": "#edd6c8",
 			"rows": leverage_rows,
 		},
 		{
 			"key": "efficiency",
 			"title": _("Efficiency"),
 			"icon": "pie-chart",
-			"color": "#1e3a5f",
+			"color": "#333333",
 			"rows": efficiency_rows,
 		},
 	]
