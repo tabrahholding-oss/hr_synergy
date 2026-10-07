@@ -22,6 +22,8 @@
   "company",
   "date_of_joining",
   "letter_head",
+  "to_company",
+  "change_company",
   "section_break_ids",
   "custom_qid_number",
   "passport_number",
@@ -249,19 +251,19 @@
    "label": "Purpose / Reason"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
    "fieldname": "section_break_increment",
    "fieldtype": "Section Break",
    "label": "Salary Increment Details"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
    "fieldname": "increment_percentage",
    "fieldtype": "Float",
    "label": "Increment Percentage"
   },
   {
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Employee Confirmation\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
    "fieldname": "salary_component",
    "fieldtype": "Table",
    "label": "Salary Component",
@@ -416,7 +418,7 @@
   },
   {
    "default": "0",
-   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
    "fieldname": "permotion",
    "fieldtype": "Check",
    "label": "Promotion"
@@ -427,13 +429,27 @@
    "fieldtype": "Link",
    "label": "Change Designation",
    "options": "Designation"
+  },
+  {
+   "depends_on": "eval:doc.to_company == 1",
+   "fieldname": "change_company",
+   "fieldtype": "Link",
+   "label": "Change Company",
+   "options": "Company"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\" || doc.certificate_type==\"Inter-Company Transfer Letter\" || doc.certificate_type==\"Inter-Company Transfer Cum Promotion Letter\"",
+   "fieldname": "to_company",
+   "fieldtype": "Check",
+   "label": "To Company"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-21 10:04:07.400513",
+ "modified": "2026-10-07 09:03:02.875419",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Letters",
