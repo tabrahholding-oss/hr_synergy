@@ -1535,6 +1535,20 @@ def get_bl_statement_data(company=None, fiscal_year=None, from_date=None, to_dat
 		"equity_py": section_totals["Equity"]["py"],
 	}
 
+	# Provisional Profit / Loss (Credit) = Assets − Liabilities − Equity
+	# Positive  => Credit balance (profit)
+	# Negative  => Loss
+	summary_data["provisional_cy"] = (
+		summary_data["assets_cy"]
+		- summary_data["liabilities_cy"]
+		- summary_data["equity_cy"]
+	)
+	summary_data["provisional_py"] = (
+		summary_data["assets_py"]
+		- summary_data["liabilities_py"]
+		- summary_data["equity_py"]
+	)
+
 	return {
 		"company": company,
 		"fiscal_year": fy_name,
@@ -1547,6 +1561,9 @@ def get_bl_statement_data(company=None, fiscal_year=None, from_date=None, to_dat
 
 
 def build_bs_summary_cards(summary_data, currency_symbol):
+	provisional_cy = summary_data.get("provisional_cy", 0)
+	provisional_py = summary_data.get("provisional_py", 0)
+
 	return [
 		{
 			"label": _("Total Assets"),
@@ -1573,21 +1590,12 @@ def build_bs_summary_cards(summary_data, currency_symbol):
 			"change_pct_class": "fo-badge-up" if summary_data["equity_cy"] >= summary_data["equity_py"] else "fo-badge-down",
 		},
 		{
-			"label": _("Liabilities + Equity"),
+			"label": _("Provisional Profit / Loss (Credit)"),
 			"icon": "bar-chart-2",
-			"value_fmt": fmt_accounting(
-				summary_data["liabilities_cy"] + summary_data["equity_cy"],
-				currency_symbol,
-			),
-			"prior_value_fmt": fmt_accounting(
-				summary_data["liabilities_py"] + summary_data["equity_py"],
-				currency_symbol,
-			),
-			"change_pct": pct_change(
-				summary_data["liabilities_cy"] + summary_data["equity_cy"],
-				summary_data["liabilities_py"] + summary_data["equity_py"],
-			),
-			"change_pct_class": "fo-badge-up",
+			"value_fmt": fmt_accounting(provisional_cy, currency_symbol),
+			"prior_value_fmt": fmt_accounting(provisional_py, currency_symbol),
+			"change_pct": pct_change(provisional_cy, provisional_py),
+			"change_pct_class": "fo-badge-up" if provisional_cy >= provisional_py else "fo-badge-down",
 		},
 	]
 

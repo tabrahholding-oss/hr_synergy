@@ -618,17 +618,23 @@ class FinancialOverview {
 			`;
 		}
 		const rows_html = (d.rows || []).map(row => this.get_statement_row_html(row)).join('');
-		const summary_cards_html = (d.summary_cards || []).map(c => `
-			<div class="fo-statement-card">
-				<div class="fo-statement-card-top">
-					<span class="fo-icon">${this.icon(c.icon)}</span>
-					<span class="fo-badge ${c.change_pct_class}">${c.change_pct >= 0 ? '&uarr;' : '&darr;'} ${Math.abs(c.change_pct)}%</span>
+		const summary_cards_html = (d.summary_cards || []).map(c => {
+			const is_provisional = (c.label || '').toLowerCase().includes('provisional');
+			const value_class = is_provisional && c.value_fmt && c.value_fmt.trim().startsWith('-')
+				? 'fo-value-negative'
+				: '';
+			return `
+				<div class="fo-statement-card">
+					<div class="fo-statement-card-top">
+						<span class="fo-icon">${this.icon(c.icon)}</span>
+						<span class="fo-badge ${c.change_pct_class}">${c.change_pct >= 0 ? '&uarr;' : '&darr;'} ${Math.abs(c.change_pct)}%</span>
+					</div>
+					<div class="fo-statement-card-label">${c.label}</div>
+					<div class="fo-statement-card-value ${value_class}">${c.value_fmt}</div>
+					<div class="fo-statement-card-vs">vs. ${c.prior_value_fmt}</div>
 				</div>
-				<div class="fo-statement-card-label">${c.label}</div>
-				<div class="fo-statement-card-value">${c.value_fmt}</div>
-				<div class="fo-statement-card-vs">vs. ${c.prior_value_fmt}</div>
-			</div>
-		`).join('');
+			`;
+		}).join('');
 		return `
 			<div class="fo-page fo-statement-page">
 				<div class="fo-header fo-trends-header">
