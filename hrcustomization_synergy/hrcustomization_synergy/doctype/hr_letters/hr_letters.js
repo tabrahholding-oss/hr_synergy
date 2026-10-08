@@ -52,7 +52,6 @@ function toggle_valid_till(frm) {
     const reqd = frm.doc.certificate_type !== "Employee Travel NOC";
 
     frm.set_df_property("valid_till", "hidden", !reqd);
-    frm.set_df_property("valid_till", "reqd", reqd);
 
     if (!reqd) {
         frm.set_value("valid_till", null);
