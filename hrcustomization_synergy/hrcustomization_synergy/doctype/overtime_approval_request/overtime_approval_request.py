@@ -2,7 +2,7 @@ import frappe
 import json
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import getdate, nowdate
+from frappe.utils import getdate, nowdate, flt
 from hrcustomization_synergy.hrcustomization_synergy.overtime_calculation import get_holiday_list_for_employee
 
 
@@ -17,17 +17,93 @@ class OvertimeApprovalRequest(Document):
         self.apply_normal_ot_limit()
 
     def apply_normal_ot_limit(self):
+        """
+        Row ki values aur per-day details (JSON) ko consistent karta hai:
+        - Normal OT row limit: kam se kam = din, zyada se zyada = 3 x din
+        - Per-day Normal OT: 0 ya 1 se 3
+        - Row ki edit ki hui values details mein push hoti hain
+        - Row ke totals hamesha details se dobara banate hain
+        """
         for item in self.overtime_details:
-            if item.normal_ot_hours and item.normal_ot_hours < 1:
-                item.normal_ot_hours = 0
-            elif item.normal_ot_hours and item.normal_ot_hours > 3:
-                item.normal_ot_hours = 3
+            details = self._get_details(item)
 
+            # Purani rows (details ke baghair): row par 1-3 limit
+            if not details:
+                if item.normal_ot_hours and item.normal_ot_hours < 1:
+                    item.normal_ot_hours = 0
+                elif item.normal_ot_hours and item.normal_ot_hours > 3:
+                    item.normal_ot_hours = 3
+                item.total_ot_hours = (
+                    (item.normal_ot_hours or 0)
+                    + (item.holiday_ot_hours or 0)
+                    + (item.special_ot_hours or 0)
+                )
+                continue
+
+            # 1) Row ki edit ki hui values ko details mein push karo
+            self._push_row_values_to_details(item, details)
+
+            # 2) Per-day Normal OT limit
+            for d in details:
+                value = flt(d.get("normal_ot_hours"))
+                if value < 1:
+                    value = 0
+                elif value > 3:
+                    value = 3
+                d["normal_ot_hours"] = value
+
+            # 3) Row ke totals details se
+            item.normal_ot_hours = round(sum(flt(d.get("normal_ot_hours")) for d in details), 2)
+            item.holiday_ot_hours = round(sum(flt(d.get("holiday_ot_hours")) for d in details), 2)
+            item.special_ot_hours = round(sum(flt(d.get("special_ot_hours")) for d in details), 2)
             item.total_ot_hours = (
-                (item.normal_ot_hours or 0)
-                + (item.holiday_ot_hours or 0)
-                + (item.special_ot_hours or 0)
+                item.normal_ot_hours + item.holiday_ot_hours + item.special_ot_hours
             )
+            item.attendance_details = json.dumps(details)
+
+    def _push_row_values_to_details(self, item, details):
+        """Agar row ki value details ke total se alag hai (user ne row mein edit kiya),
+        to usay din-ba-din details mein taqseem karo."""
+
+        # ---- Normal OT: din = jin dinon mein normal OT hai ----
+        days = [d for d in details if flt(d.get("normal_ot_hours")) > 0] or details
+        n = len(days)
+        row_normal = flt(item.normal_ot_hours)
+        details_normal = sum(flt(d.get("normal_ot_hours")) for d in details)
+
+        if abs(row_normal - details_normal) > 0.01:
+            if row_normal > 0 and row_normal < n:
+                row_normal = 0
+            elif row_normal > 3 * n:
+                row_normal = 3 * n
+
+            for d in details:
+                d["normal_ot_hours"] = 0
+
+            if row_normal > 0:
+                share = round(row_normal / n, 2)
+                for i, d in enumerate(days):
+                    if i < n - 1:
+                        d["normal_ot_hours"] = share
+                    else:
+                        d["normal_ot_hours"] = round(row_normal - share * (n - 1), 2)
+
+        # ---- Holiday / Special OT ----
+        for field in ("holiday_ot_hours", "special_ot_hours"):
+            row_value = max(flt(item.get(field)), 0)
+            details_sum = sum(flt(d.get(field)) for d in details)
+
+            if abs(row_value - details_sum) <= 0.01:
+                continue
+
+            if details_sum > 0:
+                ratio = row_value / details_sum
+                for d in details:
+                    d[field] = round(flt(d.get(field)) * ratio, 2)
+            else:
+                # Pehle koi value nahi thi: pehle din par daal do (din tay karna ho to popup use karein)
+                for i, d in enumerate(details):
+                    d[field] = row_value if i == 0 else 0
 
     def on_submit(self):
         if self.status != "Approved":
@@ -167,7 +243,7 @@ class OvertimeApprovalRequest(Document):
                     if calculated_ot >= (settings.minimum_normal_ot or 0):
                         normal_ot_hours = calculated_ot
 
-            # Normal OT limit
+            # Normal OT limit (per day)
             if normal_ot_hours < 1:
                 normal_ot_hours = 0
             elif normal_ot_hours > 3:
