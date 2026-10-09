@@ -240,7 +240,130 @@ class EmployeeExplorer {
 .ee-dl-item .dot{width:11px;height:11px;border-radius:50%;flex:0 0 11px}
 .ee-dl-item .lbl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ee-dl-item .pct{font-weight:700;color:#0f172a;font-size:12px;flex:0 0 auto}
+/* ============ ORGANISATION CHART TAB ============ */
+.oc-wrap{
+  background:linear-gradient(135deg,#1e3a5f 0%,#0f2540 100%);
+  border-radius:12px;padding:22px 14px 28px;overflow:auto;
+  min-height:480px;
+}
+.oc-actions{display:flex;gap:8px;margin-bottom:16px;justify-content:center}
+.oc-actions button{
+  border:none;padding:6px 14px;border-radius:6px;background:rgba(255,255,255,0.13);
+  color:#fff;cursor:pointer;font-size:11.5px;font-weight:600;
+  border:1px solid rgba(255,255,255,0.18);
+}
+.oc-actions button:hover{background:rgba(255,255,255,0.22)}
 
+.oc-tree{padding:6px 0;display:inline-block;min-width:100%;text-align:center}
+.oc-tree ul{
+  display:flex;justify-content:center;padding:20px 0 0;position:relative;
+  margin:0;list-style:none;
+}
+.oc-tree > ul{padding-top:0}
+.oc-tree li{
+  list-style:none;position:relative;padding:20px 6px 0;
+  display:flex;flex-direction:column;align-items:center;
+}
+.oc-tree > ul > li{padding-top:0}
+
+/* Connector: horizontal segment going to parent */
+.oc-tree li::before,
+.oc-tree li::after{
+  content:"";position:absolute;top:0;right:50%;width:50%;height:20px;
+  border-top:1.5px solid rgba(255,255,255,0.30);
+}
+.oc-tree li::after{
+  right:auto;left:50%;border-left:1.5px solid rgba(255,255,255,0.30);
+}
+.oc-tree li:only-child::before,
+.oc-tree li:only-child::after{display:none}
+.oc-tree li:first-child::before,
+.oc-tree li:last-child::after{border:0}
+.oc-tree li:first-child::after{border-radius:4px 0 0 0}
+.oc-tree li:last-child::before{
+  border-right:1.5px solid rgba(255,255,255,0.30);
+  border-radius:0 4px 0 0;
+}
+.oc-tree ul ul::before{
+  content:"";position:absolute;top:0;left:50%;height:20px;
+  border-left:1.5px solid rgba(255,255,255,0.30);
+}
+.oc-tree > ul > li::before,
+.oc-tree > ul > li::after{display:none}
+
+.oc-hidden{display:none !important}
+
+/* ---------- Compact Card ---------- */
+.oc-card{
+  width:140px;min-height:150px;padding:0 0 22px;
+  border-radius:12px;
+  background:linear-gradient(180deg,#eaf2fb 0%,#4a90e2 38%,#1e4e97 100%);
+  display:flex;flex-direction:column;align-items:center;
+  cursor:default;position:relative;
+  box-shadow:0 5px 12px rgba(0,0,0,0.28);
+  text-align:center;transition:transform .15s,box-shadow .15s;
+}
+.oc-card.has-children{cursor:pointer}
+.oc-card.has-children:hover{transform:translateY(-3px);box-shadow:0 9px 18px rgba(0,0,0,0.40)}
+
+/* Photo */
+.oc-photo-wrap{
+  width:48px;height:48px;border-radius:50%;background:#fff;
+  margin:9px 0 7px;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;box-shadow:0 3px 7px rgba(0,0,0,0.20);
+  border:2px solid #fff;flex:0 0 48px;
+}
+.oc-photo-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.oc-photo-wrap i{color:#94a3b8;font-size:20px}
+
+/* Text */
+.oc-name{
+  font-size:11.5px;font-weight:700;color:#fff;
+  padding:0 8px;line-height:1.22;margin-bottom:2px;
+  text-shadow:0 1px 2px rgba(0,0,0,0.28);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;word-break:break-word;max-width:100%;
+}
+.oc-code{
+  font-size:9px;color:rgba(255,255,255,0.88);
+  font-weight:700;letter-spacing:.3px;margin-bottom:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+  padding:0 6px;
+}
+.oc-desig{
+  font-size:10px;color:#fff;font-weight:600;
+  padding:0 8px;line-height:1.22;margin-bottom:1px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;word-break:break-word;max-width:100%;
+}
+.oc-dept{
+  font-size:9.5px;color:rgba(255,255,255,0.85);
+  padding:0 8px;line-height:1.22;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;
+  overflow:hidden;word-break:break-word;max-width:100%;
+}
+
+/* Toggle button */
+.oc-toggle{
+  position:absolute;bottom:5px;left:50%;transform:translateX(-50%);
+  width:17px;height:17px;border-radius:50%;
+  background:rgba(255,255,255,0.95);color:#1e3a5f;
+  font-weight:700;font-size:11px;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(0,0,0,0.22);user-select:none;
+}
+
+/* Empty state */
+.oc-empty{
+  padding:80px 20px;text-align:center;
+  color:rgba(255,255,255,0.75);font-size:14px;
+}
+
+/* Multiple roots wrapper */
+.oc-roots{
+  display:flex;justify-content:center;gap:40px;flex-wrap:wrap;
+  align-items:flex-start;padding-top:10px;
+}
 /* Funnel */
 .ee-funnel-wrap{padding:6px 0 4px}
 `}</style>`).appendTo(document.head);
@@ -256,6 +379,7 @@ class EmployeeExplorer {
                     <div class="ee-main-tabs" id="ee-main-tabs">
                         <button class="ee-main-tab active" data-mtab="employees">Employee Detail</button>
                         <button class="ee-main-tab" data-mtab="hr">HR Detail</button>
+                        <button class="ee-main-tab" data-mtab="org_chart">Organisation Chart</button>
                     </div>
                 </div>
                 <div class="ee-search-wrap" id="ee-search-wrap">
@@ -469,6 +593,10 @@ class EmployeeExplorer {
 			this.$wrap.find("#ee-search-wrap").addClass("hide");
 			this.$wrap.find("#ee-filter-bar").addClass("hide");
 			this.load_hr_dashboard();
+		} else if (tab === "org_chart") {
+			this.$wrap.find("#ee-search-wrap").addClass("hide");
+			this.$wrap.find("#ee-filter-bar").addClass("hide");
+			this.load_organization_chart();
 		}
 	}
 
@@ -633,15 +761,15 @@ class EmployeeExplorer {
 
 	_build_month_options() {
 		return [
-			{ val: "1",  label: "January" },
-			{ val: "2",  label: "February" },
-			{ val: "3",  label: "March" },
-			{ val: "4",  label: "April" },
-			{ val: "5",  label: "May" },
-			{ val: "6",  label: "June" },
-			{ val: "7",  label: "July" },
-			{ val: "8",  label: "August" },
-			{ val: "9",  label: "September" },
+			{ val: "1", label: "January" },
+			{ val: "2", label: "February" },
+			{ val: "3", label: "March" },
+			{ val: "4", label: "April" },
+			{ val: "5", label: "May" },
+			{ val: "6", label: "June" },
+			{ val: "7", label: "July" },
+			{ val: "8", label: "August" },
+			{ val: "9", label: "September" },
 			{ val: "10", label: "October" },
 			{ val: "11", label: "November" },
 			{ val: "12", label: "December" },
@@ -653,8 +781,8 @@ class EmployeeExplorer {
 		const y = this._hr_year;
 		const now = new Date();
 		if (y && m) return `${y}-${String(m).padStart(2, "0")}`;
-		if (y)     return `${y}-01`;
-		if (m)     return `${now.getFullYear()}-${String(m).padStart(2, "0")}`;
+		if (y) return `${y}-01`;
+		if (m) return `${now.getFullYear()}-${String(m).padStart(2, "0")}`;
 		return null;
 	}
 
@@ -668,6 +796,170 @@ class EmployeeExplorer {
 			if (!d) return;
 			this.hr_data = d;
 			this.render_hr_dashboard();
+		});
+	}
+	/* ==================================================
+   ORGANISATION CHART TAB
+   ================================================== */
+	load_organization_chart() {
+		this.$body.html(`<div class="ee-loading">Loading organisation chart…</div>`);
+
+		this._call("get_organization_chart", {
+			company: null, // Optional company filter — filhal off
+		}).then((d) => {
+			if (!d) return;
+			this.org_data = d;
+			this.render_organization_chart();
+		});
+	}
+
+	render_organization_chart() {
+		const d = this.org_data || { roots: [], total: 0 };
+
+		if (!d.roots || !d.roots.length) {
+			this.$body.html(`
+                <div class="oc-wrap">
+                    <div class="oc-empty">
+                        <i class="fa fa-sitemap" style="font-size:44px;opacity:.6"></i>
+                        <div style="margin-top:14px">No reporting hierarchy found. Please set "Reports To" on employees.</div>
+                    </div>
+                </div>`);
+			return;
+		}
+
+		this.$body.html(`
+            <div class="oc-wrap">
+                <div class="oc-actions">
+                    <button id="oc-expand-all"><i class="fa fa-plus-square-o"></i> Expand All</button>
+                    <button id="oc-collapse-all"><i class="fa fa-minus-square-o"></i> Collapse All</button>
+                </div>
+                <div class="oc-tree" id="oc-tree"></div>
+            </div>
+        `);
+
+		const $tree = this.$body.find("#oc-tree");
+		const treeEl = $tree[0];
+
+		if (d.roots.length === 1) {
+			// Single root — normal tree
+			const rootUl = document.createElement("ul");
+			rootUl.appendChild(this.create_org_node(d.roots[0]));
+			treeEl.appendChild(rootUl);
+		} else {
+			// Multiple roots — side by side, each as its own small tree
+			const wrap = document.createElement("div");
+			wrap.className = "oc-roots";
+			d.roots.forEach((root) => {
+				const miniUl = document.createElement("ul");
+				miniUl.style.paddingTop = "0";
+				miniUl.appendChild(this.create_org_node(root));
+				wrap.appendChild(miniUl);
+			});
+			treeEl.appendChild(wrap);
+		}
+
+		this.$body.find("#oc-expand-all").on("click", () => this.oc_toggle_all(true));
+		this.$body.find("#oc-collapse-all").on("click", () => this.oc_toggle_all(false));
+	}
+
+	create_org_node(person) {
+		const li = document.createElement("li");
+
+		const card = document.createElement("div");
+		card.className = "oc-card";
+
+		const hasChildren = person.children && person.children.length;
+
+		// ---------- Photo ----------
+		const photoWrap = document.createElement("div");
+		photoWrap.className = "oc-photo-wrap";
+
+		const makeFallbackIcon = () => {
+			const i = document.createElement("i");
+			i.className = "fa fa-user";
+			return i;
+		};
+
+		if (person.image) {
+			const img = document.createElement("img");
+			img.src = person.image;
+			img.alt = "";                         // ⬅️ IMPORTANT: no alt text overlay
+			img.draggable = false;
+			img.onerror = function () {
+				photoWrap.replaceChildren(makeFallbackIcon());
+			};
+			photoWrap.appendChild(img);
+		} else {
+			photoWrap.appendChild(makeFallbackIcon());
+		}
+
+		// ---------- Text ----------
+		const name = document.createElement("div");
+		name.className = "oc-name";
+		name.textContent = person.employee_name || person.name || "-";
+		name.title = person.employee_name || "";
+
+		const code = document.createElement("div");
+		code.className = "oc-code";
+		code.textContent = person.employee_number || person.name || "-";
+
+		const desig = document.createElement("div");
+		desig.className = "oc-desig";
+		desig.textContent = person.designation || "-";
+		desig.title = person.designation || "";
+
+		const dept = document.createElement("div");
+		dept.className = "oc-dept";
+		dept.textContent = person.department || "-";
+		dept.title = person.department || "";
+
+		card.append(photoWrap, name, code, desig, dept);
+
+		// ---------- Children ----------
+		if (hasChildren) {
+			card.classList.add("has-children");
+
+			const toggle = document.createElement("div");
+			toggle.className = "oc-toggle";
+			toggle.textContent = "+";
+			card.appendChild(toggle);
+
+			const ul = document.createElement("ul");
+			ul.className = "oc-hidden";
+
+			person.children.forEach((child) => {
+				ul.appendChild(this.create_org_node(child));
+			});
+
+			card.setAttribute("aria-expanded", "false");
+
+			card.addEventListener("click", (e) => {
+				e.stopPropagation();
+				const opening = ul.classList.contains("oc-hidden");
+				ul.classList.toggle("oc-hidden");
+				toggle.textContent = opening ? "−" : "+";
+				card.setAttribute("aria-expanded", opening ? "true" : "false");
+			});
+
+			li.appendChild(card);
+			li.appendChild(ul);
+		} else {
+			li.appendChild(card);
+		}
+
+		return li;
+	}
+
+	oc_toggle_all(expand) {
+		this.$body.find(".oc-tree ul ul").each((i, el) => {
+			const $ul = $(el);
+			if (expand) $ul.removeClass("oc-hidden");
+			else $ul.addClass("oc-hidden");
+		});
+		this.$body.find(".oc-card[aria-expanded]").each((i, el) => {
+			const $c = $(el);
+			$c.attr("aria-expanded", expand ? "true" : "false");
+			$c.find(".oc-toggle").text(expand ? "−" : "+");
 		});
 	}
 
@@ -684,20 +976,20 @@ class EmployeeExplorer {
                 <select class="ee-select" id="ee-hr-year">
                     <option value="">All Years</option>
                     ${yearOpts.map((y) =>
-						`<option value="${y}" ${String(this._hr_year) === String(y) ? "selected" : ""}>${y}</option>`
-					).join("")}
+			`<option value="${y}" ${String(this._hr_year) === String(y) ? "selected" : ""}>${y}</option>`
+		).join("")}
                 </select>
                 <select class="ee-select" id="ee-hr-month">
                     <option value="">All Months</option>
                     ${monthOpts.map((o) =>
-						`<option value="${o.val}" ${this._hr_month === o.val ? "selected" : ""}>${o.label}</option>`
-					).join("")}
+			`<option value="${o.val}" ${this._hr_month === o.val ? "selected" : ""}>${o.label}</option>`
+		).join("")}
                 </select>
                 <select class="ee-select" id="ee-hr-company">
                     <option value="">All Companies</option>
                     ${companyOpts.map((c) =>
-						`<option value="${frappe.utils.escape_html(c)}" ${this._hr_company === c ? "selected" : ""}>${frappe.utils.escape_html(c)}</option>`
-					).join("")}
+			`<option value="${frappe.utils.escape_html(c)}" ${this._hr_company === c ? "selected" : ""}>${frappe.utils.escape_html(c)}</option>`
+		).join("")}
                 </select>
                 <button class="ee-btn ee-btn-dark" id="ee-hr-clear"
                     style="margin-left:auto;font-size:12px;padding:7px 16px">Reset</button>
@@ -786,7 +1078,7 @@ class EmployeeExplorer {
 			(d.by_department || []).map((x) => x.label),
 			(d.by_department || []).map((x) => x.value),
 			["#1f6fe5", "#f97316", "#22c55e", "#8b5cf6", "#eab308",
-			 "#ef4444", "#06b6d4", "#64748b", "#a855f7", "#0ea5e9"]
+				"#ef4444", "#06b6d4", "#64748b", "#a855f7", "#0ea5e9"]
 		);
 
 		// ---------- Employment Type (custom donut with right legend) ----------

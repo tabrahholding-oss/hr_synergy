@@ -23,7 +23,85 @@ def _check_access():
             frappe.PermissionError,
         )
 
+# ===============================================================
+# ORGANISATION CHART
+# ===============================================================
+# ===============================================================
+# ORGANISATION CHART
+# ===============================================================
+@frappe.whitelist()
+def get_organization_chart(company=None):
+    _check_access()
 
+    filters = {"status": "Active"}
+    if company:
+        filters["company"] = company
+
+    employees = frappe.get_all(
+        "Employee",
+        filters=filters,
+        fields=[
+            "name", "employee_name", "employee_number",
+            "designation", "department", "image",
+            "reports_to", "company",
+        ],
+        order_by="employee_name asc",
+        limit_page_length=0,
+    )
+
+    if not employees:
+        return {"roots": [], "total": 0}
+
+    # Keep employees as dicts and index by name
+    emp_map = {e["name"]: e for e in employees}
+
+    # Build children map: manager_name -> [employee_name, ...]
+    children_map = {}
+    for e in employees:
+        rt = e.get("reports_to")
+        if rt:
+            children_map.setdefault(rt, []).append(e["name"])
+
+    # Roots: employees whose reports_to is empty OR points to someone not in list
+    roots = [
+        e for e in employees
+        if not e.get("reports_to") or e["reports_to"] not in emp_map
+    ]
+
+    def build_node(emp_name, visited=None):
+        if visited is None:
+            visited = set()
+        if emp_name in visited:
+            return None
+        visited.add(emp_name)
+
+        emp = emp_map.get(emp_name)
+        if not emp:
+            return None
+
+        node = {
+            "name":            emp.get("name"),
+            "employee_name":   emp.get("employee_name"),
+            "employee_number": emp.get("employee_number"),
+            "designation":     emp.get("designation"),
+            "department":      emp.get("department"),
+            "image":           emp.get("image"),
+            "company":         emp.get("company"),
+            "children":        [],
+        }
+        for child_name in children_map.get(emp_name, []):
+            child = build_node(child_name, visited)
+            if child:
+                node["children"].append(child)
+        return node
+
+    tree = []
+    for r in roots:
+        node = build_node(r["name"])
+        if node:
+            tree.append(node)
+
+    return {"roots": tree, "total": len(employees)}
 # ---------------------------------------------------------------
 # CONFIG
 # ---------------------------------------------------------------
