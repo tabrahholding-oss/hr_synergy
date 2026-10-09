@@ -1,5 +1,5 @@
 /* ============================================================
- * Employee Explorer  –  Desk Page (v2)
+ * HR Dashboard  –  Desk Page (v5)
  * ============================================================ */
 
 frappe.pages["employee-explorer"].on_page_load = function (wrapper) {
@@ -9,7 +9,7 @@ frappe.pages["employee-explorer"].on_page_load = function (wrapper) {
 		frappe.msgprint({
 			title: __("Access Denied"),
 			indicator: "red",
-			message: __("Aap ko Employee Explorer access karne ki ijazat nahi hai."),
+			message: __("Aap ko HR Dashboard access karne ki ijazat nahi hai."),
 		});
 		setTimeout(() => frappe.set_route("app"), 1500);
 		return;
@@ -17,7 +17,7 @@ frappe.pages["employee-explorer"].on_page_load = function (wrapper) {
 
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
-		title: __("Employee Explorer"),
+		title: __("HR Dashboard"),
 		single_column: true,
 	});
 	new EmployeeExplorer(page);
@@ -32,11 +32,24 @@ class EmployeeExplorer {
 		this.state = {
 			search: "",
 			company: "",
-			status: "",
+			status: "Active",
 			employment_type: "",
 		};
 		this._search_timer = null;
 		this._filter_options_loaded = false;
+
+		// Top main tab
+		this._active_mtab = "employees";
+
+		// HR tab state
+		this._hr_month = "";
+		this._hr_year = "";
+		this._hr_company = "";
+
+		// Letters filter state
+		this._lt_doctype = "";
+		this._lt_type = "";
+		this._lt_status = "";
 
 		this.inject_css();
 		this.build_shell();
@@ -53,8 +66,10 @@ class EmployeeExplorer {
 .ee-topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;background:#fff;
   padding:14px 22px;border-bottom:1px solid #e6e9ef;border-radius:10px 10px 0 0;flex-wrap:wrap}
 .ee-back{color:#1f6fe5;font-weight:600;cursor:pointer;margin-right:14px;font-size:13px}
+.ee-back.hide{display:none}
 .ee-title{color:#1f6fe5;font-size:22px;font-weight:700;margin:0;display:inline-block}
 .ee-search-wrap{display:flex;gap:8px;position:relative}
+.ee-search-wrap.hide{display:none}
 .ee-search-box{position:relative}
 .ee-input{width:320px;padding:8px 32px 8px 12px;border:1px solid #d8dee8;border-radius:6px;
   outline:none;font-size:13px;background:#fff}
@@ -83,6 +98,14 @@ class EmployeeExplorer {
 .ee-btn-dark{background:#1f2937;color:#fff}
 .ee-btn-dark:hover{background:#111827}
 .ee-body{padding:20px 22px}
+
+/* TOP MAIN TABS */
+.ee-main-tabs{display:flex;gap:0;border-bottom:2px solid #e6e9ef;margin-bottom:-2px}
+.ee-main-tabs.hide{display:none}
+.ee-main-tab{background:transparent;border:none;padding:8px 22px;font-size:15px;font-weight:700;
+  color:#64748b;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:.15s}
+.ee-main-tab:hover{color:#1f6fe5}
+.ee-main-tab.active{color:#1f6fe5;border-bottom-color:#1f6fe5}
 
 .ee-sec{margin-bottom:26px}
 .ee-sec-title{display:flex;align-items:center;gap:9px;color:#1f6fe5;font-weight:700;font-size:16px;margin:0 0 14px}
@@ -165,7 +188,6 @@ class EmployeeExplorer {
 .ee-tab.active{color:#1f6fe5;border-bottom-color:#1f6fe5}
 .ee-tab-panel.hide{display:none}
 
-/* Leave history filter */
 .ee-filter-row{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
 .ee-select{padding:7px 12px;border:1px solid #d8dee8;border-radius:6px;font-size:12.5px;
   background:#fff;color:#334155;outline:none;min-width:160px}
@@ -183,14 +205,44 @@ class EmployeeExplorer {
 .ee-lt-empty-row td{text-align:center;color:#94a3b8;padding:22px}
 .ee-chart-mini{height:230px}
 
-
-/* Salary payout table scroll */
 .ee-scroll-x{overflow-x:auto;border-radius:9px;border:1px solid #e6e9ef;background:#fff}
 .ee-scroll-x .ee-table{border:none;border-radius:0}
 .ee-filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;
   background:#fff;border-bottom:1px solid #e6e9ef;padding:12px 22px}
 .ee-filter-bar .ee-select{min-width:170px}
 .ee-filter-bar.hide{display:none}
+
+/* ============ HR DETAIL TAB ============ */
+.ee-hr-filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  background:#fff;border:1px solid #e6e9ef;border-radius:9px;padding:12px 14px;margin-bottom:18px}
+.ee-hr-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+@media(max-width:1200px){.ee-hr-kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.ee-hr-kpis{grid-template-columns:repeat(2,1fr)}}
+.ee-hr-kpi{background:#fff;border:1px solid #e6e9ef;border-radius:9px;padding:14px 16px;
+  display:flex;gap:12px;align-items:flex-start}
+.ee-hr-kpi .ico{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font-size:16px;flex:0 0 38px}
+.ee-hr-kpi .body{flex:1;min-width:0}
+.ee-hr-kpi .lbl{font-size:10.5px;font-weight:700;color:#64748b;letter-spacing:.4px;text-transform:uppercase}
+.ee-hr-kpi .val{font-size:22px;font-weight:700;color:#0f172a;margin-top:4px}
+
+.ee-hr-charts{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:18px}
+@media(max-width:1000px){.ee-hr-charts{grid-template-columns:1fr}}
+.ee-hr-panel{background:#fff;border:1px solid #e6e9ef;border-radius:9px;padding:14px 18px}
+.ee-hr-panel h4{margin:0 0 14px;font-size:13.5px;font-weight:700;color:#334155}
+.ee-hr-panel .chart-wrap{min-height:240px;position:relative}
+
+/* Donut with right legend */
+.ee-donut-wrap{display:flex;align-items:center;gap:22px;min-height:220px}
+.ee-donut-svg{flex:0 0 180px}
+.ee-donut-legend{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto;padding-right:4px}
+.ee-dl-item{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#334155}
+.ee-dl-item .dot{width:11px;height:11px;border-radius:50%;flex:0 0 11px}
+.ee-dl-item .lbl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ee-dl-item .pct{font-weight:700;color:#0f172a;font-size:12px;flex:0 0 auto}
+
+/* Funnel */
+.ee-funnel-wrap{padding:6px 0 4px}
 `}</style>`).appendTo(document.head);
 	}
 
@@ -199,9 +251,12 @@ class EmployeeExplorer {
 		this.$wrap.html(`
         <div class="ee-app">
             <div class="ee-topbar">
-                <div style="display:flex;align-items:center">
-                    <span class="ee-back hide" id="ee-back">&larr; Back to Personnel</span>
-                    <h1 class="ee-title" id="ee-title">Employee Explorer</h1>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span class="ee-back hide" id="ee-back">&larr; Back</span>
+                    <div class="ee-main-tabs" id="ee-main-tabs">
+                        <button class="ee-main-tab active" data-mtab="employees">Employee Detail</button>
+                        <button class="ee-main-tab" data-mtab="hr">HR Detail</button>
+                    </div>
                 </div>
                 <div class="ee-search-wrap" id="ee-search-wrap">
                     <div class="ee-search-box">
@@ -228,12 +283,13 @@ class EmployeeExplorer {
                 </button>
             </div>
             <div class="ee-body" id="ee-body">
-                <div class="ee-loading">Loading employees…</div>
+                <div class="ee-loading">Loading…</div>
             </div>
         </div>
     `);
 		this.$body = this.$wrap.find("#ee-body");
 	}
+
 	load_filter_options() {
 		frappe.call({
 			method: "hrcustomization_synergy.hrcustomization_synergy.page.employee_explorer.employee_explorer.get_employee_filter_options",
@@ -252,10 +308,23 @@ class EmployeeExplorer {
 			fill("#ee-filter-company", o.companies, "All Companies");
 			fill("#ee-filter-status", o.statuses, "All Status");
 			fill("#ee-filter-etype", o.employment_types, "All Employment Types");
+
+			if ((o.statuses || []).includes("Active")) {
+				this.$wrap.find("#ee-filter-status").val("Active");
+				this.state.status = "Active";
+			}
 		});
 	}
+
 	bind_events() {
 		const $wrap = this.$wrap;
+
+		// ---------- TOP MAIN TABS ----------
+		$wrap.on("click", ".ee-main-tab", (e) => {
+			const tab = $(e.currentTarget).data("mtab");
+			this.switch_main_tab(tab);
+		});
+
 		$wrap.on("click", "#ee-search-btn", () => this.do_search());
 		$wrap.on("keydown", "#ee-search", (e) => {
 			if (e.key === "Enter") {
@@ -265,7 +334,7 @@ class EmployeeExplorer {
 			}
 			if (e.key === "Escape") this.close_dropdown();
 		});
-		// filters
+
 		$wrap.on("change", "#ee-filter-company", (e) => {
 			this.state.company = e.target.value;
 			this.load_employees();
@@ -280,13 +349,14 @@ class EmployeeExplorer {
 		});
 		$wrap.on("click", "#ee-filter-clear", () => {
 			this.state.company = "";
-			this.state.status = "";
+			this.state.status = "Active";
 			this.state.employment_type = "";
 			$wrap.find("#ee-filter-company").val("");
-			$wrap.find("#ee-filter-status").val("");
+			$wrap.find("#ee-filter-status").val("Active");
 			$wrap.find("#ee-filter-etype").val("");
 			this.load_employees();
 		});
+
 		$wrap.on("input", "#ee-search", (e) => {
 			const val = $(e.currentTarget).val();
 			$wrap.find("#ee-search-clear").toggleClass("show", !!val);
@@ -300,6 +370,7 @@ class EmployeeExplorer {
 			this.state.search = "";
 			this.load_employees();
 		});
+
 		$wrap.on("click", "#ee-back", () => this.show_list());
 		$wrap.on("click", ".ee-emp-card", (e) => {
 			const emp = $(e.currentTarget).data("name");
@@ -312,11 +383,11 @@ class EmployeeExplorer {
 			$wrap.find("#ee-search-clear").removeClass("show");
 			if (emp) this.open_profile(emp);
 		});
-		// close dropdown when clicking outside
 		$(document).on("click.ee", (e) => {
 			if (!$(e.target).closest(".ee-search-box").length) this.close_dropdown();
 		});
-		// tabs
+
+		// ---------- INNER TABS ----------
 		$wrap.on("click", ".ee-tab", (e) => {
 			const tab = $(e.currentTarget).data("tab");
 			$wrap.find(".ee-tab").removeClass("active");
@@ -324,61 +395,30 @@ class EmployeeExplorer {
 			$wrap.find(".ee-tab-panel").addClass("hide");
 			$wrap.find(`#tab-${tab}`).removeClass("hide");
 		});
-		// leave history filters
+
 		$wrap.on("change", "#ee-lh-type, #ee-lh-year", () => this.apply_leave_filter());
-		// Letters actions
-		$wrap.on("click", ".ee-letter-act", (e) => {
-			const btn = e.currentTarget;
-			const action = $(btn).data("action");
-			const doctype = $(btn).data("doctype");
-			const name = $(btn).data("name");
 
-			if (action === "view") {
-				window.open(
-					`/app/${frappe.router.slug(doctype)}/${encodeURIComponent(name)}`,
-					"_blank"
-				);
-				return;
-			}
-
-			frappe.call({
-				method: "hrcustomization_synergy.api.letters_dashboard.get_print_url",
-				args: { doctype, docname: name, preview: action === "preview" ? 1 : 0 },
-				callback: (r) => {
-					if (r.message && r.message.url) {
-						window.open(r.message.url, "_blank");
-					} else {
-						frappe.msgprint(__("No print format mapped for this document."));
-					}
-				},
-			});
-		});
-		// Letters tab filters
+		// Letters filters
 		$wrap.on("change", "#ee-lt-doctype", (e) => {
-			this._lt_doctype = e.target.value;
-			this.reload_letters();
+			this._lt_doctype = e.target.value; this.reload_letters();
 		});
 		$wrap.on("change", "#ee-lt-type", (e) => {
-			this._lt_type = e.target.value;
-			this.reload_letters();
+			this._lt_type = e.target.value; this.reload_letters();
 		});
 		$wrap.on("change", "#ee-lt-status", (e) => {
-			this._lt_status = e.target.value;
-			this.reload_letters();
+			this._lt_status = e.target.value; this.reload_letters();
 		});
 		$wrap.on("click", "#ee-lt-clear", () => {
-			this._lt_doctype = "";
-			this._lt_type = "";
-			this._lt_status = "";
+			this._lt_doctype = ""; this._lt_type = ""; this._lt_status = "";
 			this.reload_letters();
 		});
-		// Letter actions (View / Preview / Print)
+
+		// Letter actions
 		$wrap.on("click", ".ee-letter-act", (e) => {
 			const btn = e.currentTarget;
 			const action = $(btn).data("action");
 			const doctype = $(btn).data("doctype");
 			const name = $(btn).data("name");
-
 			if (action === "view") {
 				window.open(`/app/${frappe.router.slug(doctype)}/${encodeURIComponent(name)}`, "_blank");
 				return;
@@ -392,15 +432,50 @@ class EmployeeExplorer {
 				},
 			});
 		});
+
+		// ---------- HR DETAIL FILTERS (Year, Month, Company) ----------
+		$wrap.on("change", "#ee-hr-year", (e) => {
+			this._hr_year = e.target.value;
+			this.load_hr_dashboard();
+		});
+		$wrap.on("change", "#ee-hr-month", (e) => {
+			this._hr_month = e.target.value;
+			this.load_hr_dashboard();
+		});
+		$wrap.on("change", "#ee-hr-company", (e) => {
+			this._hr_company = e.target.value;
+			this.load_hr_dashboard();
+		});
+		$wrap.on("click", "#ee-hr-clear", () => {
+			this._hr_year = "";
+			this._hr_month = "";
+			this._hr_company = "";
+			this.load_hr_dashboard();
+		});
 	}
 
-	/* ---------------- LIVE SEARCH DROPDOWN ---------------- */
+	/* ---------------- TOP MAIN TAB SWITCH ---------------- */
+	switch_main_tab(tab) {
+		this._active_mtab = tab;
+		this.$wrap.find(".ee-main-tab").removeClass("active");
+		this.$wrap.find(`.ee-main-tab[data-mtab="${tab}"]`).addClass("active");
+		this.$wrap.find("#ee-back").addClass("hide");
+
+		if (tab === "employees") {
+			this.$wrap.find("#ee-search-wrap").removeClass("hide");
+			this.$wrap.find("#ee-filter-bar").removeClass("hide");
+			this.load_employees();
+		} else if (tab === "hr") {
+			this.$wrap.find("#ee-search-wrap").addClass("hide");
+			this.$wrap.find("#ee-filter-bar").addClass("hide");
+			this.load_hr_dashboard();
+		}
+	}
+
+	/* ---------------- LIVE SEARCH ---------------- */
 	live_search(q) {
 		q = (q || "").trim();
-		if (q.length < 1) {
-			this.close_dropdown();
-			return;
-		}
+		if (q.length < 1) { this.close_dropdown(); return; }
 		frappe.call({
 			method: "hrcustomization_synergy.hrcustomization_synergy.page.employee_explorer.employee_explorer.get_employees",
 			args: { search: q, limit: 20 },
@@ -440,9 +515,7 @@ class EmployeeExplorer {
 		}).join("")).addClass("show");
 	}
 
-	close_dropdown() {
-		this.$wrap.find(".ee-dropdown").removeClass("show");
-	}
+	close_dropdown() { this.$wrap.find(".ee-dropdown").removeClass("show"); }
 
 	do_search() {
 		this.state.search = this.$wrap.find("#ee-search").val() || "";
@@ -450,7 +523,7 @@ class EmployeeExplorer {
 		this.load_employees();
 	}
 
-	/* ---------------- LIST ---------------- */
+	/* ---------------- EMPLOYEE LIST ---------------- */
 	load_employees() {
 		this.$body.html(`<div class="ee-loading">Loading employees…</div>`);
 
@@ -464,7 +537,7 @@ class EmployeeExplorer {
 					employment_type: this.state.employment_type || null,
 				},
 			}),
-			this.load_dashboard(),   // 👈 dono ek saath chalao
+			this.load_dashboard(),
 		]).then(([r]) => {
 			this.employees = r.message || [];
 			this.render_list();
@@ -483,19 +556,20 @@ class EmployeeExplorer {
 		}).then((r) => {
 			this.dashboard = r.message || {};
 			if (this.$body.find("#ee-stats").length) this.render_stats();
-			if (this.$body.find("#ee-charts").length) this.render_charts();
 		});
 	}
 
 	render_list() {
 		this.$wrap.find("#ee-back").addClass("hide");
-		this.$wrap.find("#ee-title").text("Employee Explorer");
 		this.$wrap.find("#ee-search-wrap").removeClass("hide");
 		this.$wrap.find("#ee-filter-bar").removeClass("hide");
+		this.$wrap.find("#ee-main-tabs").removeClass("hide");
+		this.$wrap.find(".ee-main-tab").removeClass("active");
+		this.$wrap.find('.ee-main-tab[data-mtab="employees"]').addClass("active");
+		this._active_mtab = "employees";
 
 		this.$body.html(`
         <div class="ee-sec" id="ee-stats"></div>
-        <div class="ee-sec" id="ee-charts"></div>
         <div class="ee-sec">
             <h3 class="ee-sec-title"><i class="fa fa-users"></i> Employees
                 <span style="color:#94a3b8;font-weight:500;font-size:13px">
@@ -506,7 +580,6 @@ class EmployeeExplorer {
     `);
 
 		this.render_stats();
-		this.render_charts();
 
 		const $g = this.$body.find("#ee-emp-grid");
 		if (!this.employees.length) {
@@ -540,7 +613,7 @@ class EmployeeExplorer {
 		this.$body.find("#ee-stats").html(`
 			<h3 class="ee-sec-title"><i class="fa fa-bar-chart"></i> Overview</h3>
 			<div class="ee-grid-cards">
-				<div class="ee-stat"><div class="lbl">Total Employees</div><div class="val">${c.total || 0}</div></div>
+				<div class="ee-stat"><div class="lbl">Total Employees</div><div class="val">${c.active || 0}</div></div>
 				<div class="ee-stat" style="border-left-color:#22c55e"><div class="lbl">Active</div><div class="val">${c.active || 0}</div></div>
 				<div class="ee-stat" style="border-left-color:#ef4444"><div class="lbl">Left</div><div class="val">${c.left || 0}</div></div>
 				<div class="ee-stat" style="border-left-color:#f59e0b"><div class="lbl">Departments</div><div class="val">${c.departments || 0}</div></div>
@@ -548,62 +621,328 @@ class EmployeeExplorer {
 		`);
 	}
 
-	render_charts() {
-		const d = this.dashboard;
-		if (!d) return;
-		this.$body.find("#ee-charts").html(`
-			<h3 class="ee-sec-title"><i class="fa fa-pie-chart"></i> Analytics</h3>
-			<div class="ee-charts">
-				<div class="ee-panel"><h4>Employees by Department</h4><div id="ee-chart-dept"></div></div>
-				<div class="ee-panel"><h4>Gender Distribution</h4><div id="ee-chart-gender"></div></div>
-			</div>
-		`);
+	/* ==================================================
+	   HR DETAIL DASHBOARD
+	   ================================================== */
+	_build_year_options() {
+		const y = new Date().getFullYear();
+		const opts = [];
+		for (let i = 0; i < 6; i++) opts.push(y - i);
+		return opts;
+	}
 
-		this.make_chart("#ee-chart-dept", {
-			type: "bar",
-			data: {
-				labels: (d.by_department || []).map((x) => x.label),
-				datasets: [{ values: (d.by_department || []).map((x) => x.value) }],
-			},
-			colors: ["#1f6fe5"],
-		});
+	_build_month_options() {
+		return [
+			{ val: "1",  label: "January" },
+			{ val: "2",  label: "February" },
+			{ val: "3",  label: "March" },
+			{ val: "4",  label: "April" },
+			{ val: "5",  label: "May" },
+			{ val: "6",  label: "June" },
+			{ val: "7",  label: "July" },
+			{ val: "8",  label: "August" },
+			{ val: "9",  label: "September" },
+			{ val: "10", label: "October" },
+			{ val: "11", label: "November" },
+			{ val: "12", label: "December" },
+		];
+	}
 
-		this.make_chart("#ee-chart-gender", {
-			type: "donut",
-			data: {
-				labels: (d.by_gender || []).map((x) => x.label),
-				datasets: [{ values: (d.by_gender || []).map((x) => x.value) }],
-			},
-			colors: ["#1f6fe5", "#f472b6", "#94a3b8"],
+	_combined_month_param() {
+		const m = this._hr_month;
+		const y = this._hr_year;
+		const now = new Date();
+		if (y && m) return `${y}-${String(m).padStart(2, "0")}`;
+		if (y)     return `${y}-01`;
+		if (m)     return `${now.getFullYear()}-${String(m).padStart(2, "0")}`;
+		return null;
+	}
+
+	load_hr_dashboard() {
+		this.$body.html(`<div class="ee-loading">Loading HR dashboard…</div>`);
+
+		this._call("get_hr_dashboard", {
+			month: this._combined_month_param(),
+			company: this._hr_company || null,
+		}).then((d) => {
+			if (!d) return;
+			this.hr_data = d;
+			this.render_hr_dashboard();
 		});
 	}
 
-	make_chart(sel, cfg) {
-		const el = this.$body.find(sel)[0];
-		if (!el) return;
-		if (typeof frappe.Chart === "function") {
-			new frappe.Chart(el, Object.assign({ height: 230, axisOptions: { xAxisMode: "tick" } }, cfg));
-		} else {
-			const labels = cfg.data.labels || [];
-			const values = (cfg.data.datasets[0] || {}).values || [];
-			const max = Math.max(...values, 1);
-			el.innerHTML = labels.map((l, i) => `
-				<div style="margin-bottom:8px">
-					<div style="display:flex;justify-content:space-between;font-size:11px;color:#475569">
-						<span>${frappe.utils.escape_html(l)}</span><b>${values[i]}</b></div>
-					<div style="height:7px;background:#eef2f7;border-radius:4px;margin-top:3px">
-						<div style="width:${(values[i] / max) * 100}%;height:100%;background:#1f6fe5;border-radius:4px"></div>
-					</div>
-				</div>`).join("");
+	render_hr_dashboard() {
+		const d = this.hr_data;
+		if (!d) return;
+
+		const yearOpts = this._build_year_options();
+		const monthOpts = this._build_month_options();
+		const companyOpts = d.companies || [];
+
+		const filtersHtml = `
+            <div class="ee-hr-filter-bar">
+                <select class="ee-select" id="ee-hr-year">
+                    <option value="">All Years</option>
+                    ${yearOpts.map((y) =>
+						`<option value="${y}" ${String(this._hr_year) === String(y) ? "selected" : ""}>${y}</option>`
+					).join("")}
+                </select>
+                <select class="ee-select" id="ee-hr-month">
+                    <option value="">All Months</option>
+                    ${monthOpts.map((o) =>
+						`<option value="${o.val}" ${this._hr_month === o.val ? "selected" : ""}>${o.label}</option>`
+					).join("")}
+                </select>
+                <select class="ee-select" id="ee-hr-company">
+                    <option value="">All Companies</option>
+                    ${companyOpts.map((c) =>
+						`<option value="${frappe.utils.escape_html(c)}" ${this._hr_company === c ? "selected" : ""}>${frappe.utils.escape_html(c)}</option>`
+					).join("")}
+                </select>
+                <button class="ee-btn ee-btn-dark" id="ee-hr-clear"
+                    style="margin-left:auto;font-size:12px;padding:7px 16px">Reset</button>
+            </div>
+        `;
+
+		const k = d.kpis || {};
+
+		const kpisHtml = `
+            <div class="ee-hr-kpis">
+                ${this._hr_kpi("Total Employees", k.total_employees, "fa-users", "#1f6fe5")}
+                ${this._hr_kpi("New Hires", k.new_hires, "fa-user-plus", "#22c55e")}
+                ${this._hr_kpi("Turnover Rate", (k.turnover_rate || 0) + "%", "fa-exchange", "#ef4444")}
+                ${this._hr_kpi("Attrition Rate", (k.attrition_rate || 0) + "%", "fa-line-chart", "#f97316")}
+                ${this._hr_kpi("Offer Acceptance", (k.offer_acceptance_rate || 0) + "%", "fa-check-circle", "#8b5cf6")}
+            </div>
+        `;
+
+		const chartsHtml = `
+            <div class="ee-hr-charts">
+                <div class="ee-hr-panel">
+                    <h4>Headcount Trend (12 Months)</h4>
+                    <div class="chart-wrap" id="ee-hr-chart-headcount"></div>
+                </div>
+                <div class="ee-hr-panel">
+                    <h4>Employee Distribution by Department</h4>
+                    <div class="chart-wrap" id="ee-hr-chart-dept"></div>
+                </div>
+                <div class="ee-hr-panel">
+                    <h4>Employment Type</h4>
+                    <div class="chart-wrap" id="ee-hr-chart-etype"></div>
+                </div>
+                <div class="ee-hr-panel">
+                    <h4>Recruitment Funnel</h4>
+                    <div class="chart-wrap ee-funnel-wrap" id="ee-hr-funnel"></div>
+                </div>
+                <div class="ee-hr-panel">
+                    <h4>Employee Tenure</h4>
+                    <div id="ee-hr-tenure" style="padding-top:6px"></div>
+                </div>
+            </div>
+        `;
+
+		this.$body.html(filtersHtml + kpisHtml + chartsHtml);
+		setTimeout(() => this.draw_hr_charts(), 60);
+	}
+
+	_hr_kpi(label, value, icon, color) {
+		const v = (value === null || value === undefined) ? 0 : value;
+		return `
+            <div class="ee-hr-kpi">
+                <div class="ico" style="background:${color}1f;color:${color}">
+                    <i class="fa ${icon}"></i></div>
+                <div class="body">
+                    <div class="lbl">${label}</div>
+                    <div class="val">${v}</div>
+                </div>
+            </div>`;
+	}
+
+	draw_hr_charts() {
+		const d = this.hr_data;
+		if (!d) return;
+
+		// ---------- Headcount Trend (line chart) ----------
+		const el1 = this.$body.find("#ee-hr-chart-headcount")[0];
+		if (el1 && typeof frappe.Chart === "function") {
+			try {
+				new frappe.Chart(el1, {
+					type: "line",
+					data: {
+						labels: (d.headcount_trend || []).map((x) => x.label),
+						datasets: [{ values: (d.headcount_trend || []).map((x) => x.value) }],
+					},
+					colors: ["#1f6fe5"],
+					height: 240,
+					lineOptions: { regionFill: 1, hideDots: 0, dotSize: 4 },
+					axisOptions: { xAxisMode: "tick" },
+				});
+			} catch (e) { }
+		}
+
+		// ---------- Department (custom donut with right legend) ----------
+		this.draw_donut(
+			"#ee-hr-chart-dept",
+			(d.by_department || []).map((x) => x.label),
+			(d.by_department || []).map((x) => x.value),
+			["#1f6fe5", "#f97316", "#22c55e", "#8b5cf6", "#eab308",
+			 "#ef4444", "#06b6d4", "#64748b", "#a855f7", "#0ea5e9"]
+		);
+
+		// ---------- Employment Type (custom donut with right legend) ----------
+		this.draw_donut(
+			"#ee-hr-chart-etype",
+			(d.by_employment_type || []).map((x) => x.label),
+			(d.by_employment_type || []).map((x) => x.value),
+			["#1f6fe5", "#a855f7", "#f59e0b", "#22c55e", "#ef4444"]
+		);
+
+		// ---------- Recruitment Funnel (SVG trapezoids) ----------
+		const funnelEl = this.$body.find("#ee-hr-funnel")[0];
+		if (funnelEl) {
+			funnelEl.innerHTML = this._build_funnel_svg(d.recruitment_funnel || []);
+		}
+
+		// ---------- Tenure bars ----------
+		const tenureEl = this.$body.find("#ee-hr-tenure")[0];
+		if (tenureEl) {
+			const rows = d.tenure || [];
+			const max = Math.max(...rows.map((r) => r.value), 1);
+			tenureEl.innerHTML = rows.map((r) => `
+                <div style="margin-bottom:12px">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;color:#475569;margin-bottom:4px">
+                        <span>${frappe.utils.escape_html(r.label)}</span>
+                        <b>${r.value}</b>
+                    </div>
+                    <div style="height:10px;background:#eef2f7;border-radius:5px">
+                        <div style="width:${(r.value / max) * 100}%;height:100%;background:#1f6fe5;border-radius:5px"></div>
+                    </div>
+                </div>`).join("");
 		}
 	}
 
+	/* ---------- Custom Donut (center total + right legend) ---------- */
+	draw_donut(containerSel, labels, values, colors, centerLabel) {
+		const el = this.$body.find(containerSel)[0];
+		if (!el) return;
+
+		const total = values.reduce((a, b) => a + b, 0);
+		if (!total) {
+			el.innerHTML = `<div class="ee-empty" style="border:none">No data</div>`;
+			return;
+		}
+
+		const size = 180;
+		const radius = 62;
+		const stroke = 26;
+		const cx = size / 2;
+		const cy = size / 2;
+		const circ = 2 * Math.PI * radius;
+
+		let offset = 0;
+		const segments = values.map((v, i) => {
+			const pct = v / total;
+			const dash = pct * circ;
+			const color = colors[i % colors.length];
+			const seg = `<circle cx="${cx}" cy="${cy}" r="${radius}"
+                fill="none" stroke="${color}" stroke-width="${stroke}"
+                stroke-dasharray="${dash} ${circ - dash}"
+                stroke-dashoffset="${-offset}"
+                transform="rotate(-90 ${cx} ${cy})" />`;
+			offset += dash;
+			return seg;
+		}).join("");
+
+		const legend = labels.map((l, i) => {
+			const pct = ((values[i] / total) * 100).toFixed(1);
+			return `<div class="ee-dl-item">
+                <span class="dot" style="background:${colors[i % colors.length]}"></span>
+                <span class="lbl">${frappe.utils.escape_html(l || "Not Set")}</span>
+                <span class="pct">${pct}%</span>
+            </div>`;
+		}).join("");
+
+		el.innerHTML = `
+            <div class="ee-donut-wrap">
+                <div class="ee-donut-svg">
+                    <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
+                        ${segments}
+                        <text x="${cx}" y="${cy - 2}" text-anchor="middle"
+                            style="font-size:26px;font-weight:700;fill:#0f172a">${total}</text>
+                        <text x="${cx}" y="${cy + 16}" text-anchor="middle"
+                            style="font-size:10.5px;fill:#94a3b8">Employees</text>
+                    </svg>
+                </div>
+                <div class="ee-donut-legend">${legend}</div>
+            </div>`;
+	}
+
+	/* ---------- Custom Funnel (SVG trapezoids) ---------- */
+	_build_funnel_svg(rows) {
+		if (!rows || !rows.length) {
+			return `<div class="ee-empty" style="border:none">No data</div>`;
+		}
+
+		const total = rows.length;
+		const maxVal = rows[0].value || 1;
+
+		const svgW = 520;
+		const stepH = 52;
+		const gap = 4;
+		const svgH = total * stepH + 10;
+
+		// Funnel drawing area
+		const funnelCenterX = 270;
+		const funnelMaxW = 280;
+		const funnelMinW = 130;
+
+		const colors = ["#1f6fe5", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe", "#dbeafe"];
+
+		let body = "";
+		for (let i = 0; i < total; i++) {
+			const r = rows[i];
+			const ratio = r.value / maxVal;
+			const nextRatio = (i < total - 1) ? (rows[i + 1].value / maxVal) : (ratio * 0.88);
+
+			const topW = funnelMinW + (funnelMaxW - funnelMinW) * ratio;
+			const botW = funnelMinW + (funnelMaxW - funnelMinW) * nextRatio;
+
+			const yTop = i * stepH + 5;
+			const yBot = yTop + stepH - gap;
+
+			const topL = funnelCenterX - topW / 2;
+			const topR = funnelCenterX + topW / 2;
+			const botL = funnelCenterX - botW / 2;
+			const botR = funnelCenterX + botW / 2;
+
+			const color = colors[i % colors.length];
+			const pct = ((r.value / maxVal) * 100).toFixed(r.value >= 10 ? 0 : 1);
+			const midY = (yTop + yBot) / 2;
+
+			body += `
+                <polygon points="${topL},${yTop} ${topR},${yTop} ${botR},${yBot} ${botL},${yBot}"
+                    fill="${color}" />
+                <text x="${funnelCenterX}" y="${midY + 5}" text-anchor="middle"
+                    fill="#ffffff" font-weight="700" font-size="14">${r.value}</text>
+                <text x="15" y="${midY + 4}" text-anchor="start"
+                    fill="#475569" font-weight="600" font-size="12.5">${frappe.utils.escape_html(r.label)}</text>
+                <text x="${svgW - 15}" y="${midY + 4}" text-anchor="end"
+                    fill="#64748b" font-weight="600" font-size="12">${pct}%</text>
+            `;
+		}
+
+		return `<svg viewBox="0 0 ${svgW} ${svgH}" width="100%" height="${svgH}"
+            preserveAspectRatio="xMidYMid meet" style="max-height:340px;display:block">${body}</svg>`;
+	}
+
+	/* ---------------- PROFILE ---------------- */
 	open_profile(employee) {
 		this.$body.html(`<div class="ee-loading">Loading profile…</div>`);
 		this.$wrap.find("#ee-back").removeClass("hide");
 		this.$wrap.find("#ee-search-wrap").addClass("hide");
 		this.$wrap.find("#ee-filter-bar").addClass("hide");
-		// reset letters filter state
+		this.$wrap.find("#ee-main-tabs").addClass("hide");
+
 		this._lt_doctype = "";
 		this._lt_type = "";
 		this._lt_status = "";
@@ -618,7 +957,6 @@ class EmployeeExplorer {
 			this.profile = profile;
 			this.salary_slips = slips || [];
 			this.letters = letters || { rows: [], has_letters: false, count: 0 };
-			this.$wrap.find("#ee-title").text(profile.employee.employee_name || employee);
 			this.render_profile(profile);
 		});
 	}
@@ -631,8 +969,14 @@ class EmployeeExplorer {
 	}
 
 	show_list() {
-		this.render_list();
-		this.load_dashboard();
+		this.$wrap.find("#ee-main-tabs").removeClass("hide");
+		this.$wrap.find("#ee-back").addClass("hide");
+		this.$wrap.find(".ee-main-tab").removeClass("active");
+		this.$wrap.find('.ee-main-tab[data-mtab="employees"]').addClass("active");
+		this._active_mtab = "employees";
+		this.$wrap.find("#ee-search-wrap").removeClass("hide");
+		this.$wrap.find("#ee-filter-bar").removeClass("hide");
+		this.load_employees();
 	}
 
 	render_profile(p) {
@@ -662,7 +1006,6 @@ class EmployeeExplorer {
 		];
 
 		this.$body.html(`
-			<!-- HEADER CARD -->
 			<div class="ee-sec">
 				<div class="ee-profile-head">
 					<div class="ee-photo">${avatar}</div>
@@ -688,7 +1031,6 @@ class EmployeeExplorer {
 				</div>
 			</div>
 
-			<!-- TABS -->
 			<div class="ee-tabs">
 				<button class="ee-tab active" data-tab="identification">
 					<i class="fa fa-id-card-o"></i> Identification Details
@@ -704,9 +1046,8 @@ class EmployeeExplorer {
 				</button>` : ""}
 			</div>
 
-			<!-- TAB 1: IDENTIFICATION DETAILS -->
+			<!-- TAB 1: IDENTIFICATION -->
 			<div class="ee-tab-panel" id="tab-identification">
-
 				<div class="ee-sec">
 					<h3 class="ee-sec-title"><i class="fa fa-id-card-o"></i> Identification Details</h3>
 					<div class="ee-qid-card">
@@ -736,7 +1077,6 @@ class EmployeeExplorer {
 
 				<div class="ee-sec">
 					<h3 class="ee-sec-title"><i class="fa fa-calendar-check-o"></i> Leave &amp; Gratuity</h3>
-
 					<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:10px">OVERVIEW</div>
 					<div class="ee-overview" style="margin-bottom:22px">
 						<div class="ee-ov">
@@ -764,14 +1104,12 @@ class EmployeeExplorer {
 					<div>
 						<div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:8px">LEAVE BALANCES</div>
 						<table class="ee-table">
-							<thead>
-								<tr>
-									<th>Leave Type</th>
-									<th style="text-align:right">Eligible</th>
-									<th style="text-align:right">Utilized</th>
-									<th style="text-align:right">Balance</th>
-								</tr>
-							</thead>
+							<thead><tr>
+								<th>Leave Type</th>
+								<th style="text-align:right">Eligible</th>
+								<th style="text-align:right">Utilized</th>
+								<th style="text-align:right">Balance</th>
+							</tr></thead>
 							<tbody>
 								${p.leave.other_balances.length
 				? p.leave.other_balances.map((r) => `
@@ -902,28 +1240,16 @@ class EmployeeExplorer {
                 </div>
             </div>
 
-            <!-- TAB 3: LETTERS (only if letters exist) -->
+            <!-- TAB 3: LETTERS -->
             ${(this.letters && this.letters.has_letters) ? `
-            <div class="ee-tab-panel hide" id="tab-letters">
-                <div class="ee-sec">
-                    <h3 class="ee-sec-title">
-                        <i class="fa fa-envelope-o"></i> Letters
-                        <span style="color:#94a3b8;font-weight:500;font-size:13px">
-                            (${this.letters.count})</span>
-                    </h3>
-                    ${this.render_letters_table(this.letters.rows)}
-                </div>
-            </div>` : ""}
+            <div class="ee-tab-panel hide" id="tab-letters"></div>` : ""}
 		`);
 
-		// render leave history + populate filters
 		this.render_leave_history(p.leave.history || []);
-		// render letters panel if present
 		if (this.letters && this.letters.has_letters) {
 			this.render_letters_panel();
 		}
 	}
-
 
 	/* ---------------- LETTERS PANEL ---------------- */
 	render_letters_panel() {
@@ -944,8 +1270,6 @@ class EmployeeExplorer {
             ${this.render_letters_table(L.rows)}
         </div>
     `);
-
-		// draw charts after DOM insert
 		setTimeout(() => this.draw_letter_charts(), 60);
 	}
 
@@ -953,28 +1277,12 @@ class EmployeeExplorer {
 		const k = L.kpis || {};
 		return `
         <div class="ee-grid-cards" style="margin-bottom:18px">
-            <div class="ee-stat">
-                <div class="lbl">Total Letters</div>
-                <div class="val">${k.total || 0}</div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#8c99a6">
-                <div class="lbl">Approved</div>
-                <div class="val">${k.approved || 0}</div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#eda100">
-                <div class="lbl">Draft</div>
-                <div class="val">${k.draft || 0}</div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#f97316">
-                <div class="lbl">Pending</div>
-                <div class="val">${k.pending || 0}</div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#e34948">
-                <div class="lbl">Rejected</div>
-                <div class="val">${k.rejected || 0}</div>
-            </div>
-        </div>
-    `;
+            <div class="ee-stat"><div class="lbl">Total Letters</div><div class="val">${k.total || 0}</div></div>
+            <div class="ee-stat" style="border-left-color:#8c99a6"><div class="lbl">Approved</div><div class="val">${k.approved || 0}</div></div>
+            <div class="ee-stat" style="border-left-color:#eda100"><div class="lbl">Draft</div><div class="val">${k.draft || 0}</div></div>
+            <div class="ee-stat" style="border-left-color:#f97316"><div class="lbl">Pending</div><div class="val">${k.pending || 0}</div></div>
+            <div class="ee-stat" style="border-left-color:#e34948"><div class="lbl">Rejected</div><div class="val">${k.rejected || 0}</div></div>
+        </div>`;
 	}
 
 	_letters_filter_html(L) {
@@ -995,104 +1303,60 @@ class EmployeeExplorer {
 
 		return `
         <div class="ee-lt-filter-bar">
-            <select class="ee-select" id="ee-lt-doctype">
-                <option value="">All Doc Types</option>${dtOpts}
-            </select>
-            <select class="ee-select" id="ee-lt-type">
-                <option value="">All Letter Types</option>${tOpts}
-            </select>
-            <select class="ee-select" id="ee-lt-status">
-                <option value="">All Status</option>${sOpts}
-            </select>
+            <select class="ee-select" id="ee-lt-doctype"><option value="">All Doc Types</option>${dtOpts}</select>
+            <select class="ee-select" id="ee-lt-type"><option value="">All Letter Types</option>${tOpts}</select>
+            <select class="ee-select" id="ee-lt-status"><option value="">All Status</option>${sOpts}</select>
             <button class="ee-btn ee-btn-dark ee-lt-clear" id="ee-lt-clear">Clear</button>
-        </div>
-    `;
+        </div>`;
 	}
 
 	_letters_charts_html() {
 		return `
         <div class="ee-charts" style="margin-bottom:22px">
-            <div class="ee-panel">
-                <h4>By Status</h4>
-                <div id="ee-chart-letter-status" class="ee-chart-mini"></div>
-            </div>
-            <div class="ee-panel">
-                <h4>By Letter Type</h4>
-                <div id="ee-chart-letter-type" class="ee-chart-mini"></div>
-            </div>
-        </div>
-    `;
+            <div class="ee-panel"><h4>By Status</h4><div id="ee-chart-letter-status" class="ee-chart-mini"></div></div>
+            <div class="ee-panel"><h4>By Letter Type</h4><div id="ee-chart-letter-type" class="ee-chart-mini"></div></div>
+        </div>`;
 	}
 
 	draw_letter_charts() {
 		const L = this.letters || {};
 		if (!L.charts) return;
 
-		// destroy old
 		if (this._lt_chart_status) { try { this._lt_chart_status.destroy(); } catch (e) { } }
 		if (this._lt_chart_type) { try { this._lt_chart_type.destroy(); } catch (e) { } }
 
-		// ---------- Status color map (match screenshot) ----------
 		const STATUS_COLORS = {
-			"Approved": "#8c99a6",
-			"Draft": "#eda100",
-			"CEO Approval": "#199e70",
-			"SSD Approval": "#e34948",
-			"Rejected": "#e34948",
-			"Pending": "#f97316",
+			"Approved": "#8c99a6", "Draft": "#eda100",
+			"CEO Approval": "#199e70", "SSD Approval": "#e34948",
+			"Rejected": "#e34948", "Pending": "#f97316",
 		};
 		const FALLBACK = ["#2a78d6", "#8b5cf6", "#06b6d4", "#10b981", "#ef4444", "#f59e0b"];
 
-		// ---------- Donut: By Status ----------
 		const st = L.charts.by_status || { labels: [], data: [] };
 		const stColors = st.labels.map((lbl, i) => STATUS_COLORS[lbl] || FALLBACK[i % FALLBACK.length]);
-
 		const elStatus = this.$body.find("#ee-chart-letter-status")[0];
-		if (elStatus) {
-			if (typeof frappe.Chart === "function") {
+		if (elStatus && typeof frappe.Chart === "function") {
+			try {
 				this._lt_chart_status = new frappe.Chart(elStatus, {
 					type: "donut",
 					data: { labels: st.labels, datasets: [{ values: st.data }] },
-					colors: stColors,
-					height: 230,
+					colors: stColors, height: 230,
 				});
-			} else {
-				elStatus.innerHTML = this._fallback_bars(st.labels, st.data, stColors);
-			}
+			} catch (e) { }
 		}
 
-		// ---------- Bar: By Type ----------
 		const tp = L.charts.by_type || { labels: [], data: [] };
 		const elType = this.$body.find("#ee-chart-letter-type")[0];
-		if (elType) {
-			if (typeof frappe.Chart === "function") {
+		if (elType && typeof frappe.Chart === "function") {
+			try {
 				this._lt_chart_type = new frappe.Chart(elType, {
 					type: "bar",
 					data: { labels: tp.labels, datasets: [{ values: tp.data }] },
-					colors: ["#2a78d6"],
-					height: 230,
+					colors: ["#2a78d6"], height: 230,
 					axisOptions: { xAxisMode: "tick" },
 				});
-			} else {
-				elType.innerHTML = this._fallback_bars(tp.labels, tp.data, ["#2a78d6"]);
-			}
+			} catch (e) { }
 		}
-	}
-
-	_fallback_bars(labels, values, colors) {
-		if (!labels.length) return `<div class="ee-empty" style="border:none">No data</div>`;
-		const max = Math.max(...values, 1);
-		return labels.map((l, i) => {
-			const col = colors[i % colors.length];
-			return `
-        <div style="margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between;font-size:11px;color:#475569">
-                <span>${frappe.utils.escape_html(l)}</span><b>${values[i]}</b></div>
-            <div style="height:7px;background:#eef2f7;border-radius:4px;margin-top:3px">
-                <div style="width:${(values[i] / max) * 100}%;height:100%;background:${col};border-radius:4px"></div>
-            </div>
-        </div>`;
-		}).join("");
 	}
 
 	reload_letters() {
@@ -1107,11 +1371,8 @@ class EmployeeExplorer {
 			status_filter: this._lt_status || null,
 		}).then((res) => {
 			if (!res) return;
-			// keep full option list (from backend unfiltered) — overwrite only rows/counts
 			this.letters = res;
-			// re-render whole profile tab (so badge + tab count update too)
 			this.render_letters_panel();
-			// update tab badge
 			this.$body.find('[data-tab="letters"] span').text(this.letters.count);
 		});
 	}
@@ -1119,9 +1380,8 @@ class EmployeeExplorer {
 	/* ---------------- LETTERS TABLE ---------------- */
 	render_letters_table(rows) {
 		if (!rows || !rows.length) {
-			return `<div class="ee-empty">No letters found for selected filters.</div>`;
+			return `<div class="ee-empty">No letters found for this employee.</div>`;
 		}
-
 		const body = rows.map((r) => `
         <tr>
             <td><b>${frappe.utils.escape_html(r.name)}</b></td>
@@ -1133,35 +1393,26 @@ class EmployeeExplorer {
                 <button class="ee-btn-mini ee-letter-act" data-action="view"
                     data-doctype="${frappe.utils.escape_html(r.doctype)}"
                     data-name="${frappe.utils.escape_html(r.name)}">
-                    <i class="fa fa-external-link"></i> View
-                </button>
+                    <i class="fa fa-external-link"></i> View</button>
                 <button class="ee-btn-mini ee-letter-act" data-action="preview"
                     data-doctype="${frappe.utils.escape_html(r.doctype)}"
                     data-name="${frappe.utils.escape_html(r.name)}">
-                    <i class="fa fa-eye"></i> Preview
-                </button>
+                    <i class="fa fa-eye"></i> Preview</button>
                 ${(r.status === "Approved") ? `
                 <button class="ee-btn-mini ee-btn-mini-primary ee-letter-act" data-action="print"
                     data-doctype="${frappe.utils.escape_html(r.doctype)}"
                     data-name="${frappe.utils.escape_html(r.name)}">
-                    <i class="fa fa-print"></i> Print
-                </button>` : ""}
+                    <i class="fa fa-print"></i> Print</button>` : ""}
             </td>
         </tr>`).join("");
 
 		return `
         <div class="ee-scroll-x">
             <table class="ee-table">
-                <thead>
-                    <tr>
-                        <th>Reference</th>
-                        <th>Doc Type</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
+                <thead><tr>
+                    <th>Reference</th><th>Doc Type</th><th>Type</th>
+                    <th>Status</th><th>Date</th><th>Actions</th>
+                </tr></thead>
                 <tbody>${body}</tbody>
             </table>
         </div>`;
@@ -1176,20 +1427,14 @@ class EmployeeExplorer {
         ${frappe.utils.escape_html(status || "-")}</span>`;
 	}
 
-
 	/* ---------------- SALARY PAYOUT ---------------- */
 	render_salary_payout(slips) {
 		if (!slips.length) {
 			return `<div class="ee-empty">No salary slips found for this employee.</div>`;
 		}
 
-		// ---------- Summary cards compute ----------
 		const total_slips = slips.length;
-
-		let total_earnings = 0;
-		let total_deductions = 0;
-		let total_net = 0;
-		let total_days = 0;
+		let total_earnings = 0, total_deductions = 0, total_net = 0, total_days = 0;
 
 		slips.forEach((s) => {
 			total_earnings += flt(s.gross_pay);
@@ -1202,54 +1447,25 @@ class EmployeeExplorer {
 		const avg_net = total_net / total_slips;
 		const last_basic = this._amt(last, "Basic Salary");
 
-		// ---------- Cards ----------
 		const cards = `
         <div class="ee-grid-cards" style="margin-bottom:22px">
-            <div class="ee-stat">
-                <div class="lbl">Total Salary Slips</div>
-                <div class="val">${total_slips}</div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#22c55e">
-                <div class="lbl">Total Earnings</div>
-                <div class="val">${this.money(total_earnings)}</div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#ef4444">
-                <div class="lbl">Total Deductions</div>
-                <div class="val">${this.money(total_deductions)}</div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#06b6d4">
-                <div class="lbl">Total Net Pay</div>
-                <div class="val">${this.money(total_net)}</div>
-            </div>
+            <div class="ee-stat"><div class="lbl">Total Salary Slips</div><div class="val">${total_slips}</div></div>
+            <div class="ee-stat" style="border-left-color:#22c55e"><div class="lbl">Total Earnings</div><div class="val">${this.money(total_earnings)}</div></div>
+            <div class="ee-stat" style="border-left-color:#ef4444"><div class="lbl">Total Deductions</div><div class="val">${this.money(total_deductions)}</div></div>
+            <div class="ee-stat" style="border-left-color:#06b6d4"><div class="lbl">Total Net Pay</div><div class="val">${this.money(total_net)}</div></div>
         </div>
-
         <div class="ee-grid-cards" style="margin-bottom:22px">
-            <div class="ee-stat" style="border-left-color:#8b5cf6">
-                <div class="lbl">Last Net Pay</div>
+            <div class="ee-stat" style="border-left-color:#8b5cf6"><div class="lbl">Last Net Pay</div>
                 <div class="val">${this.money(last.net_pay)}</div>
                 <div style="font-size:11px;color:#94a3b8;margin-top:4px">
-                    ${this.d(last.start_date)} → ${this.d(last.end_date)}
-                </div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#f59e0b">
-                <div class="lbl">Average Net Pay</div>
-                <div class="val">${this.money(avg_net)}</div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#0ea5e9">
-                <div class="lbl">Total Paid Days</div>
-                <div class="val">${this.n(total_days)}</div>
-            </div>
-            <div class="ee-stat" style="border-left-color:#10b981">
-                <div class="lbl">Last Basic Salary</div>
-                <div class="val">${this.money(last_basic)}</div>
-            </div>
-        </div>
-    `;
+                    ${this.d(last.start_date)} → ${this.d(last.end_date)}</div></div>
+            <div class="ee-stat" style="border-left-color:#f59e0b"><div class="lbl">Average Net Pay</div><div class="val">${this.money(avg_net)}</div></div>
+            <div class="ee-stat" style="border-left-color:#0ea5e9"><div class="lbl">Total Paid Days</div><div class="val">${this.n(total_days)}</div></div>
+            <div class="ee-stat" style="border-left-color:#10b981"><div class="lbl">Last Basic Salary</div><div class="val">${this.money(last_basic)}</div></div>
+        </div>`;
 
-		// ---------- Helper: get component amount per slip ----------
 		const comp = (s, name) => this._amt(s, name);
 
-		// ---------- Table rows (Bank Name & Account No REMOVED) ----------
 		const rows = slips.map((s) => `
         <tr>
             <td><b>${frappe.utils.escape_html(s.name)}</b></td>
@@ -1286,119 +1502,44 @@ class EmployeeExplorer {
 		const table = `
         <div class="ee-scroll-x">
             <table class="ee-table">
-                <thead>
-                    <tr>
-                        <th>Salary Slip</th>
-                        <th>Employee</th>
-                        <th>Employee Name</th>
-                        <th>Employee ID</th>
-                        <th>Gender</th>
-                        <th>Nationality</th>
-                        <th>Marital Status</th>
-                        <th>Company</th>
-                        <th>Department</th>
-                        <th>Designation</th>
-                        <th>Posting Date</th>
-                        <th>Start Date</th>
-                        <th>End Date</th>
-                        <th style="text-align:right">Payment Days</th>
-                        <th style="text-align:right">Basic Salary</th>
-                        <th style="text-align:right">Housing Allowance</th>
-                        <th style="text-align:right">Other Allowance</th>
-                        <th style="text-align:right">Transport Allowance</th>
-                        <th style="text-align:right">Ticket Allowance</th>
-                        <th style="text-align:right">Leave Salary</th>
-                        <th style="text-align:right">Advance Salary Paid</th>
-                        <th style="text-align:right">Overtime</th>
-                        <th style="text-align:right">Bonus</th>
-                        <th style="text-align:right">Sales Commission</th>
-                        <th style="text-align:right">Sales Tips</th>
-                        <th style="text-align:right">Total Salary</th>
-                        <th style="text-align:right">Total Deductions</th>
-                        <th style="text-align:right">Net Pay</th>
-                        <th style="text-align:right">Year To Date</th>
-                    </tr>
-                </thead>
+                <thead><tr>
+                    <th>Salary Slip</th><th>Employee</th><th>Employee Name</th>
+                    <th>Employee ID</th><th>Gender</th><th>Nationality</th>
+                    <th>Marital Status</th><th>Company</th><th>Department</th>
+                    <th>Designation</th><th>Posting Date</th><th>Start Date</th>
+                    <th>End Date</th><th style="text-align:right">Payment Days</th>
+                    <th style="text-align:right">Basic Salary</th>
+                    <th style="text-align:right">Housing Allowance</th>
+                    <th style="text-align:right">Other Allowance</th>
+                    <th style="text-align:right">Transport Allowance</th>
+                    <th style="text-align:right">Ticket Allowance</th>
+                    <th style="text-align:right">Leave Salary</th>
+                    <th style="text-align:right">Advance Salary Paid</th>
+                    <th style="text-align:right">Overtime</th>
+                    <th style="text-align:right">Bonus</th>
+                    <th style="text-align:right">Sales Commission</th>
+                    <th style="text-align:right">Sales Tips</th>
+                    <th style="text-align:right">Total Salary</th>
+                    <th style="text-align:right">Total Deductions</th>
+                    <th style="text-align:right">Net Pay</th>
+                    <th style="text-align:right">Year To Date</th>
+                </tr></thead>
                 <tbody>${rows}</tbody>
             </table>
-        </div>
-    `;
+        </div>`;
 
 		return cards + table;
 	}
-	/* ---------------- LETTERS TABLE ---------------- */
-	render_letters_table(rows) {
-		if (!rows || !rows.length) {
-			return `<div class="ee-empty">No letters found for this employee.</div>`;
-		}
 
-		const body = rows.map((r) => `
-        <tr>
-            <td><b>${frappe.utils.escape_html(r.name)}</b></td>
-            <td>${frappe.utils.escape_html(r.doctype)}</td>
-            <td>${frappe.utils.escape_html(r.type || "-")}</td>
-            <td>${this.letters_status_badge(r.status)}</td>
-            <td>${this.d(r.creation ? String(r.creation).slice(0, 10) : null)}</td>
-            <td>
-                <button class="ee-btn-mini ee-letter-act"
-                    data-action="view"
-                    data-doctype="${frappe.utils.escape_html(r.doctype)}"
-                    data-name="${frappe.utils.escape_html(r.name)}">
-                    <i class="fa fa-external-link"></i> View
-                </button>
-                <button class="ee-btn-mini ee-letter-act"
-                    data-action="preview"
-                    data-doctype="${frappe.utils.escape_html(r.doctype)}"
-                    data-name="${frappe.utils.escape_html(r.name)}">
-                    <i class="fa fa-eye"></i> Preview
-                </button>
-                ${(r.status === "Approved") ? `
-                <button class="ee-btn-mini ee-btn-mini-primary ee-letter-act"
-                    data-action="print"
-                    data-doctype="${frappe.utils.escape_html(r.doctype)}"
-                    data-name="${frappe.utils.escape_html(r.name)}">
-                    <i class="fa fa-print"></i> Print
-                </button>` : ""}
-            </td>
-        </tr>`).join("");
-
-		return `
-        <div class="ee-scroll-x">
-            <table class="ee-table">
-                <thead>
-                    <tr>
-                        <th>Reference</th>
-                        <th>Doc Type</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>${body}</tbody>
-            </table>
-        </div>`;
-	}
-
-	letters_status_badge(status) {
-		const s = (status || "").toLowerCase();
-		if (s === "approved") return `<span class="ee-pill ee-pill-green">Approved</span>`;
-		if (s === "rejected") return `<span class="ee-pill ee-pill-red">Rejected</span>`;
-		if (s === "draft") return `<span class="ee-pill ee-pill-grey">Draft</span>`;
-		return `<span class="ee-pill" style="background:#fef3c7;color:#b45309">
-        ${frappe.utils.escape_html(status || "-")}</span>`;
-	}
-	/* ---------------- LEAVE HISTORY (with filters) ---------------- */
+	/* ---------------- LEAVE HISTORY ---------------- */
 	render_leave_history(history) {
 		this._leave_history = history || [];
 
-		// populate Leave Type options
 		const types = [...new Set(this._leave_history.map((h) => h.leave_type).filter(Boolean))].sort();
 		const $t = this.$body.find("#ee-lh-type");
 		$t.html(`<option value="">All Leave Types</option>` +
 			types.map((t) => `<option value="${frappe.utils.escape_html(t)}">${frappe.utils.escape_html(t)}</option>`).join(""));
 
-		// populate Years
 		const years = [...new Set(this._leave_history.map((h) =>
 			h.from_date ? String(h.from_date).slice(0, 4) : null
 		).filter(Boolean))].sort().reverse();
@@ -1481,6 +1622,7 @@ class EmployeeExplorer {
 			maximumFractionDigits: 2,
 		});
 	}
+
 	_amt(slip, component_name) {
 		const c = (slip.components || []).find(
 			(x) => x.salary_component === component_name && x.parentfield === "earnings"
