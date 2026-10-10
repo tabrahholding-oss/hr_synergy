@@ -52,21 +52,15 @@ def get_organization_chart(company=None):
     if not employees:
         return {"roots": [], "total": 0}
 
-    # Keep employees as dicts and index by name
-    emp_map = {e["name"]: e for e in employees}
+    emp_map = {e.name: e for e in employees}   # ✅ _dict attribute access
 
-    # Build children map: manager_name -> [employee_name, ...]
     children_map = {}
     for e in employees:
-        rt = e.get("reports_to")
+        rt = e.reports_to
         if rt:
-            children_map.setdefault(rt, []).append(e["name"])
+            children_map.setdefault(rt, []).append(e.name)
 
-    # Roots: employees whose reports_to is empty OR points to someone not in list
-    roots = [
-        e for e in employees
-        if not e.get("reports_to") or e["reports_to"] not in emp_map
-    ]
+    roots = [e for e in employees if not e.reports_to or e.reports_to not in emp_map]
 
     def build_node(emp_name, visited=None):
         if visited is None:
@@ -80,13 +74,13 @@ def get_organization_chart(company=None):
             return None
 
         node = {
-            "name":            emp.get("name"),
-            "employee_name":   emp.get("employee_name"),
-            "employee_number": emp.get("employee_number"),
-            "designation":     emp.get("designation"),
-            "department":      emp.get("department"),
-            "image":           emp.get("image"),
-            "company":         emp.get("company"),
+            "name":            emp.name,
+            "employee_name":   emp.employee_name,
+            "employee_number": emp.employee_number,
+            "designation":     emp.designation,
+            "department":      emp.department,
+            "image":           emp.image,
+            "company":         emp.company,
             "children":        [],
         }
         for child_name in children_map.get(emp_name, []):
@@ -97,7 +91,7 @@ def get_organization_chart(company=None):
 
     tree = []
     for r in roots:
-        node = build_node(r["name"])
+        node = build_node(r.name)
         if node:
             tree.append(node)
 
