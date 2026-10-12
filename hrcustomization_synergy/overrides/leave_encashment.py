@@ -58,3 +58,13 @@ class CustomLeaveEncashment(LeaveEncashment):
             if not per_day_encashment:
                 per_day_encashment = 0
         self.encashment_amount = self.encashment_days * per_day_encashment
+
+
+
+def cap_encashment_days(doc, method=None):
+    """
+    Make sure encashment_days never exceeds actual_encashable_days.
+    This prevents frappe.throw from ERPNext core.
+    """
+    if not doc.encashment_days:
+        doc.encashment_days = doc.actual_encashable_days

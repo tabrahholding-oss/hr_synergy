@@ -215,6 +215,9 @@ doc_events = {
 	"Shift Assignment": {
 		"validate": "hrcustomization_synergy.overrides.shift_assignment.validate_day_off_restriction",
 	},
+    "Leave Encashment": {
+        "before_validate": "hrcustomization_synergy.overrides.leave_encashment.cap_encashment_days",
+    },
     "Overtime Arrears": {
         "before_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.overtime_arrears.overtime_arrears.create_additional_salary"
     }
