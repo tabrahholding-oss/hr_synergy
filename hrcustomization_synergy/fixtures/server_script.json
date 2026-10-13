@@ -1,0 +1,21 @@
+[
+  {
+    "allow_guest": 0,
+    "api_method": null,
+    "cron_format": null,
+    "disabled": 0,
+    "docstatus": 0,
+    "doctype": "Server Script",
+    "doctype_event": "After Submit",
+    "enable_rate_limit": 0,
+    "event_frequency": "All",
+    "modified": "2026-04-16 15:02:33.076772",
+    "module": "Hrcustomization Synergy",
+    "name": "Create-Auto-leave-From-Encashment-v1",
+    "rate_limit_count": 5,
+    "rate_limit_seconds": 86400,
+    "reference_doctype": "Leave Encashment",
+    "script": "# This script runs after submitting Leave Encashment\n# It generates a Leave Application if the employee is going on vacation\n# and saves the leave application in a custom link field\n\nif doc.custom_is_employee_going_on_vacation:\n\n    # Validate dates\n    if not doc.custom_vacation_from or not doc.custom_vacation_end:\n        frappe.throw(\"Vacation From and Vacation End dates are required.\")\n\n    if doc.custom_vacation_end <= doc.custom_vacation_from:\n        frappe.throw(\"Vacation End Date must be greater than Vacation From Date.\")\n\n    # Prevent duplicate Leave Application for same period\n    exists = frappe.db.exists(\"Leave Application\", {\n        \"employee\": doc.employee,\n        \"from_date\": doc.custom_vacation_from,\n        \"to_date\": doc.custom_vacation_end,\n        \"leave_type\": \"Annual Leave Days\",\n        \"docstatus\": 1\n    })\n\n    if exists:\n        frappe.msgprint(f\"Leave Application {exists} already exists for this period.\")\n        # Save existing leave in custom link field\n        # doc.db_set(\"custom_generated_leave_app\", exists)\n    else:\n        # Create Leave Application\n        leave_app = frappe.get_doc({\n            \"doctype\": \"Leave Application\",\n            \"employee\": doc.employee,\n            \"leave_type\": \"Annual Leave Days\",  # Shadow LOP leave type\n            \"from_date\": doc.custom_vacation_from,\n            \"to_date\": doc.custom_vacation_end,\n            \"status\": \"Approved\",\n            \"description\": f\"Annual Leave. Settlement Ref: {doc.name}\",\n            \"leave_approver\": frappe.session.user\n        })\n        leave_app.insert(ignore_permissions=True)\n        leave_app.submit()\n\n        # Save generated leave application in the custom link field\n        doc.db_set(\"custom_leave_application_no\", leave_app.name)\n\n        frappe.msgprint(f\"Leave Application {leave_app.name} created and submitted.\")\n",
+    "script_type": "DocType Event"
+  }
+]

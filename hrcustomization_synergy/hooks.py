@@ -169,9 +169,32 @@ fixtures = [
                 "Stock Reconciliation Item-custom_remarks",
                 "Account-custom_pl_report_category",
                 "Account-custom_bl_category",
-                "Stock Entry Detail-custom_comments"
+                "Stock Entry Detail-custom_comments",
+                "Leave Encashment-custom_from_date",
+                "Leave Encashment-custom_forecasted_encashable_days",
+                "Leave Encashment-custom_is_employee_going_on_vacation",
+                "Leave Encashment-custom_employee_leaving_company",
+                "Leave Encashment-custom_employee_relieving_date",
+                "Salary Structure-custom_leave_salary_formula"
                 
             ]]
+        ]
+    },
+    {
+        "dt": "Client Script",
+        "filters": [
+            ["name", "in", [
+                "Leave-Encasment-Leave-Days",
+                "Leave-Encashment-Days-V2",
+                "Leave encashment from & to date",
+                "LE CS"
+            ]]
+        ]
+    },
+    {
+        "dt": "Server Script",
+        "filters": [
+            ["name", "=", "Create-Auto-leave-From-Encashment-v1"]
         ]
     },
     {
@@ -325,4 +348,3 @@ doctype_js = {
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-
