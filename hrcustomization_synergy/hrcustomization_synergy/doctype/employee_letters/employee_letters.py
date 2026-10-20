@@ -20,6 +20,7 @@ BANK_FORMAT_MAP = {
     "QDC": "Salary Certificate QDC",
     "CBQ": "Salary Certificate CBQ",
     "CBQ Card": "Salary Certificate CBQ Card",
+    "Qatar National Bank (QNB)": "Salary Certificate QNB",
 }
 
 FORMAT_MAP = {
