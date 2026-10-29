@@ -193,7 +193,7 @@ def get_dashboard_payload(data):
     hourly_rows_html = "".join(hourly_rows_list)
 
     # ============================================================
-    # NEW: RANKED MENU — aggregate item-wise, sort by Sales Amount desc
+    # RANKED MENU — aggregate item-wise, sort by Total Quantity Sold desc
     # ============================================================
     menu_items = {}
     for row in data:
@@ -214,11 +214,11 @@ def get_dashboard_payload(data):
         if inv_no:
             menu_items[code]["invoices"].add(inv_no)
 
-    ranked_list = sorted(menu_items.values(), key=lambda x: x["sales"], reverse=True)
+    ranked_list = sorted(menu_items.values(), key=lambda x: x["qty"], reverse=True)
 
     ranked_rows_html = "".join([
-        f"<tr>"
-        f"<td style='padding:8px; border-bottom:1px solid #e2e8f0; text-align:center; font-weight:600;'>{idx}</td>"
+        f"<tr data-qty='{item['qty']:.2f}' data-sales='{item['sales']:.2f}'>"
+        f"<td class='rank-cell' style='padding:8px; border-bottom:1px solid #e2e8f0; text-align:center; font-weight:600;'>{idx}</td>"
         f"<td style='padding:8px; border-bottom:1px solid #e2e8f0;'>{item['item_name']}</td>"
         f"<td style='padding:8px; text-align:right; border-bottom:1px solid #e2e8f0;'>{item['qty']:.2f}</td>"
         f"<td style='padding:8px; text-align:center; border-bottom:1px solid #e2e8f0;'>{item['uom']}</td>"
@@ -228,7 +228,7 @@ def get_dashboard_payload(data):
         for idx, item in enumerate(ranked_list, start=1)
     ])
 
-    # Detail rows — now with 'No' counter
+    # Detail rows — with 'No' counter
     detail_rows_html = "".join([
         f"<tr><td style='padding:6px; border-bottom:1px solid #e2e8f0; text-align:center;'>{idx}</td>"
         f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.sales_invoice}</td>"
@@ -372,19 +372,25 @@ def get_dashboard_payload(data):
         </div>
 
         <!-- ============================ -->
-        <!-- RANKED MENU (NEW)            -->
+        <!-- RANKED MENU                  -->
         <!-- ============================ -->
         <div style="background: #fff; padding: 15px; border-radius: 6px; box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px;">
             <h5 style="margin-top:0; color: #1e293b; text-align:center;">RANKED MENU</h5>
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <table id="ranked-menu-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                 <thead>
                     <tr style="background: #f8fafc;">
-                        <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align:center;">Rank</th>
-                        <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align:left;">Menu Item</th>
-                        <th style="padding: 8px; text-align:right; border-bottom: 2px solid #cbd5e1;">Total Quantity Sold</th>
-                        <th style="padding: 8px; text-align:center; border-bottom: 2px solid #cbd5e1;">UOM</th>
-                        <th style="padding: 8px; text-align:center; border-bottom: 2px solid #cbd5e1;">Transactions</th>
-                        <th style="padding: 8px; text-align:right; border-bottom: 2px solid #cbd5e1;">Sales Amount</th>
+                        <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align:center; vertical-align:top;">Rank</th>
+                        <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align:left; vertical-align:top;">Menu Item</th>
+                        <th style="padding: 8px; text-align:right; border-bottom: 2px solid #cbd5e1; vertical-align:top;">
+                            Total Quantity Sold
+                            <input type="number" id="ranked-filter-qty" placeholder="Filter..." style="width: 100%; margin-top: 4px; padding: 3px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; box-sizing: border-box; text-align: right;">
+                        </th>
+                        <th style="padding: 8px; text-align:center; border-bottom: 2px solid #cbd5e1; vertical-align:top;">UOM</th>
+                        <th style="padding: 8px; text-align:center; border-bottom: 2px solid #cbd5e1; vertical-align:top;">Transactions</th>
+                        <th style="padding: 8px; text-align:right; border-bottom: 2px solid #cbd5e1; vertical-align:top;">
+                            Sales Amount
+                            <input type="number" id="ranked-filter-sales" placeholder="Filter..." style="width: 100%; margin-top: 4px; padding: 3px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px; box-sizing: border-box; text-align: right;">
+                        </th>
                     </tr>
                 </thead>
                 <tbody>{ranked_rows_html}</tbody>

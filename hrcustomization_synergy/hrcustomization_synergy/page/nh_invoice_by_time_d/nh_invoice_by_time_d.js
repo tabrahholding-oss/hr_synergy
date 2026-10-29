@@ -81,6 +81,62 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 				$content.html(r.message.html);
 
 				setTimeout(() => {
+
+					// ---- RANKED MENU FILTERS (mutually exclusive) ----
+					if ($('#ranked-menu-table').length) {
+						let applyRankedFilters = function(sortBy) {
+							let qtyVal = parseFloat($('#ranked-filter-qty').val());
+							let salesVal = parseFloat($('#ranked-filter-sales').val());
+
+							let $tbody = $('#ranked-menu-table tbody');
+							let rows = $tbody.find('tr').get();
+							if (!rows.length) return;
+
+							// 1) Sort ALL rows by chosen column (default: qty)
+							rows.sort((a, b) => {
+								if (sortBy === 'sales') {
+									return parseFloat($(b).data('sales')) - parseFloat($(a).data('sales'));
+								}
+								return parseFloat($(b).data('qty')) - parseFloat($(a).data('qty'));
+							});
+							rows.forEach(r => $tbody.append(r));
+
+							// 2) Filter visibility (upper bound). Both filters may be set, but only one at a time
+							rows.forEach(r => {
+								let q = parseFloat($(r).data('qty'));
+								let s = parseFloat($(r).data('sales'));
+								let show = true;
+								if (!isNaN(qtyVal) && q > qtyVal) show = false;
+								if (!isNaN(salesVal) && s > salesVal) show = false;
+								$(r).toggle(show);
+							});
+
+							// 3) Renumber visible rows
+							let i = 1;
+							$tbody.find('tr').each(function() {
+								if ($(this).is(':visible')) {
+									$(this).find('td.rank-cell').text(i++);
+								}
+							});
+						};
+
+						// When user types in qty filter -> clear sales filter, sort by qty
+						$('#ranked-filter-qty').on('input', function() {
+							if ($(this).val() !== '') {
+								$('#ranked-filter-sales').val('');
+							}
+							applyRankedFilters('qty');
+						});
+
+						// When user types in sales filter -> clear qty filter, sort by sales
+						$('#ranked-filter-sales').on('input', function() {
+							if ($(this).val() !== '') {
+								$('#ranked-filter-qty').val('');
+							}
+							applyRankedFilters('sales');
+						});
+					}
+
 					if (!window.ApexCharts) return;
 
 					if (r.message.chart_item_group && r.message.chart_item_group.labels.length) {
@@ -127,7 +183,7 @@ frappe.pages['nh-invoice-by-time-d'].on_page_load = function(wrapper) {
 								{ name: 'Cost of Sales', data: r.message.chart_sales_vs_cost.cost }
 							],
 							chart: { type: 'area', height: 300, toolbar: { show: false } },
-							colors: ['#2563eb', '#c084fc'], // Blue & Purple Palette
+							colors: ['#2563eb', '#c084fc'],
 							stroke: { curve: 'smooth', width: 2.5 },
 							fill: {
 								type: 'gradient',
