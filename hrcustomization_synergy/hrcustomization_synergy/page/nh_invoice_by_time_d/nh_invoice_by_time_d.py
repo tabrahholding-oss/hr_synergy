@@ -44,6 +44,7 @@ def get_data(filters):
             COALESCE(sip.mode_of_payment, 'Unassigned') AS payment_method,
             sii.item_code, 
             COALESCE(sii.item_name, sii.item_code) AS item_name, 
+            sii.uom,
             i.item_group, sii.qty, sii.rate, sii.amount AS sales_amount,
             COALESCE(slec.cost_of_sale, 0) AS cost_of_sale,
             (sii.amount - COALESCE(slec.cost_of_sale, 0)) AS gross_profit
@@ -117,7 +118,6 @@ def get_dashboard_payload(data):
             hour_val = "12 AM"
             hour_sort = 0
 
-        # CHANGED: consolidated across the selected date range — key is hour only, no date
         key = (hour_sort, hour_val)
         if key not in hourly_sales:
             hourly_sales[key] = {"amount": 0, "invoices": set(), "pax": 0}
@@ -177,7 +177,6 @@ def get_dashboard_payload(data):
         for p, v in payment_methods.items()
     ])
 
-    # CHANGED: consolidated hourly rows — sorted by hour only, no date column
     hourly_rows_list = []
     sorted_hourly_keys = sorted(hourly_sales.keys(), key=lambda x: x[0])
     for key in sorted_hourly_keys:
@@ -193,8 +192,46 @@ def get_dashboard_payload(data):
         )
     hourly_rows_html = "".join(hourly_rows_list)
 
+    # ============================================================
+    # NEW: RANKED MENU — aggregate item-wise, sort by Sales Amount desc
+    # ============================================================
+    menu_items = {}
+    for row in data:
+        code = row.get("item_code")
+        if not code:
+            continue
+        if code not in menu_items:
+            menu_items[code] = {
+                "item_name": row.get("item_name") or code,
+                "uom": row.get("uom") or "",
+                "qty": 0,
+                "sales": 0,
+                "invoices": set(),
+            }
+        menu_items[code]["qty"] += row.get("qty", 0) or 0
+        menu_items[code]["sales"] += row.get("sales_amount", 0) or 0
+        inv_no = row.get("sales_invoice")
+        if inv_no:
+            menu_items[code]["invoices"].add(inv_no)
+
+    ranked_list = sorted(menu_items.values(), key=lambda x: x["sales"], reverse=True)
+
+    ranked_rows_html = "".join([
+        f"<tr>"
+        f"<td style='padding:8px; border-bottom:1px solid #e2e8f0; text-align:center; font-weight:600;'>{idx}</td>"
+        f"<td style='padding:8px; border-bottom:1px solid #e2e8f0;'>{item['item_name']}</td>"
+        f"<td style='padding:8px; text-align:right; border-bottom:1px solid #e2e8f0;'>{item['qty']:.2f}</td>"
+        f"<td style='padding:8px; text-align:center; border-bottom:1px solid #e2e8f0;'>{item['uom']}</td>"
+        f"<td style='padding:8px; text-align:center; border-bottom:1px solid #e2e8f0;'>{len(item['invoices'])}</td>"
+        f"<td style='padding:8px; text-align:right; border-bottom:1px solid #e2e8f0;'>{fmt_money(item['sales'])}</td>"
+        f"</tr>"
+        for idx, item in enumerate(ranked_list, start=1)
+    ])
+
+    # Detail rows — now with 'No' counter
     detail_rows_html = "".join([
-        f"<tr><td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.sales_invoice}</td>"
+        f"<tr><td style='padding:6px; border-bottom:1px solid #e2e8f0; text-align:center;'>{idx}</td>"
+        f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.sales_invoice}</td>"
         f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{str(row.posting_date)}</td>"
         f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.meal_type}</td>"
         f"<td style='padding:6px; border-bottom:1px solid #e2e8f0;'>{row.order_type or ''}</td>"
@@ -203,7 +240,7 @@ def get_dashboard_payload(data):
         f"<td style='padding:6px; text-align:right; border-bottom:1px solid #e2e8f0;'>{row.qty}</td>"
         f"<td style='padding:6px; text-align:right; border-bottom:1px solid #e2e8f0;'>{fmt_money(row.sales_amount)}</td>"
         f"<td style='padding:6px; text-align:right; border-bottom:1px solid #e2e8f0;'>{fmt_money(row.cost_of_sale)}</td></tr>"
-        for row in data[:50]
+        for idx, row in enumerate(data[:50], start=1)
     ])
 
     html = f"""
@@ -272,7 +309,6 @@ def get_dashboard_payload(data):
                     </table>
                 </div>
 
-                <!-- HOURLY SALES BREAKDOWN — consolidated for the selected date range -->
                 <div style="background: #fff; padding: 15px; border-radius: 6px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
                     <h5 style="margin-top:0; color: #1e293b; text-align:center;">HOURLY SALES BREAKDOWN</h5>
                     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
@@ -335,12 +371,33 @@ def get_dashboard_payload(data):
             </div>
         </div>
 
+        <!-- ============================ -->
+        <!-- RANKED MENU (NEW)            -->
+        <!-- ============================ -->
+        <div style="background: #fff; padding: 15px; border-radius: 6px; box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px;">
+            <h5 style="margin-top:0; color: #1e293b; text-align:center;">RANKED MENU</h5>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align:center;">Rank</th>
+                        <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align:left;">Menu Item</th>
+                        <th style="padding: 8px; text-align:right; border-bottom: 2px solid #cbd5e1;">Total Quantity Sold</th>
+                        <th style="padding: 8px; text-align:center; border-bottom: 2px solid #cbd5e1;">UOM</th>
+                        <th style="padding: 8px; text-align:center; border-bottom: 2px solid #cbd5e1;">Transactions</th>
+                        <th style="padding: 8px; text-align:right; border-bottom: 2px solid #cbd5e1;">Sales Amount</th>
+                    </tr>
+                </thead>
+                <tbody>{ranked_rows_html}</tbody>
+            </table>
+        </div>
+
         <!-- Raw Grid Data -->
         <div style="background: #fff; padding: 15px; border-radius: 6px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
             <h5 style="margin-top:0; color: #1e293b; text-align:center;">DETAIL DATA (Top 50 Rows)</h5>
             <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                 <thead>
                     <tr style="background: #f8fafc; text-align:left;">
+                        <th style="padding: 6px; border-bottom: 2px solid #cbd5e1; text-align:center;">No</th>
                         <th style="padding: 6px; border-bottom: 2px solid #cbd5e1;">Invoice</th>
                         <th style="padding: 6px; border-bottom: 2px solid #cbd5e1;">Date</th>
                         <th style="padding: 6px; border-bottom: 2px solid #cbd5e1;">Meal</th>
