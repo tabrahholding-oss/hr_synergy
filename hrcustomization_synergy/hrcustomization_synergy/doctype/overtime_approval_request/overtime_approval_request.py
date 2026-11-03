@@ -9,30 +9,24 @@ from hrcustomization_synergy.hrcustomization_synergy.overtime_calculation import
 class OvertimeApprovalRequest(Document):
     def validate(self):
         if self.from_date > self.to_date:
-            frappe.throw(_("From Date cannot be after To Date"))
+            frappe.throw(_("From Date cannot be after To Date."))
 
         if not self.overtime_details:
-            frappe.throw(_("Please fetch attendance records with overtime"))
+            frappe.throw(_("Please fetch attendance records with overtime."))
 
-        self.apply_normal_ot_limit()
+        self.sync_overtime_details()
 
-    def apply_normal_ot_limit(self):
+    def sync_overtime_details(self):
         """
-        Row ki values aur per-day details (JSON) ko consistent karta hai:
-        - Normal OT row limit: kam se kam = din, zyada se zyada = 3 x din
-        - Per-day Normal OT: 0 ya 1 se 3
-        - Row ki edit ki hui values details mein push hoti hain
-        - Row ke totals hamesha details se dobara banate hain
+        Keeps row values and per-day details (JSON) consistent:
+        - A value edited at row level is applied only to that row's "OT Edit Date" day
+        - Row totals are always rebuilt from the details
         """
         for item in self.overtime_details:
             details = self._get_details(item)
 
-            # Purani rows (details ke baghair): row par 1-3 limit
+            # Legacy rows without details: only recompute the total
             if not details:
-                if item.normal_ot_hours and item.normal_ot_hours < 1:
-                    item.normal_ot_hours = 0
-                elif item.normal_ot_hours and item.normal_ot_hours > 3:
-                    item.normal_ot_hours = 3
                 item.total_ot_hours = (
                     (item.normal_ot_hours or 0)
                     + (item.holiday_ot_hours or 0)
@@ -40,19 +34,13 @@ class OvertimeApprovalRequest(Document):
                 )
                 continue
 
-            # 1) Row ki edit ki hui values ko details mein push karo
+            # Clear a stale OT Edit Date (not in this row's attendance or outside the range)
+            self._clear_stale_edit_date(item, details)
+
+            # 1) Push row-level edits to the row's OT Edit Date
             self._push_row_values_to_details(item, details)
 
-            # 2) Per-day Normal OT limit
-            for d in details:
-                value = flt(d.get("normal_ot_hours"))
-                if value < 1:
-                    value = 0
-                elif value > 3:
-                    value = 3
-                d["normal_ot_hours"] = value
-
-            # 3) Row ke totals details se
+            # 2) Rebuild row totals from details
             item.normal_ot_hours = round(sum(flt(d.get("normal_ot_hours")) for d in details), 2)
             item.holiday_ot_hours = round(sum(flt(d.get("holiday_ot_hours")) for d in details), 2)
             item.special_ot_hours = round(sum(flt(d.get("special_ot_hours")) for d in details), 2)
@@ -61,60 +49,67 @@ class OvertimeApprovalRequest(Document):
             )
             item.attendance_details = json.dumps(details)
 
+    def _clear_stale_edit_date(self, item, details):
+        if not item.get("ot_edit_date"):
+            return
+
+        edit_date = getdate(item.ot_edit_date)
+        in_range = getdate(self.from_date) <= edit_date <= getdate(self.to_date)
+        has_attendance = str(edit_date) in {str(d.get("attendance_date")) for d in details}
+
+        if not (in_range and has_attendance):
+            item.ot_edit_date = None
+
     def _push_row_values_to_details(self, item, details):
-        """Agar row ki value details ke total se alag hai (user ne row mein edit kiya),
-        to usay din-ba-din details mein taqseem karo."""
+        """If a row value differs from the sum of its details (i.e. edited at row level),
+        add/subtract the difference (delta) on this row's OT Edit Date only."""
 
-        # ---- Normal OT: din = jin dinon mein normal OT hai ----
-        days = [d for d in details if flt(d.get("normal_ot_hours")) > 0] or details
-        n = len(days)
-        row_normal = flt(item.normal_ot_hours)
-        details_normal = sum(flt(d.get("normal_ot_hours")) for d in details)
-
-        if abs(row_normal - details_normal) > 0.01:
-            if row_normal > 0 and row_normal < n:
-                row_normal = 0
-            elif row_normal > 3 * n:
-                row_normal = 3 * n
-
-            for d in details:
-                d["normal_ot_hours"] = 0
-
-            if row_normal > 0:
-                share = round(row_normal / n, 2)
-                for i, d in enumerate(days):
-                    if i < n - 1:
-                        d["normal_ot_hours"] = share
-                    else:
-                        d["normal_ot_hours"] = round(row_normal - share * (n - 1), 2)
-
-        # ---- Holiday / Special OT ----
-        for field in ("holiday_ot_hours", "special_ot_hours"):
+        for field in ("normal_ot_hours", "holiday_ot_hours", "special_ot_hours"):
             row_value = max(flt(item.get(field)), 0)
             details_sum = sum(flt(d.get(field)) for d in details)
+            delta = round(row_value - details_sum, 2)
 
-            if abs(row_value - details_sum) <= 0.01:
+            if abs(delta) <= 0.01:
                 continue
 
-            if details_sum > 0:
-                ratio = row_value / details_sum
-                for d in details:
-                    d[field] = round(flt(d.get(field)) * ratio, 2)
-            else:
-                # Pehle koi value nahi thi: pehle din par daal do (din tay karna ho to popup use karein)
-                for i, d in enumerate(details):
-                    d[field] = row_value if i == 0 else 0
+            name = item.employee_name or item.employee
+
+            if not item.get("ot_edit_date"):
+                frappe.throw(
+                    _("Row {0} ({1}): Please select an OT Edit Date before changing OT hours.").format(item.idx, name)
+                )
+
+            edit_date = str(getdate(item.ot_edit_date))
+            target = next(
+                (d for d in details if str(d.get("attendance_date")) == edit_date), None
+            )
+            if not target:
+                frappe.throw(
+                    _("Row {0} ({1}): No attendance record found on OT Edit Date {2}.").format(
+                        item.idx, name, edit_date
+                    )
+                )
+
+            new_value = round(flt(target.get(field)) + delta, 2)
+            if new_value < 0:
+                frappe.throw(
+                    _("Row {0} ({1}): {2} on {3} would become negative.").format(
+                        item.idx, name, field, edit_date
+                    )
+                )
+
+            target[field] = new_value
 
     def on_submit(self):
         if self.status != "Approved":
-            frappe.throw(_("Only approved requests can be submitted"))
+            frappe.throw(_("Only approved requests can be submitted."))
         self.update_attendance_records()
 
     def on_cancel(self):
         self.clear_attendance_overtime()
 
     def _get_details(self, item):
-        """Row ke JSON details ko safely parse karo"""
+        """Safely parse the row's JSON details"""
         try:
             return json.loads(item.attendance_details or "[]")
         except Exception:
@@ -135,7 +130,7 @@ class OvertimeApprovalRequest(Document):
                     count += 1
 
         frappe.db.commit()
-        frappe.msgprint(_("Overtime hours updated in {0} attendance records").format(count))
+        frappe.msgprint(_("Overtime hours updated in {0} attendance records.").format(count))
 
     def clear_attendance_overtime(self):
         for item in self.overtime_details:
@@ -154,10 +149,10 @@ class OvertimeApprovalRequest(Document):
     def fetch_overtime_records(self):
         settings = frappe.get_single("Overtime Settings")
         if not settings.auto_calculate_overtime:
-            frappe.throw(_("Auto Calculate Overtime is disabled in settings"))
+            frappe.throw(_("Auto Calculate Overtime is disabled in Overtime Settings."))
 
         if not self.custom_company:
-            frappe.throw(_("Please select a Company first"))
+            frappe.throw(_("Please select a Company first."))
 
         conditions = [
             "a.docstatus = 1",
@@ -200,7 +195,7 @@ class OvertimeApprovalRequest(Document):
 
         records = frappe.db.sql(query, values, as_dict=True)
 
-        # ---- Employee ke hisaab se group karo ----
+        # ---- Group by employee ----
         employee_groups = {}
 
         for record in records:
@@ -243,13 +238,7 @@ class OvertimeApprovalRequest(Document):
                     if calculated_ot >= (settings.minimum_normal_ot or 0):
                         normal_ot_hours = calculated_ot
 
-            # Normal OT limit (per day)
-            if normal_ot_hours < 1:
-                normal_ot_hours = 0
-            elif normal_ot_hours > 3:
-                normal_ot_hours = 3
-
-            # Project fetch
+            # Fetch project(s)
             projects = frappe.db.sql("""
                 SELECT DISTINCT custom_project
                 FROM `tabEmployee Checkin`
@@ -261,7 +250,7 @@ class OvertimeApprovalRequest(Document):
             if not has_overtime:
                 continue
 
-            # Detail entry (popup ke liye)
+            # Detail entry (used by the popup)
             detail = {
                 "attendance_date": str(record.attendance_date),
                 "working_hours": record.working_hours,
@@ -294,7 +283,7 @@ class OvertimeApprovalRequest(Document):
                 g["projects"].add(project_list)
             g["details"].append(detail)
 
-        # ---- Grouped rows append karo ----
+        # ---- Append grouped rows ----
         self.overtime_details = []
         for emp, g in employee_groups.items():
             total_ot = g["normal_ot_hours"] + g["holiday_ot_hours"] + g["special_ot_hours"]
@@ -315,8 +304,8 @@ class OvertimeApprovalRequest(Document):
             })
 
         if not self.overtime_details:
-            frappe.msgprint(_("No overtime records found for company {0}").format(self.custom_company))
+            frappe.msgprint(_("No overtime records found for company {0}.").format(self.custom_company))
         else:
-            frappe.msgprint(_("Fetched {0} employee(s) with overtime").format(len(self.overtime_details)))
+            frappe.msgprint(_("Fetched {0} employee(s) with overtime.").format(len(self.overtime_details)))
 
         return self.overtime_details

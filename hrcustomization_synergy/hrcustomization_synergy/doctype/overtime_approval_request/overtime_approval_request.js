@@ -1,18 +1,18 @@
 frappe.ui.form.on('Overtime Approval Request', {
     onload: function(frm) {
-        // Filter apply karein jab form load ho
         apply_employee_filter(frm);
     },
 
     refresh: function(frm) {
-        // Filter apply karein jab form refresh ho
         apply_employee_filter(frm);
+        bind_row_date_options(frm);
+        format_edit_date_column(frm);
 
-        // --- Fetch Button Code ---
+        // --- Fetch Button ---
         if (frm.doc.docstatus === 0) {
             frm.add_custom_button(__('Fetch Overtime Records'), function() {
                 if (!frm.doc.custom_company) {
-                    frappe.throw(__('Please select a Company first!'));
+                    frappe.throw(__('Please select a Company first.'));
                 }
                 frm.call({
                     method: 'fetch_overtime_records',
@@ -20,12 +20,13 @@ frappe.ui.form.on('Overtime Approval Request', {
                     callback: function(r) {
                         frm.refresh_field('overtime_details');
                         hide_zero_in_ot_columns(frm);
+                        format_edit_date_column(frm);
                     }
                 });
             }, __('Actions'));
         }
 
-        // Approve/Reject Buttons logic
+        // --- Approve / Reject Buttons ---
         if (frm.doc.docstatus === 0 && frm.doc.overtime_details && frm.doc.overtime_details.length > 0) {
             frm.add_custom_button(__('Approve'), function() {
                 frm.set_value('status', 'Approved');
@@ -50,11 +51,10 @@ frappe.ui.form.on('Overtime Approval Request', {
             }, __('Actions'));
         }
 
-        // OT columns mein zero ki jagah khali dikhayen (sirf display)
+        // Display blank instead of zero in OT columns (display only)
         hide_zero_in_ot_columns(frm);
     },
 
-    // Jab company change ho to filter foran update ho
     custom_company: function(frm) {
         apply_employee_filter(frm);
         frm.set_value('employee', '');
@@ -68,10 +68,109 @@ frappe.ui.form.on('Overtime Approval Request', {
 });
 
 // ============================================================
-// Filter Function (Alag se)
+// Per-row OT Edit Date helpers
+// ============================================================
+
+function is_date_in_range(frm, date_str) {
+    if (!date_str) return false;
+    if (frm.doc.from_date && date_str < frm.doc.from_date) return false;
+    if (frm.doc.to_date && date_str > frm.doc.to_date) return false;
+    return true;
+}
+
+// Sorted attendance dates (YYYY-MM-DD) of a single row, limited to From/To Date
+function get_row_dates(frm, row) {
+    let dates = new Set();
+    get_row_details(row).forEach(function(d) {
+        if (d.attendance_date && is_date_in_range(frm, d.attendance_date)) {
+            dates.add(d.attendance_date);
+        }
+    });
+    return Array.from(dates).sort();
+}
+
+// Fill the OT Edit Date dropdown of one row with that row's own attendance dates
+function set_row_edit_date_options(frm, cdn) {
+    if (frm.doc.docstatus !== 0) return;
+
+    try {
+        let grid = frm.fields_dict.overtime_details.grid;
+        let grid_row = grid.grid_rows_by_docname && grid.grid_rows_by_docname[cdn];
+        let row = frappe.get_doc('Overtime Approval Request Item', cdn);
+        if (!grid_row || !row) return;
+
+        let options = [''].concat(get_row_dates(frm, row).map(function(d) {
+            return { label: frappe.datetime.str_to_user(d), value: d };
+        }));
+
+        // Inline grid editor
+        let field = grid_row.get_field('ot_edit_date');
+        if (field) {
+            field.df.options = options;
+            field.refresh();
+        }
+
+        // Expanded row form
+        let form_field = grid_row.grid_form
+            && grid_row.grid_form.fields_dict
+            && grid_row.grid_form.fields_dict.ot_edit_date;
+        if (form_field) {
+            form_field.df.options = options;
+            form_field.refresh();
+        }
+    } catch (e) {
+        console.error('set_row_edit_date_options error:', e);
+    }
+}
+
+// Update the dropdown whenever the user activates a row
+function bind_row_date_options(frm) {
+    let field = frm.fields_dict.overtime_details;
+    if (!field || !field.grid || !field.grid.wrapper) return;
+
+    field.grid.wrapper.off('.otrow').on('focusin.otrow click.otrow', '.grid-row', function(e) {
+        let $row = $(e.target).closest('.grid-row');
+        let grid_row = $row.data('grid_row');
+        let cdn = (grid_row && grid_row.doc && grid_row.doc.name) || $row.attr('data-name');
+        if (!cdn) return;
+
+        // Wait for the row editor to render its inputs
+        setTimeout(function() { set_row_edit_date_options(frm, cdn); }, 50);
+    });
+}
+
+// Show the date in the user's date format when the row is not being edited
+function format_edit_date_column(frm) {
+    try {
+        let grid_field = frm.get_field('overtime_details');
+        if (!grid_field || !grid_field.grid) return;
+
+        let date_formatter = function(value, df, options, doc) {
+            if (!value) return '';
+            return frappe.datetime.str_to_user(value);
+        };
+
+        let df = frappe.meta.get_docfield('Overtime Approval Request Item', 'ot_edit_date');
+        if (df && df.formatter !== date_formatter) {
+            df.formatter = date_formatter;
+        }
+
+        (grid_field.grid.docfields || []).forEach(function(gdf) {
+            if (gdf.fieldname === 'ot_edit_date' && gdf.formatter !== date_formatter) {
+                gdf.formatter = date_formatter;
+            }
+        });
+
+        grid_field.grid.refresh();
+    } catch (e) {
+        console.error('format_edit_date_column error:', e);
+    }
+}
+
+// ============================================================
+// Employee filters
 // ============================================================
 function apply_employee_filter(frm) {
-    // 1. Main Form ki Employee field ke liye
     frm.set_query('employee', function() {
         return {
             filters: {
@@ -80,7 +179,6 @@ function apply_employee_filter(frm) {
         };
     });
 
-    // 2. Child Table ki Employee field ke liye
     frm.set_query('employee', 'overtime_details', function() {
         return {
             filters: {
@@ -91,7 +189,7 @@ function apply_employee_filter(frm) {
 }
 
 // ============================================================
-// OT columns mein 0 ki jagah khali dikhane ka formatter
+// Formatter: show blank instead of 0 in OT columns
 // ============================================================
 function hide_zero_in_ot_columns(frm) {
     try {
@@ -116,7 +214,6 @@ function hide_zero_in_ot_columns(frm) {
 
         let changed = false;
 
-        // Meta docfields pe formatter lagayen
         ot_fields.forEach(function(fieldname) {
             let df = frappe.meta.get_docfield('Overtime Approval Request Item', fieldname);
             if (df && df.formatter !== zero_blank_formatter) {
@@ -125,7 +222,6 @@ function hide_zero_in_ot_columns(frm) {
             }
         });
 
-        // Grid ke apne docfields pe bhi lagayen
         (grid_field.grid.docfields || []).forEach(function(df) {
             if (ot_fields.includes(df.fieldname) && df.formatter !== zero_blank_formatter) {
                 df.formatter = zero_blank_formatter;
@@ -142,7 +238,7 @@ function hide_zero_in_ot_columns(frm) {
 }
 
 // ============================================================
-// Helpers: details JSON
+// Helpers: attendance details JSON
 // ============================================================
 function get_row_details(row) {
     try {
@@ -152,56 +248,58 @@ function get_row_details(row) {
     }
 }
 
-// Jin dinon mein Normal OT hai unki ginti (agar kisi din mein nahi to sab din)
-function get_normal_days(details) {
-    let n = details.filter(function(d) { return flt(d.normal_ot_hours) > 0; }).length;
-    return n || details.length;
-}
-
-// Row ki edit ki hui values ko details (popup wale JSON) mein din-ba-din push karo
-function sync_details_from_row(cdt, cdn) {
+// Apply a row-level edit only to the day selected in that row's "OT Edit Date"
+function sync_details_from_row(frm, cdt, cdn, fieldname) {
     let row = frappe.get_doc(cdt, cdn);
     let details = get_row_details(row);
     if (!details.length) return;
 
-    let changed = false;
+    let row_value = Math.max(flt(row[fieldname]), 0);
+    let details_sum = details.reduce(function(s, d) { return s + flt(d[fieldname]); }, 0);
+    let delta = flt(row_value - details_sum, 2);
 
-    // ---- Normal OT ----
-    let days = details.filter(function(d) { return flt(d.normal_ot_hours) > 0; });
-    if (!days.length) days = details;
-    let n = days.length;
-    let row_normal = flt(row.normal_ot_hours);
-    let details_normal = details.reduce(function(s, d) { return s + flt(d.normal_ot_hours); }, 0);
+    if (Math.abs(delta) <= 0.01) return;
 
-    if (Math.abs(row_normal - details_normal) > 0.01) {
-        details.forEach(function(d) { d.normal_ot_hours = 0; });
-        if (row_normal > 0) {
-            let share = flt(row_normal / n, 2);
-            days.forEach(function(d, i) {
-                d.normal_ot_hours = (i < n - 1) ? share : flt(row_normal - share * (n - 1), 2);
-            });
-        }
-        changed = true;
+    let revert = function() {
+        frappe.model.set_value(cdt, cdn, fieldname, flt(details_sum, 2));
+    };
+
+    if (!row.ot_edit_date) {
+        frappe.msgprint({
+            title: __('OT Edit Date Required'),
+            message: __('Please select an OT Edit Date in this row first. The change will be applied to that date only.'),
+            indicator: 'orange'
+        });
+        revert();
+        return;
     }
 
-    // ---- Holiday / Special OT ----
-    ['holiday_ot_hours', 'special_ot_hours'].forEach(function(f) {
-        let row_value = Math.max(flt(row[f]), 0);
-        let details_sum = details.reduce(function(s, d) { return s + flt(d[f]); }, 0);
-        if (Math.abs(row_value - details_sum) <= 0.01) return;
-
-        if (details_sum > 0) {
-            let ratio = row_value / details_sum;
-            details.forEach(function(d) { d[f] = flt(flt(d[f]) * ratio, 2); });
-        } else {
-            details.forEach(function(d, i) { d[f] = (i === 0) ? row_value : 0; });
-        }
-        changed = true;
-    });
-
-    if (changed) {
-        frappe.model.set_value(cdt, cdn, 'attendance_details', JSON.stringify(details));
+    let target = details.find(function(d) { return d.attendance_date === row.ot_edit_date; });
+    if (!target) {
+        frappe.msgprint({
+            title: __('Attendance Not Found'),
+            message: __('No attendance record exists on {0} for {1}.',
+                [frappe.datetime.str_to_user(row.ot_edit_date), row.employee_name || row.employee]),
+            indicator: 'orange'
+        });
+        revert();
+        return;
     }
+
+    let new_value = flt(flt(target[fieldname]) + delta, 2);
+    if (new_value < 0) {
+        frappe.msgprint({
+            title: __('Invalid Value'),
+            message: __('The value on {0} would become negative ({1}). This reduction is not possible for the selected date.',
+                [frappe.datetime.str_to_user(row.ot_edit_date), new_value]),
+            indicator: 'red'
+        });
+        revert();
+        return;
+    }
+
+    target[fieldname] = new_value;
+    frappe.model.set_value(cdt, cdn, 'attendance_details', JSON.stringify(details));
 }
 
 // ============================================================
@@ -209,13 +307,18 @@ function sync_details_from_row(cdt, cdn) {
 // ============================================================
 frappe.ui.form.on('Overtime Approval Request Item', {
 
-    // 🔹 DETAILS BUTTON click handler (ab editable popup)
+    // Expanded row form: load this row's dates into the dropdown
+    form_render: function(frm, cdt, cdn) {
+        setTimeout(function() { set_row_edit_date_options(frm, cdn); }, 50);
+    },
+
+    // Details button (editable popup)
     details: function(frm, cdt, cdn) {
         let row = frappe.get_doc(cdt, cdn);
         let details = get_row_details(row);
 
         if (!details.length) {
-            frappe.msgprint(__('Is employee ke liye koi detail available nahi hai.'));
+            frappe.msgprint(__('No details are available for this employee.'));
             return;
         }
 
@@ -249,8 +352,8 @@ frappe.ui.form.on('Overtime Approval Request Item', {
 
         let hint = editable
             ? `<div class="text-muted small" style="margin-bottom:8px;">
-                   ${details.length} din ki attendance mil kar ye row bani hai.
-                   Normal OT har din 0 ya 1 se 3 ke darmiyan hona chahiye.
+                   This row is a summary of ${details.length} attendance day(s).
+                   You can edit the overtime hours for each day individually below.
                </div>`
             : '';
 
@@ -306,13 +409,7 @@ frappe.ui.form.on('Overtime Approval Request Item', {
                     let date_str = frappe.datetime.str_to_user(new_details[idx].attendance_date);
 
                     if (value < 0) {
-                        errors.push(__('{0}: negative value allowed nahi hai', [date_str]));
-                    }
-                    if (field === 'normal_ot_hours' && value > 0 && value < 1) {
-                        errors.push(__('{0}: Normal OT 0 ya kam az kam 1 hona chahiye', [date_str]));
-                    }
-                    if (field === 'normal_ot_hours' && value > 3) {
-                        errors.push(__('{0}: Normal OT ki max limit 3 hai', [date_str]));
+                        errors.push(__('{0}: Negative values are not allowed.', [date_str]));
                     }
                     new_details[idx][field] = value;
                 });
@@ -333,7 +430,7 @@ frappe.ui.form.on('Overtime Approval Request Item', {
                 let holiday = sum_of('holiday_ot_hours');
                 let special = sum_of('special_ot_hours');
 
-                // Pehle JSON, phir row ki values
+                // Update the JSON first, then the row values
                 frappe.model.set_value(cdt, cdn, 'attendance_details', JSON.stringify(new_details));
                 frappe.model.set_value(cdt, cdn, 'normal_ot_hours', normal);
                 frappe.model.set_value(cdt, cdn, 'holiday_ot_hours', holiday);
@@ -343,6 +440,7 @@ frappe.ui.form.on('Overtime Approval Request Item', {
                 d.hide();
                 frm.refresh_field('overtime_details');
                 hide_zero_in_ot_columns(frm);
+                format_edit_date_column(frm);
             }
         });
 
@@ -366,69 +464,23 @@ frappe.ui.form.on('Overtime Approval Request Item', {
         d.$wrapper.on('input change', '.ot-input', recalc_totals);
     },
 
-    // Existing calculations
+    // Row edit -> applied only to this row's selected OT Edit Date
     normal_ot_hours: function(frm, cdt, cdn) {
-        let row = frappe.get_doc(cdt, cdn);
-        let value = flt(row.normal_ot_hours);
-        let details = get_row_details(row);
-
-        if (!details.length) {
-            // Details nahi hain: purani 1-3 limit
-            if (value > 0 && value < 1) {
-                frappe.model.set_value(cdt, cdn, 'normal_ot_hours', 0);
-                frappe.show_alert({
-                    message: __('Normal OT Hours 1 se kam nahi ho sakti, 0 kar diya gaya hai'),
-                    indicator: 'orange'
-                });
-                return;
-            }
-            if (value > 3) {
-                frappe.model.set_value(cdt, cdn, 'normal_ot_hours', 3);
-                frappe.show_alert({
-                    message: __('Normal OT Hours ki max limit 3 hai, 3 kar diya gaya hai'),
-                    indicator: 'orange'
-                });
-                return;
-            }
-        } else {
-            // Limit: kam se kam = din, zyada se zyada = 3 x din
-            let n = get_normal_days(details);
-            let min_limit = n;
-            let max_limit = 3 * n;
-
-            if (value > 0 && value < min_limit) {
-                frappe.model.set_value(cdt, cdn, 'normal_ot_hours', 0);
-                frappe.show_alert({
-                    message: __('Normal OT Hours {0} din ke liye kam az kam {1} honi chahiye, 0 kar diya gaya hai', [n, min_limit]),
-                    indicator: 'orange'
-                });
-                return;
-            }
-            if (value > max_limit) {
-                frappe.model.set_value(cdt, cdn, 'normal_ot_hours', max_limit);
-                frappe.show_alert({
-                    message: __('Normal OT Hours ki max limit {0} din ke liye {1} hai, {1} kar diya gaya hai', [n, max_limit]),
-                    indicator: 'orange'
-                });
-                return;
-            }
-        }
-
         calculate_total_ot(frm, cdt, cdn);
-        sync_details_from_row(cdt, cdn);
+        sync_details_from_row(frm, cdt, cdn, 'normal_ot_hours');
     },
     holiday_ot_hours: function(frm, cdt, cdn) {
         calculate_total_ot(frm, cdt, cdn);
-        sync_details_from_row(cdt, cdn);
+        sync_details_from_row(frm, cdt, cdn, 'holiday_ot_hours');
     },
     special_ot_hours: function(frm, cdt, cdn) {
         calculate_total_ot(frm, cdt, cdn);
-        sync_details_from_row(cdt, cdn);
+        sync_details_from_row(frm, cdt, cdn, 'special_ot_hours');
     }
 });
 
 // ============================================================
-// Total OT calculate function
+// Total OT calculation
 // ============================================================
 function calculate_total_ot(frm, cdt, cdn) {
     let row = frappe.get_doc(cdt, cdn);
