@@ -1,0 +1,96 @@
+{
+ "doctype": "DocType",
+ "name": "Marketing Campaign Request Deliverable",
+ "module": "Hrcustomization Synergy",
+ "custom": 0,
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "creation": "2026-10-28 17:00:00.000000",
+ "modified": "2026-10-28 17:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "field_order": [
+  "deliverable_type",
+  "description",
+  "qty",
+  "format",
+  "language",
+  "produced_by",
+  "due_date",
+  "status"
+ ],
+ "fields": [
+  {
+   "fieldname": "deliverable_type",
+   "fieldtype": "Select",
+   "label": "Deliverable Type",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2,
+   "options": "\nSocial Post\nStory or Reel\nVideo\nPoster or Print\nBanner or OOH\nMenu Insert\nEmail\nSMS or WhatsApp\nLanding Page\nPress Release\nOther"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Data",
+   "label": "Description",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Int",
+   "label": "Qty",
+   "reqd": 1,
+   "default": "1",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "format",
+   "fieldtype": "Data",
+   "label": "Size / Format"
+  },
+  {
+   "fieldname": "language",
+   "fieldtype": "Select",
+   "label": "Language",
+   "options": "Bilingual\nArabic\nEnglish",
+   "default": "Bilingual",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "produced_by",
+   "fieldtype": "Select",
+   "label": "Produced By",
+   "options": "In-house\nAgency\nFreelancer",
+   "default": "In-house",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "allow_on_submit": 1,
+   "in_list_view": 1,
+   "columns": 2,
+   "default": "Not Started",
+   "options": "Not Started\nIn Progress\nFor Approval\nApproved\nPublished"
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "links": []
+}

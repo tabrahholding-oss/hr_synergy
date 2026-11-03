@@ -1,141 +1,537 @@
 {
- "actions": [],
- "allow_rename": 1,
- "autoname": "MCR-.YYYY.-.####",
- "creation": "2026-07-02 17:57:25.165858",
  "doctype": "DocType",
+ "name": "Marketing Campaign Request",
+ "module": "Hrcustomization Synergy",
+ "custom": 0,
+ "istable": 0,
+ "editable_grid": 1,
  "engine": "InnoDB",
+ "creation": "2026-10-28 17:00:00.000000",
+ "modified": "2026-10-28 17:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
  "field_order": [
-  "request_identification_tab",
+  "request_tab",
+  "amended_from",
+  "request_section",
   "company",
+  "company_abbr",
+  "currency",
+  "branch",
   "request_date",
-  "request_by",
-  "column_break_klvn",
-  "department",
-  "role",
+  "column_break_req1",
+  "request_type",
+  "related_request",
   "priority",
-  "campaign_details_tab",
-  "campaign_details_section",
+  "urgency_justification",
+  "requester_section",
+  "requested_by",
+  "requested_by_name",
+  "requester_user",
+  "column_break_req2",
+  "department",
+  "designation",
+  "marketing_owner",
+  "campaign_brief_section",
   "campaign_title",
-  "primary_objective",
-  "column_break_tbay",
   "campaign_type",
+  "occasion",
+  "campaign",
+  "column_break_brief1",
+  "primary_objective",
+  "secondary_objective",
+  "brief_text_section",
+  "background",
+  "objective_statement",
+  "column_break_brief2",
   "key_message",
-  "audiance_and_channels_tab",
-  "audiance_and_channels_section",
-  "column_break_kmsc",
-  "channel",
-  "column_break_spos",
+  "call_to_action",
+  "products_promoted",
+  "audience_section",
   "target_audience",
-  "timeline_tab",
+  "audience_segment",
+  "geographic_target",
+  "column_break_aud",
+  "target_gender",
+  "age_from",
+  "age_to",
+  "campaign_language",
+  "uses_customer_data",
+  "channels_section",
+  "channels",
+  "total_channel_budget",
+  "offer_main_section",
+  "has_offer",
+  "offer_details_section",
+  "offer_type",
+  "promo_code",
+  "column_break_offer",
+  "redemption_limit",
+  "offer_valid_until",
+  "offer_items_section",
+  "offer_items",
+  "offer_terms",
   "timeline_section",
-  "sales_period_start",
-  "package_validity",
-  "column_break_lwzq",
-  "sales_period_end",
-  "hard_launch_deadline",
-  "offer_and_package_structure_tab",
-  "offer_and_package_structure_section",
-  "challenge_criteria",
-  "column_break_abuw",
-  "reward",
-  "section_break_aqzg",
-  "package_table",
-  "campaign_economics_and_financial_projection_tab",
-  "campaign_economics_and_financial_projection_section",
-  "baseline_20_class_price",
-  "uplift_per_conversion",
-  "column_break_bvrk",
-  "summerize_price",
-  "total_revenue_per_package",
-  "section_break_ktng",
-  "upgrade_uplift",
-  "budget_tab",
-  "budget_section",
-  "estimated_budget_qar",
-  "funding_source",
-  "table",
-  "expected_outcomes_and_kpi_dashboard_tab",
-  "expected_outcomes_and_kpi_dashboard_section",
-  "table_qbak",
-  "content_pillars_and_messaging_tab",
-  "content_pillars_and_messaging_section",
+  "start_date",
+  "end_date",
+  "duration_days",
+  "column_break_tl",
+  "creative_deadline",
+  "soft_launch_date",
+  "hard_launch_date",
+  "creative_brief_required",
+  "content_section",
   "content_pillars",
-  "key_communication_messages",
-  "campaign_will_follow_the_tabrah__velo_gym_brand_guidelines",
-  "creative_brief_required_one_per_content_pillar_5",
-  "supporting_documents_attached_section",
-  "yes",
-  "no"
+  "deliverables",
+  "milestones",
+  "budget_section",
+  "cost_center",
+  "expense_account",
+  "project",
+  "column_break_bud1",
+  "funding_source",
+  "budget_remaining",
+  "budget_lines_section",
+  "budget_items",
+  "budget_subtotal",
+  "column_break_bud2",
+  "contingency_percent",
+  "contingency_amount",
+  "total_budget",
+  "roi_section",
+  "expected_revenue",
+  "expected_conversions",
+  "avg_transaction_value",
+  "column_break_roi",
+  "projected_roi",
+  "projected_cpa",
+  "break_even_conversions",
+  "kpi_section",
+  "kpis",
+  "tracking_section",
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "column_break_trk",
+  "tracking_url",
+  "measurement_method",
+  "reporting_frequency",
+  "compliance_section",
+  "brand_guidelines_confirmed",
+  "legal_review_required",
+  "consent_confirmed",
+  "column_break_cmp",
+  "moci_permit_required",
+  "moci_permit_no",
+  "moci_permit_expiry",
+  "risk_section",
+  "risks",
+  "column_break_risk",
+  "dependencies",
+  "attachments_section",
+  "attachments",
+  "results_tab",
+  "campaign_status_section",
+  "status",
+  "spend_section",
+  "committed_spend",
+  "actual_spend",
+  "column_break_spend",
+  "budget_variance",
+  "results_section",
+  "actual_start_date",
+  "actual_end_date",
+  "actual_revenue",
+  "actual_roi",
+  "column_break_res",
+  "lessons_learned",
+  "post_campaign_report"
  ],
  "fields": [
+  {
+   "fieldname": "request_tab",
+   "fieldtype": "Tab Break",
+   "label": "Request"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "options": "Marketing Campaign Request",
+   "read_only": 1,
+   "no_copy": 1,
+   "print_hide": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_section",
+   "fieldtype": "Section Break",
+   "label": "Request"
+  },
   {
    "fieldname": "company",
    "fieldtype": "Link",
    "label": "Company",
-   "options": "Company"
+   "options": "Company",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "in_list_view": 1,
+   "remember_last_selected_value": 1
   },
   {
-   "fieldname": "request_identification_tab",
-   "fieldtype": "Tab Break",
-   "label": "Request Identification"
+   "fieldname": "company_abbr",
+   "fieldtype": "Data",
+   "label": "Company Abbr",
+   "fetch_from": "company.abbr",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "fetch_from": "company.default_currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch / Outlet",
+   "options": "Branch"
   },
   {
    "fieldname": "request_date",
    "fieldtype": "Date",
-   "label": "Request Date"
+   "label": "Request Date",
+   "reqd": 1,
+   "read_only": 1,
+   "default": "Today"
   },
   {
-   "fieldname": "request_by",
-   "fieldtype": "Link",
-   "label": "Request By",
-   "options": "User"
+   "fieldname": "column_break_req1",
+   "fieldtype": "Column Break"
   },
   {
-   "fieldname": "department",
-   "fieldtype": "Link",
-   "label": "Department",
-   "options": "Department"
+   "fieldname": "request_type",
+   "fieldtype": "Select",
+   "label": "Request Type",
+   "reqd": 1,
+   "default": "New Campaign",
+   "options": "New Campaign\nExtension of Existing Campaign\nChange to Approved Campaign\nAd-hoc Promotion"
   },
   {
-   "fieldname": "role",
+   "fieldname": "related_request",
    "fieldtype": "Link",
-   "label": "Role",
-   "options": "Designation"
+   "label": "Related Request",
+   "options": "Marketing Campaign Request",
+   "depends_on": "eval:in_list(['Extension of Existing Campaign','Change to Approved Campaign'], doc.request_type)",
+   "mandatory_depends_on": "eval:in_list(['Extension of Existing Campaign','Change to Approved Campaign'], doc.request_type)"
   },
   {
    "fieldname": "priority",
    "fieldtype": "Select",
    "label": "Priority",
-   "options": "\nLow\nMedium\nHigh\nUrgent"
+   "reqd": 1,
+   "default": "Medium",
+   "options": "Low\nMedium\nHigh\nUrgent",
+   "in_standard_filter": 1
   },
   {
-   "fieldname": "campaign_details_section",
-   "fieldtype": "Section Break"
+   "fieldname": "urgency_justification",
+   "fieldtype": "Small Text",
+   "label": "Urgency Justification",
+   "depends_on": "eval:doc.priority=='Urgent'",
+   "mandatory_depends_on": "eval:doc.priority=='Urgent'"
+  },
+  {
+   "fieldname": "requester_section",
+   "fieldtype": "Section Break",
+   "label": "Requested By"
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "fieldname": "requested_by_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "fetch_from": "requested_by.employee_name",
+   "read_only": 1,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "requester_user",
+   "fieldtype": "Link",
+   "label": "Requester User",
+   "options": "User",
+   "fetch_from": "requested_by.user_id",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "column_break_req2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department",
+   "reqd": 1,
+   "fetch_from": "requested_by.department",
+   "fetch_if_empty": 1,
+   "description": "Department of the requesting company or Tabrah Holding (Holding Marketing raises requests for subsidiaries)"
+  },
+  {
+   "fieldname": "designation",
+   "fieldtype": "Link",
+   "label": "Designation",
+   "options": "Designation",
+   "fetch_from": "requested_by.designation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "marketing_owner",
+   "fieldtype": "Link",
+   "label": "Marketing Owner",
+   "options": "User",
+   "permlevel": 1,
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "campaign_brief_section",
+   "fieldtype": "Section Break",
+   "label": "Campaign Brief"
   },
   {
    "fieldname": "campaign_title",
    "fieldtype": "Data",
-   "label": "Campaign Title"
+   "label": "Campaign Title",
+   "reqd": 1,
+   "in_list_view": 1,
+   "bold": 1
+  },
+  {
+   "fieldname": "campaign_type",
+   "fieldtype": "Link",
+   "label": "Campaign Type",
+   "options": "Campaign Type",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "occasion",
+   "fieldtype": "Select",
+   "label": "Occasion / Season",
+   "default": "None",
+   "options": "None\nRamadan\nEid al-Fitr\nEid al-Adha\nQatar National Day\nNational Sport Day\nBack to School\nSummer\nWinter\nValentine's\nMother's Day\nNew Year\nOther"
+  },
+  {
+   "fieldname": "campaign",
+   "fieldtype": "Link",
+   "label": "ERP Campaign",
+   "options": "Campaign",
+   "read_only": 1,
+   "no_copy": 1,
+   "allow_on_submit": 1,
+   "description": "Created on approval; used for lead and sales attribution"
+  },
+  {
+   "fieldname": "column_break_brief1",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "primary_objective",
+   "fieldtype": "Select",
+   "label": "Primary Objective",
+   "reqd": 1,
+   "options": "\nBrand Awareness\nEngagement\nLead Generation\nFootfall\nSales & Revenue\nCustomer Acquisition\nMembership Acquisition\nRetention & Loyalty\nProduct Launch"
+  },
+  {
+   "fieldname": "secondary_objective",
+   "fieldtype": "Select",
+   "label": "Secondary Objective",
+   "options": "\nBrand Awareness\nEngagement\nLead Generation\nFootfall\nSales & Revenue\nCustomer Acquisition\nMembership Acquisition\nRetention & Loyalty\nProduct Launch"
+  },
+  {
+   "fieldname": "brief_text_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "background",
    "fieldtype": "Small Text",
-   "label": "Primary Objective"
+   "label": "Background / Problem Statement",
+   "reqd": 1
+  },
+  {
+   "fieldname": "objective_statement",
+   "fieldtype": "Small Text",
+   "label": "SMART Objective",
+   "reqd": 1,
+   "description": "e.g. +15% weekday covers in 6 weeks"
+  },
+  {
+   "fieldname": "column_break_brief2",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "key_message",
    "fieldtype": "Small Text",
-   "label": "Key Message"
+   "label": "Key Message",
+   "reqd": 1
   },
   {
-   "fieldname": "audiance_and_channels_section",
-   "fieldtype": "Section Break"
+   "fieldname": "call_to_action",
+   "fieldtype": "Data",
+   "label": "Call to Action"
+  },
+  {
+   "fieldname": "products_promoted",
+   "fieldtype": "Small Text",
+   "label": "Products / Services Promoted"
+  },
+  {
+   "fieldname": "audience_section",
+   "fieldtype": "Section Break",
+   "label": "Audience"
   },
   {
    "fieldname": "target_audience",
    "fieldtype": "Small Text",
-   "label": "Target Audience"
+   "label": "Target Audience Description",
+   "reqd": 1
+  },
+  {
+   "fieldname": "audience_segment",
+   "fieldtype": "Select",
+   "label": "Audience Segment",
+   "reqd": 1,
+   "options": "\nAll Customers\nNew Customers\nExisting Customers\nLapsed Customers\nMembers\nCorporate & B2B\nVisitors & Tourists"
+  },
+  {
+   "fieldname": "geographic_target",
+   "fieldtype": "Small Text",
+   "label": "Geographic Target",
+   "description": "Areas, outlets, radius"
+  },
+  {
+   "fieldname": "column_break_aud",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "target_gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "default": "All",
+   "options": "All\nMale\nFemale"
+  },
+  {
+   "fieldname": "age_from",
+   "fieldtype": "Int",
+   "label": "Age From"
+  },
+  {
+   "fieldname": "age_to",
+   "fieldtype": "Int",
+   "label": "Age To"
+  },
+  {
+   "fieldname": "campaign_language",
+   "fieldtype": "Select",
+   "label": "Campaign Language",
+   "reqd": 1,
+   "default": "Bilingual (Arabic & English)",
+   "options": "Bilingual (Arabic & English)\nArabic\nEnglish"
+  },
+  {
+   "fieldname": "uses_customer_data",
+   "fieldtype": "Check",
+   "label": "Uses Customer Personal Data",
+   "description": "Email, SMS or WhatsApp lists"
+  },
+  {
+   "fieldname": "channels_section",
+   "fieldtype": "Section Break",
+   "label": "Channels"
+  },
+  {
+   "fieldname": "channels",
+   "fieldtype": "Table",
+   "label": "Channels",
+   "options": "Marketing Campaign Request Channel",
+   "reqd": 1
+  },
+  {
+   "fieldname": "total_channel_budget",
+   "fieldtype": "Currency",
+   "label": "Total Channel Budget",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "offer_main_section",
+   "fieldtype": "Section Break",
+   "label": "Offer"
+  },
+  {
+   "fieldname": "has_offer",
+   "fieldtype": "Check",
+   "label": "Includes Offer / Promotion"
+  },
+  {
+   "fieldname": "offer_details_section",
+   "fieldtype": "Section Break",
+   "depends_on": "has_offer"
+  },
+  {
+   "fieldname": "offer_type",
+   "fieldtype": "Select",
+   "label": "Offer Type",
+   "mandatory_depends_on": "has_offer",
+   "options": "\nPercentage Discount\nFixed Amount Discount\nBuy X Get Y\nBundle / Package\nFree Item or Gift\nMembership Package\nLoyalty Points\nVoucher or Promo Code\nCompetition or Giveaway"
+  },
+  {
+   "fieldname": "promo_code",
+   "fieldtype": "Data",
+   "label": "Promo Code"
+  },
+  {
+   "fieldname": "column_break_offer",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "redemption_limit",
+   "fieldtype": "Int",
+   "label": "Redemption Limit"
+  },
+  {
+   "fieldname": "offer_valid_until",
+   "fieldtype": "Date",
+   "label": "Offer Valid Until"
+  },
+  {
+   "fieldname": "offer_items_section",
+   "fieldtype": "Section Break",
+   "depends_on": "has_offer"
+  },
+  {
+   "fieldname": "offer_items",
+   "fieldtype": "Table",
+   "label": "Offer Items",
+   "options": "Marketing Campaign Request Offer Item",
+   "mandatory_depends_on": "has_offer"
+  },
+  {
+   "fieldname": "offer_terms",
+   "fieldtype": "Text Editor",
+   "label": "Terms & Conditions",
+   "mandatory_depends_on": "has_offer"
   },
   {
    "fieldname": "timeline_section",
@@ -143,113 +539,54 @@
    "label": "Timeline"
   },
   {
-   "fieldname": "sales_period_start",
+   "fieldname": "start_date",
    "fieldtype": "Date",
-   "label": "Sales Period Start "
+   "label": "Campaign Start Date",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
   },
   {
-   "fieldname": "package_validity",
-   "fieldtype": "Text",
-   "label": "Package Validity"
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "Campaign End Date",
+   "reqd": 1
   },
   {
-   "fieldname": "column_break_lwzq",
+   "fieldname": "duration_days",
+   "fieldtype": "Int",
+   "label": "Duration (Days)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_tl",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "sales_period_end",
+   "fieldname": "creative_deadline",
    "fieldtype": "Date",
-   "label": "Sales Period End"
+   "label": "Creative Deadline",
+   "reqd": 1
   },
   {
-   "fieldname": "hard_launch_deadline",
+   "fieldname": "soft_launch_date",
+   "fieldtype": "Date",
+   "label": "Soft Launch Date"
+  },
+  {
+   "fieldname": "hard_launch_date",
    "fieldtype": "Date",
    "label": "Hard Launch Deadline"
   },
   {
-   "fieldname": "offer_and_package_structure_section",
-   "fieldtype": "Section Break"
+   "fieldname": "creative_brief_required",
+   "fieldtype": "Check",
+   "label": "Creative Brief Required"
   },
   {
-   "fieldname": "challenge_criteria",
-   "fieldtype": "Small Text",
-   "label": "Challenge Criteria"
-  },
-  {
-   "fieldname": "reward",
-   "fieldtype": "Small Text",
-   "label": "Reward"
-  },
-  {
-   "fieldname": "campaign_economics_and_financial_projection_section",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "baseline_20_class_price",
-   "fieldtype": "Currency",
-   "label": "Baseline (20 Class) Price"
-  },
-  {
-   "fieldname": "uplift_per_conversion",
-   "fieldtype": "Currency",
-   "label": "Uplift per Conversion"
-  },
-  {
-   "fieldname": "column_break_bvrk",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "summerize_price",
-   "fieldtype": "Currency",
-   "label": "Summerize Price"
-  },
-  {
-   "fieldname": "total_revenue_per_package",
-   "fieldtype": "Currency",
-   "label": "Total Revenue per Package"
-  },
-  {
-   "fieldname": "section_break_ktng",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "upgrade_uplift",
-   "fieldtype": "Table",
-   "label": "Upgrade Uplift",
-   "options": "Upgrade Uplift"
-  },
-  {
-   "fieldname": "budget_section",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "estimated_budget_qar",
-   "fieldtype": "Data",
-   "label": "Estimated Budget (QAR)"
-  },
-  {
-   "fieldname": "funding_source",
-   "fieldtype": "Data",
-   "label": "Funding Source"
-  },
-  {
-   "fieldname": "table",
-   "fieldtype": "Table",
-   "label": "Budget Table",
-   "options": "Budget Breakdown"
-  },
-  {
-   "fieldname": "expected_outcomes_and_kpi_dashboard_section",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "table_qbak",
-   "fieldtype": "Table",
-   "options": "KPI"
-  },
-  {
-   "fieldname": "content_pillars_and_messaging_section",
-   "fieldtype": "Section Break"
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Content & Deliverables"
   },
   {
    "fieldname": "content_pillars",
@@ -258,148 +595,572 @@
    "options": "Content Pillars"
   },
   {
-   "fieldname": "key_communication_messages",
-   "fieldtype": "Small Text",
-   "label": "Key Communication Messages"
+   "fieldname": "deliverables",
+   "fieldtype": "Table",
+   "label": "Deliverables",
+   "options": "Marketing Campaign Request Deliverable",
+   "reqd": 1,
+   "allow_on_submit": 1
   },
   {
-   "fieldname": "column_break_klvn",
-   "fieldtype": "Column Break"
+   "fieldname": "milestones",
+   "fieldtype": "Table",
+   "label": "Milestones",
+   "options": "Marketing Campaign Request Milestone",
+   "allow_on_submit": 1
   },
   {
-   "fieldname": "column_break_tbay",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "column_break_kmsc",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "column_break_abuw",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "campaign_details_tab",
-   "fieldtype": "Tab Break",
-   "label": "Campaign Details"
-  },
-  {
-   "fieldname": "audiance_and_channels_tab",
-   "fieldtype": "Tab Break",
-   "label": "Audiance And Channels"
-  },
-  {
-   "fieldname": "timeline_tab",
-   "fieldtype": "Tab Break",
-   "label": "Timeline"
-  },
-  {
-   "fieldname": "offer_and_package_structure_tab",
-   "fieldtype": "Tab Break",
-   "label": "Offer And Package Structure"
-  },
-  {
-   "fieldname": "campaign_economics_and_financial_projection_tab",
-   "fieldtype": "Tab Break",
-   "label": "Campaign Economics And Financial Projection"
-  },
-  {
-   "fieldname": "budget_tab",
-   "fieldtype": "Tab Break",
+   "fieldname": "budget_section",
+   "fieldtype": "Section Break",
    "label": "Budget"
   },
   {
-   "fieldname": "expected_outcomes_and_kpi_dashboard_tab",
-   "fieldtype": "Tab Break",
-   "label": "Expected Outcomes And KPI Dashboard"
-  },
-  {
-   "fieldname": "content_pillars_and_messaging_tab",
-   "fieldtype": "Tab Break",
-   "label": "Content Pillars And Messaging"
-  },
-  {
-   "fieldname": "campaign_type",
+   "fieldname": "cost_center",
    "fieldtype": "Link",
-   "label": "Campaign Type",
-   "options": "Campaign Type"
+   "label": "Cost Center",
+   "options": "Cost Center",
+   "reqd": 1
   },
   {
-   "fieldname": "channel",
+   "fieldname": "expense_account",
    "fieldtype": "Link",
-   "label": "Channel",
-   "options": "Channel"
+   "label": "Expense Account",
+   "options": "Account",
+   "reqd": 1
   },
   {
-   "fieldname": "column_break_spos",
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "column_break_bud1",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "section_break_aqzg",
-   "fieldtype": "Section Break"
+   "fieldname": "funding_source",
+   "fieldtype": "Select",
+   "label": "Funding Source",
+   "reqd": 1,
+   "options": "\nApproved Annual Marketing Budget\nAdditional Budget Request\nHolding-level Budget\nSupplier or Partner Co-funding"
   },
   {
-   "fieldname": "package_table",
-   "fieldtype": "Table",
-   "label": "Package Table",
-   "options": "Package Table"
+   "fieldname": "budget_remaining",
+   "fieldtype": "Currency",
+   "label": "Budget Remaining at Request",
+   "options": "currency",
+   "read_only": 1,
+   "description": "From ERPNext Budget for this cost center and account, if one exists"
   },
   {
-   "default": "0",
-   "fieldname": "campaign_will_follow_the_tabrah__velo_gym_brand_guidelines",
-   "fieldtype": "Check",
-   "label": "Campaign will follow the Tabrah / Velo Gym Brand Guidelines."
-  },
-  {
-   "default": "0",
-   "fieldname": "creative_brief_required_one_per_content_pillar_5",
-   "fieldtype": "Check",
-   "label": "Creative brief required one per content pillar (5)."
-  },
-  {
-   "fieldname": "supporting_documents_attached_section",
+   "fieldname": "budget_lines_section",
    "fieldtype": "Section Break",
-   "label": "Supporting documents attached"
+   "label": "Budget Lines"
   },
   {
-   "default": "0",
-   "fieldname": "yes",
-   "fieldtype": "Check",
-   "label": "Yes"
+   "fieldname": "budget_items",
+   "fieldtype": "Table",
+   "label": "Budget Lines",
+   "options": "Marketing Campaign Request Budget Item",
+   "reqd": 1
   },
   {
-   "default": "0",
-   "fieldname": "no",
+   "fieldname": "budget_subtotal",
+   "fieldtype": "Currency",
+   "label": "Subtotal",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_bud2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contingency_percent",
+   "fieldtype": "Percent",
+   "label": "Contingency %",
+   "default": "0"
+  },
+  {
+   "fieldname": "contingency_amount",
+   "fieldtype": "Currency",
+   "label": "Contingency Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_budget",
+   "fieldtype": "Currency",
+   "label": "Total Budget Requested",
+   "options": "currency",
+   "read_only": 1,
+   "bold": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "roi_section",
+   "fieldtype": "Section Break",
+   "label": "Financial Projection"
+  },
+  {
+   "fieldname": "expected_revenue",
+   "fieldtype": "Currency",
+   "label": "Expected Revenue",
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "expected_conversions",
+   "fieldtype": "Int",
+   "label": "Expected Conversions",
+   "description": "New customers, members or orders"
+  },
+  {
+   "fieldname": "avg_transaction_value",
+   "fieldtype": "Currency",
+   "label": "Average Transaction Value",
+   "options": "currency"
+  },
+  {
+   "fieldname": "column_break_roi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "projected_roi",
+   "fieldtype": "Percent",
+   "label": "Projected ROI %",
+   "read_only": 1
+  },
+  {
+   "fieldname": "projected_cpa",
+   "fieldtype": "Currency",
+   "label": "Cost per Acquisition",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "break_even_conversions",
+   "fieldtype": "Int",
+   "label": "Break-even Conversions",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kpi_section",
+   "fieldtype": "Section Break",
+   "label": "KPIs & Measurement"
+  },
+  {
+   "fieldname": "kpis",
+   "fieldtype": "Table",
+   "label": "KPIs",
+   "options": "Marketing Campaign Request KPI",
+   "reqd": 1,
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "tracking_section",
+   "fieldtype": "Section Break",
+   "label": "Tracking",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "utm_source",
+   "fieldtype": "Data",
+   "label": "UTM Source"
+  },
+  {
+   "fieldname": "utm_medium",
+   "fieldtype": "Data",
+   "label": "UTM Medium"
+  },
+  {
+   "fieldname": "utm_campaign",
+   "fieldtype": "Data",
+   "label": "UTM Campaign",
+   "read_only": 1,
+   "no_copy": 1,
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "column_break_trk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tracking_url",
+   "fieldtype": "Data",
+   "label": "Tracking Link",
+   "options": "URL"
+  },
+  {
+   "fieldname": "measurement_method",
+   "fieldtype": "Small Text",
+   "label": "Measurement Method",
+   "description": "POS reports, Meta Ads Manager, GA4, delivery-app dashboards"
+  },
+  {
+   "fieldname": "reporting_frequency",
+   "fieldtype": "Select",
+   "label": "Reporting Frequency",
+   "reqd": 1,
+   "default": "End of Campaign",
+   "options": "Weekly\nBi-weekly\nMonthly\nEnd of Campaign"
+  },
+  {
+   "fieldname": "compliance_section",
+   "fieldtype": "Section Break",
+   "label": "Compliance"
+  },
+  {
+   "fieldname": "brand_guidelines_confirmed",
    "fieldtype": "Check",
-   "label": "No"
+   "label": "Campaign follows the brand guidelines of the requesting company"
+  },
+  {
+   "fieldname": "legal_review_required",
+   "fieldtype": "Check",
+   "label": "Legal Review Required",
+   "description": "Influencer contracts, competitions, health or nutrition claims"
+  },
+  {
+   "fieldname": "consent_confirmed",
+   "fieldtype": "Check",
+   "label": "Customer Consent Confirmed",
+   "depends_on": "uses_customer_data",
+   "description": "Direct-marketing consent under Law No. 13 of 2016 (Personal Data Privacy Protection)"
+  },
+  {
+   "fieldname": "column_break_cmp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "moci_permit_required",
+   "fieldtype": "Check",
+   "label": "Requires MoCI Permit",
+   "description": "Rules to be defined by Legal"
+  },
+  {
+   "fieldname": "moci_permit_no",
+   "fieldtype": "Data",
+   "label": "MoCI Permit No.",
+   "depends_on": "moci_permit_required",
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "moci_permit_expiry",
+   "fieldtype": "Date",
+   "label": "MoCI Permit Expiry",
+   "depends_on": "moci_permit_required",
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "risk_section",
+   "fieldtype": "Section Break",
+   "label": "Risks & Dependencies",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "risks",
+   "fieldtype": "Small Text",
+   "label": "Risks & Mitigation"
+  },
+  {
+   "fieldname": "column_break_risk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dependencies",
+   "fieldtype": "Small Text",
+   "label": "Dependencies"
+  },
+  {
+   "fieldname": "attachments_section",
+   "fieldtype": "Section Break",
+   "label": "Attachments"
+  },
+  {
+   "fieldname": "attachments",
+   "fieldtype": "Table",
+   "label": "Attachments",
+   "options": "Marketing Campaign Request Attachment",
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "results_tab",
+   "fieldtype": "Tab Break",
+   "label": "Status & Results"
+  },
+  {
+   "fieldname": "campaign_status_section",
+   "fieldtype": "Section Break",
+   "label": "Campaign Status"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "default": "Draft",
+   "options": "Draft\nApproved\nIn Progress\nOn Hold\nCompleted\nCancelled"
+  },
+  {
+   "fieldname": "spend_section",
+   "fieldtype": "Section Break",
+   "label": "Spend Tracking"
+  },
+  {
+   "fieldname": "committed_spend",
+   "fieldtype": "Currency",
+   "label": "Committed Spend",
+   "options": "currency",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "description": "Submitted Purchase Orders linked to this request"
+  },
+  {
+   "fieldname": "actual_spend",
+   "fieldtype": "Currency",
+   "label": "Actual Spend",
+   "options": "currency",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "description": "Submitted Purchase Invoices, Expense Claims and Journal Entries linked to this request"
+  },
+  {
+   "fieldname": "column_break_spend",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "budget_variance",
+   "fieldtype": "Currency",
+   "label": "Budget Variance",
+   "options": "currency",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "results_section",
+   "fieldtype": "Section Break",
+   "label": "Post-Campaign Results"
+  },
+  {
+   "fieldname": "actual_start_date",
+   "fieldtype": "Date",
+   "label": "Actual Start Date",
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "actual_end_date",
+   "fieldtype": "Date",
+   "label": "Actual End Date",
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "actual_revenue",
+   "fieldtype": "Currency",
+   "label": "Actual Revenue",
+   "options": "currency",
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "actual_roi",
+   "fieldtype": "Percent",
+   "label": "Actual ROI %",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "column_break_res",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "lessons_learned",
+   "fieldtype": "Small Text",
+   "label": "Lessons Learned",
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "post_campaign_report",
+   "fieldtype": "Attach",
+   "label": "Post-Campaign Report",
+   "allow_on_submit": 1,
+   "no_copy": 1
   }
  ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-07-03 14:25:29.420027",
- "modified_by": "Administrator",
- "module": "Hrcustomization Synergy",
- "name": "Marketing Campaign Request",
- "naming_rule": "Expression",
- "owner": "Administrator",
  "permissions": [
   {
+   "role": "System Manager",
+   "permlevel": 0,
+   "read": 1,
+   "write": 1,
    "create": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
    "delete": 1,
-   "email": 1,
+   "report": 1,
    "export": 1,
    "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Marketing User",
+   "permlevel": 0,
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Marketing Manager",
+   "permlevel": 0,
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Line Manager",
+   "permlevel": 0,
+   "read": 1,
+   "write": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "permlevel": 0,
+   "read": 1,
+   "write": 1,
+   "submit": 1,
+   "cancel": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts User",
+   "permlevel": 0,
    "read": 1,
    "report": 1,
+   "print": 1
+  },
+  {
+   "role": "Executive Approver",
+   "permlevel": 0,
+   "read": 1,
+   "write": 1,
+   "submit": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
    "role": "System Manager",
-   "share": 1,
+   "permlevel": 1,
+   "read": 1,
    "write": 1
+  },
+  {
+   "role": "Marketing Manager",
+   "permlevel": 1,
+   "read": 1,
+   "write": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "permlevel": 1,
+   "read": 1,
+   "write": 1
+  },
+  {
+   "role": "Executive Approver",
+   "permlevel": 1,
+   "read": 1,
+   "write": 1
+  },
+  {
+   "role": "Marketing User",
+   "permlevel": 1,
+   "read": 1
+  },
+  {
+   "role": "Line Manager",
+   "permlevel": 1,
+   "read": 1
+  },
+  {
+   "role": "Accounts User",
+   "permlevel": 1,
+   "read": 1
   }
  ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "modified",
+ "sort_field": "request_date",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "links": [
+  {
+   "link_doctype": "Material Request",
+   "link_fieldname": "marketing_campaign_request",
+   "group": "Procurement"
+  },
+  {
+   "link_doctype": "Purchase Order",
+   "link_fieldname": "marketing_campaign_request",
+   "group": "Procurement"
+  },
+  {
+   "link_doctype": "Purchase Invoice",
+   "link_fieldname": "marketing_campaign_request",
+   "group": "Accounts"
+  },
+  {
+   "link_doctype": "Expense Claim",
+   "link_fieldname": "marketing_campaign_request",
+   "group": "Accounts"
+  },
+  {
+   "link_doctype": "Journal Entry",
+   "link_fieldname": "marketing_campaign_request",
+   "group": "Accounts"
+  },
+  {
+   "link_doctype": "Payment Request",
+   "link_fieldname": "marketing_campaign_request",
+   "group": "Accounts"
+  }
+ ],
+ "is_submittable": 1,
+ "autoname": "format:MCR-{company_abbr}-{YYYY}-{#####}",
+ "naming_rule": "Expression",
+ "title_field": "campaign_title",
+ "show_title_field_in_link": 1,
+ "search_fields": "campaign_title,campaign_type,requested_by_name",
+ "track_changes": 1,
+ "track_views": 1,
+ "allow_rename": 0,
+ "quick_entry": 0,
+ "show_name_in_global_search": 1
 }

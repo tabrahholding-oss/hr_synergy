@@ -1,0 +1,84 @@
+{
+ "doctype": "DocType",
+ "name": "Marketing Campaign Request Channel",
+ "module": "Hrcustomization Synergy",
+ "custom": 0,
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "creation": "2026-10-28 17:00:00.000000",
+ "modified": "2026-10-28 17:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "field_order": [
+  "channel",
+  "channel_category",
+  "placement",
+  "start_date",
+  "end_date",
+  "allocated_budget",
+  "currency"
+ ],
+ "fields": [
+  {
+   "fieldname": "channel",
+   "fieldtype": "Link",
+   "label": "Channel",
+   "options": "Channel",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "channel_category",
+   "fieldtype": "Select",
+   "label": "Channel Category",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2,
+   "options": "\nPaid Social\nOrganic Social\nSearch & Display\nInfluencer\nEmail\nSMS & WhatsApp\nWebsite & App\nDelivery Apps\nOutdoor (OOH)\nPrint\nRadio\nIn-store & POS\nEvent & Activation\nPR"
+  },
+  {
+   "fieldname": "placement",
+   "fieldtype": "Data",
+   "label": "Placement / Format",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "allocated_budget",
+   "fieldtype": "Currency",
+   "label": "Allocated Budget",
+   "options": "currency",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "hidden": 1,
+   "read_only": 1
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "links": []
+}

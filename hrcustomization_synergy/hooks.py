@@ -83,7 +83,8 @@ app_license = "agpl-3.0"
 # ------------
 
 # before_install = "hrcustomization_synergy.install.before_install"
-# after_install = "hrcustomization_synergy.install.after_install"
+before_install = "hrcustomization_synergy.setup.ensure_marketing_campaign_roles"
+after_install = "hrcustomization_synergy.setup.setup_marketing_campaign_custom_fields"
 
 # Uninstallation
 # ------------
@@ -217,7 +218,11 @@ fixtures = [
     }, 
 ]
 after_migrate = [
-    "hrcustomization_synergy.setup.create_employee_explorer_page"
+    "hrcustomization_synergy.setup.create_employee_explorer_page",
+    "hrcustomization_synergy.setup.setup_marketing_campaign_custom_fields",
+]
+before_migrate = [
+    "hrcustomization_synergy.setup.ensure_marketing_campaign_roles",
 ]
 
 before_request = [
@@ -243,7 +248,24 @@ doc_events = {
     },
     "Overtime Arrears": {
         "before_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.overtime_arrears.overtime_arrears.create_additional_salary"
-    }
+    },
+    "Purchase Order": {
+        "before_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.check_po_against_budget",
+        "on_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.on_linked_doc_change",
+        "on_cancel": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.on_linked_doc_change",
+    },
+    "Purchase Invoice": {
+        "on_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.on_linked_doc_change",
+        "on_cancel": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.on_linked_doc_change",
+    },
+    "Expense Claim": {
+        "on_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.on_linked_doc_change",
+        "on_cancel": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.on_linked_doc_change",
+    },
+    "Journal Entry": {
+        "on_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.on_linked_doc_change",
+        "on_cancel": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.on_linked_doc_change",
+    },
     # "Leave Application": {
         # "validate": "hrcustomization_synergy.overrides.leave_application.validate_leave_application"
     # }
@@ -253,6 +275,9 @@ doc_events = {
 # ---------------
 
 scheduler_events = {
+    "daily": [
+        "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.daily_update_spend"
+    ],
     "monthly": [
         "hrcustomization_synergy.air_ticket_accrual.accrue_air_tickets"
     ],

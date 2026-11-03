@@ -4,10 +4,80 @@ App-level setup functions — run on after_migrate.
 """
 
 import frappe
+from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 
 EMPLOYEE_EXPLORER_PAGE = "employee-explorer"
 EMPLOYEE_EXPLORER_ROLES = ["Employee Explorer User", "System Manager"]
+
+MARKETING_CAMPAIGN_CUSTOM_FIELDS = {
+    "Material Request": [
+        {
+            "fieldname": "marketing_campaign_request",
+            "label": "Marketing Campaign Request",
+            "fieldtype": "Link",
+            "options": "Marketing Campaign Request",
+            "insert_after": "company",
+            "no_copy": 1,
+            "print_hide": 1,
+        }
+    ],
+    "Purchase Order": [
+        {
+            "fieldname": "marketing_campaign_request",
+            "label": "Marketing Campaign Request",
+            "fieldtype": "Link",
+            "options": "Marketing Campaign Request",
+            "insert_after": "project",
+            "no_copy": 1,
+            "print_hide": 1,
+        }
+    ],
+    "Purchase Invoice": [
+        {
+            "fieldname": "marketing_campaign_request",
+            "label": "Marketing Campaign Request",
+            "fieldtype": "Link",
+            "options": "Marketing Campaign Request",
+            "insert_after": "project",
+            "no_copy": 1,
+            "print_hide": 1,
+        }
+    ],
+    "Expense Claim": [
+        {
+            "fieldname": "marketing_campaign_request",
+            "label": "Marketing Campaign Request",
+            "fieldtype": "Link",
+            "options": "Marketing Campaign Request",
+            "insert_after": "project",
+            "no_copy": 1,
+            "print_hide": 1,
+        }
+    ],
+    "Journal Entry": [
+        {
+            "fieldname": "marketing_campaign_request",
+            "label": "Marketing Campaign Request",
+            "fieldtype": "Link",
+            "options": "Marketing Campaign Request",
+            "insert_after": "company",
+            "no_copy": 1,
+            "print_hide": 1,
+        }
+    ],
+    "Payment Request": [
+        {
+            "fieldname": "marketing_campaign_request",
+            "label": "Marketing Campaign Request",
+            "fieldtype": "Link",
+            "options": "Marketing Campaign Request",
+            "insert_after": "project",
+            "no_copy": 1,
+            "print_hide": 1,
+        }
+    ],
+}
 
 
 def create_employee_explorer_page():
@@ -27,6 +97,20 @@ def create_employee_explorer_page():
         )
 
 
+def setup_marketing_campaign_custom_fields():
+    create_custom_fields(MARKETING_CAMPAIGN_CUSTOM_FIELDS, ignore_validate=True)
+
+
+def ensure_marketing_campaign_roles():
+    for role in ("Marketing Manager", "Marketing User"):
+        if not frappe.db.exists("Role", role):
+            doc = frappe.new_doc("Role")
+            doc.role_name = role
+            doc.desk_access = 1
+            doc.is_custom = 1
+            doc.insert(ignore_permissions=True)
+
+
 def _ensure_page():
     """Page record create/update karein + roles attach karein."""
 
@@ -39,7 +123,7 @@ def _ensure_page():
         doc.title = "Employee Explorer"
 
     # Standard settings
-    doc.module       = "HRCustomization Synergy"
+    doc.module       = "Hrcustomization Synergy"
     doc.standard     = "Yes"
     doc.system_page  = 0
     doc.content      = None
