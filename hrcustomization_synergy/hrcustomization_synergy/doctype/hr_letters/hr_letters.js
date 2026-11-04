@@ -74,6 +74,7 @@ function get_print_format(frm) {
         "HMC NOC Letter": "HMC NOC Letter",
         "Inter-Company Transfer Letter": "Inter-Company Transfer Letter",
         "Inter-Transfer cum Salary Rise": "Inter-Transfer cum Salary Rise",
+        "NOC MARRIAGE": "NOC MARRIAGE",
     };
 
     return format_map[frm.doc.certificate_type];

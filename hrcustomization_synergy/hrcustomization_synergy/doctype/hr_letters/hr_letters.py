@@ -17,6 +17,7 @@ FORMAT_MAP = {
     "HMC NOC Letter": "HMC NOC Letter",
     "Inter-Company Transfer Letter": "Inter-Company Transfer Letter",
     "Inter-Transfer cum Salary Rise": "Inter-Transfer cum Salary Rise",
+    "NOC MARRIAGE": "NOC MARRIAGE",
 
 }
 
