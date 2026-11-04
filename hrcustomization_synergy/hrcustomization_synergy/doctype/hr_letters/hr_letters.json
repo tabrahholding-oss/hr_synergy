@@ -50,6 +50,7 @@
   "column_break_5",
   "purpose",
   "section_break_increment",
+  "salary_increment",
   "increment_percentage",
   "salary_component",
   "section_break_asset",
@@ -443,13 +444,19 @@
    "fieldname": "to_company",
    "fieldtype": "Check",
    "label": "To Company"
+  },
+  {
+   "depends_on": "eval:doc.certificate_type==\"Salary Increment\"",
+   "fieldname": "salary_increment",
+   "fieldtype": "Text",
+   "label": "Salary Increment"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-11-04 12:23:45.340623",
+ "modified": "2026-11-04 14:54:37.376610",
  "modified_by": "Administrator",
  "module": "Hrcustomization Synergy",
  "name": "HR Letters",
