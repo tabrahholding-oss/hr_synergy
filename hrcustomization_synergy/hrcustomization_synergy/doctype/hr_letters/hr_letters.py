@@ -18,6 +18,7 @@ FORMAT_MAP = {
     "Inter-Company Transfer Letter": "Inter-Company Transfer Letter",
     "Inter-Transfer cum Salary Rise": "Inter-Transfer cum Salary Rise",
     "NOC MARRIAGE": "NOC MARRIAGE",
+    "QDC Certificate": "QDC Certificate",
 
 }
 

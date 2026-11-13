@@ -75,6 +75,7 @@ function get_print_format(frm) {
         "Inter-Company Transfer Letter": "Inter-Company Transfer Letter",
         "Inter-Transfer cum Salary Rise": "Inter-Transfer cum Salary Rise",
         "NOC MARRIAGE": "NOC MARRIAGE",
+        "QDC Certificate": "QDC Certificate",
     };
 
     return format_map[frm.doc.certificate_type];
