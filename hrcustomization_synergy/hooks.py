@@ -246,9 +246,6 @@ doc_events = {
     "Leave Encashment": {
         "before_validate": "hrcustomization_synergy.overrides.leave_encashment.cap_encashment_days",
     },
-    "Overtime Arrears": {
-        "before_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.overtime_arrears.overtime_arrears.create_additional_salary"
-    },
     "Purchase Order": {
         "before_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.check_po_against_budget",
         "on_submit": "hrcustomization_synergy.hrcustomization_synergy.doctype.marketing_campaign_request.marketing_campaign_request.on_linked_doc_change",
