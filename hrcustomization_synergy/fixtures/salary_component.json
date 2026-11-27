@@ -1,0 +1,77 @@
+[
+ {
+  "accounts": [
+   {
+    "account": "51215 - Salary Arrears - NH",
+    "company": "Neighborhood",
+    "parent": "Additional Salary",
+    "parentfield": "accounts",
+    "parenttype": "Salary Component"
+   },
+   {
+    "account": "51515 - Salary Arrears - VL",
+    "company": "Velo",
+    "parent": "Additional Salary",
+    "parentfield": "accounts",
+    "parenttype": "Salary Component"
+   },
+   {
+    "account": "51214 - Salary Arrears - ZJ",
+    "company": "Zajel",
+    "parent": "Additional Salary",
+    "parentfield": "accounts",
+    "parenttype": "Salary Component"
+   },
+   {
+    "account": "51201 - Basic Salary - TH",
+    "company": "Tabrah Holding",
+    "parent": "Additional Salary",
+    "parentfield": "accounts",
+    "parenttype": "Salary Component"
+   },
+   {
+    "account": "51215 - Salary Arrear - RM",
+    "company": "Run of the Mill",
+    "parent": "Additional Salary",
+    "parentfield": "accounts",
+    "parenttype": "Salary Component"
+   },
+   {
+    "account": "51215 - Salary Arrear - CE",
+    "company": "Close Enough",
+    "parent": "Additional Salary",
+    "parentfield": "accounts",
+    "parenttype": "Salary Component"
+   }
+  ],
+  "amount": 0.0,
+  "amount_based_on_formula": 0,
+  "condition": null,
+  "create_separate_payment_entry_against_benefit_claim": 0,
+  "deduct_full_tax_on_selected_payroll_date": 0,
+  "depends_on_payment_days": 0,
+  "description": "Additional Salary",
+  "disabled": 0,
+  "do_not_include_in_accounts": 0,
+  "do_not_include_in_total": 0,
+  "docstatus": 0,
+  "doctype": "Salary Component",
+  "exempted_from_income_tax": 0,
+  "formula": null,
+  "is_flexible_benefit": 0,
+  "is_income_tax_component": 0,
+  "is_tax_applicable": 1,
+  "max_benefit_amount": 0.0,
+  "modified": "2026-11-27 10:19:27.572582",
+  "name": "Additional Salary",
+  "only_tax_impact": 0,
+  "pay_against_benefit_claim": 0,
+  "remove_if_zero_valued": 1,
+  "round_to_the_nearest_integer": 1,
+  "salary_component": "Additional Salary",
+  "salary_component_abbr": "ADS",
+  "statistical_component": 0,
+  "type": "Earning",
+  "variable_based_on_taxable_salary": 0
+ }
+]

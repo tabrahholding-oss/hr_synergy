@@ -40,7 +40,7 @@ class OvertimeArrears(Document):
             additional_salary = frappe.get_doc({
                 "doctype": "Additional Salary",
                 "employee": employee,
-                "salary_component": "Arrear Overtime",
+                "salary_component": "Additional Salary",
                 "amount": total_amount,
                 "payroll_date": self.payroll_date or self.to_date,
                 "ref_doctype": "Overtime Arrears",

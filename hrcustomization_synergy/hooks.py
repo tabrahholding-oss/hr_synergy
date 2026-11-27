@@ -199,6 +199,12 @@ fixtures = [
         ]
     },
     {
+        "dt": "Salary Component",
+        "filters": [
+            ["name", "=", "Additional Salary"]
+        ]
+    },
+    {
         "dt": "Property Setter",
         "filters": [
             ["name", "in", [
